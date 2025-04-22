@@ -8,4 +8,3 @@ OSSM wireless remote
 * 2x fuel gauges (one voltage, one current based)
 * Accelerometer
 * 3x rgb led
-* 
