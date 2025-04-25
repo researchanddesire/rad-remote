@@ -687,6 +687,22 @@ void updateScreen()
         firstDraw = false;
     }
 
+    // Draw vertical progress bars for encoders
+    int leftValue = 100 - leftEncoder.readEncoder();
+    int rightValue = 100 - rightEncoder.readEncoder();
+    
+    // Left progress bar
+    drawProgressBar(10, 40, 20, 180, leftValue, 100, ST77XX_MAGENTA);
+    tft.setTextSize(1);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setCursor(40, 40);
+    tft.printf("Left: %d%%", leftValue);
+    
+    // Right progress bar
+    drawProgressBar(290, 40, 20, 180, rightValue, 100, ST77XX_MAGENTA);
+    tft.setCursor(40, 60);
+    tft.printf("Right: %d%%", rightValue);
+
     // Read accelerometer data
     accelX = imu.readFloatAccelX();
     accelY = imu.readFloatAccelY();
@@ -695,7 +711,7 @@ void updateScreen()
     // Draw acceleration values
     tft.setTextSize(2);
     tft.setTextColor(ST77XX_YELLOW);
-    tft.setCursor(40, 40);
+    tft.setCursor(40, 100);
     tft.println("Acceleration");
     
     tft.setTextSize(1);
@@ -703,12 +719,12 @@ void updateScreen()
     
     // Update acceleration values if changed
     if (accelX != lastAccelX || accelY != lastAccelY || accelZ != lastAccelZ) {
-        tft.fillRect(40, 60, 240, 60, ST77XX_BLACK);
-        tft.setCursor(40, 60);
+        tft.fillRect(40, 120, 240, 60, ST77XX_BLACK);
+        tft.setCursor(40, 120);
         tft.printf("X: %.2f m/s^2\n", accelX);
-        tft.setCursor(40, 70);
+        tft.setCursor(40, 130);
         tft.printf("Y: %.2f m/s^2\n", accelY);
-        tft.setCursor(40, 80);
+        tft.setCursor(40, 140);
         tft.printf("Z: %.2f m/s^2\n", accelZ);
         
         lastAccelX = accelX;
@@ -718,8 +734,8 @@ void updateScreen()
     
     // Update battery status if changed
     if (jouleBatteryPercent != lastJouleBatteryPercent) {
-        tft.fillRect(40, 120, 240, 10, ST77XX_BLACK);
-        tft.setCursor(40, 120);
+        tft.fillRect(40, 180, 240, 10, ST77XX_BLACK);
+        tft.setCursor(40, 180);
         tft.printf("Joule Batt: %d%%\n", jouleBatteryPercent);
         lastJouleBatteryPercent = jouleBatteryPercent;
     }
@@ -728,14 +744,14 @@ void updateScreen()
         voltBatteryVoltage != lastVoltBatteryVoltage ||
         maxlipo.chargeRate() != lastChargeRate ||
         jouleBatteryCurrent != lastJouleBatteryCurrent) {
-        tft.fillRect(40, 130, 240, 40, ST77XX_BLACK);
-        tft.setCursor(40, 130);
+        tft.fillRect(40, 190, 240, 40, ST77XX_BLACK);
+        tft.setCursor(40, 190);
         tft.printf("Volt Batt: %d%%\n", voltBatteryPercent);
-        tft.setCursor(40, 140);
+        tft.setCursor(40, 200);
         tft.printf("Voltage: %.2fV\n", voltBatteryVoltage);
-        tft.setCursor(40, 150);
+        tft.setCursor(40, 210);
         tft.printf("Charge Rate: %.2f%%/hr\n", maxlipo.chargeRate());
-        tft.setCursor(40, 160);
+        tft.setCursor(40, 220);
         tft.printf("Current: %d mA\n", jouleBatteryCurrent);
         lastVoltBatteryPercent = voltBatteryPercent;
         lastVoltBatteryVoltage = voltBatteryVoltage;
@@ -746,8 +762,8 @@ void updateScreen()
     // Update full charge capacity if changed
     fullChargeCapacity = readFullChargeCapacity();
     if (fullChargeCapacity != lastFullChargeCapacity) {
-        tft.fillRect(40, 170, 240, 20, ST77XX_BLACK);
-        tft.setCursor(40, 170);
+        tft.fillRect(40, 230, 240, 20, ST77XX_BLACK);
+        tft.setCursor(40, 230);
         tft.printf("Full Capacity: %d mAh\n", fullChargeCapacity);
         lastFullChargeCapacity = fullChargeCapacity;
     }
@@ -755,29 +771,29 @@ void updateScreen()
     // Only update values that have changed
     int16_t currentBrightness = (brightness * 100) / 255;
     if (currentBrightness != lastBrightness) {
-        tft.fillRect(40, 180, 240, 20, ST77XX_BLACK);
-        tft.setCursor(40, 190);
+        tft.fillRect(40, 240, 240, 20, ST77XX_BLACK);
+        tft.setCursor(40, 250);
         tft.printf("Brightness: %d%%\n", currentBrightness);
         lastBrightness = currentBrightness;
     }
     
     if (rainbowSpeed != lastSpeed) {
-        tft.fillRect(40, 190, 240, 20, ST77XX_BLACK);
-        tft.setCursor(40, 200);
+        tft.fillRect(40, 250, 240, 20, ST77XX_BLACK);
+        tft.setCursor(40, 260);
         tft.printf("Speed: %dms\n", rainbowSpeed);
         lastSpeed = rainbowSpeed;
     }
     
     if (vibratorActive != lastVibratorState) {
-        tft.fillRect(40, 210, 240, 20, ST77XX_BLACK);
-        tft.setCursor(40, 220);
+        tft.fillRect(40, 260, 240, 20, ST77XX_BLACK);
+        tft.setCursor(40, 270);
         tft.printf("Vibrator: %s\n", vibratorActive ? "ON" : "OFF");
         lastVibratorState = vibratorActive;
     }
     
     if (buzzerActive != lastBuzzerState) {
-        tft.fillRect(40, 230, 240, 20, ST77XX_BLACK);
-        tft.setCursor(40, 240);
+        tft.fillRect(40, 270, 240, 20, ST77XX_BLACK);
+        tft.setCursor(40, 280);
         tft.printf("Buzzer: %s\n", buzzerActive ? "ON" : "OFF");
         lastBuzzerState = buzzerActive;
     }
@@ -803,31 +819,18 @@ void broadcastEspNow()
         if (result == ESP_OK) {
             Serial.printf("Broadcasting - Brightness: %d, Speed: %d\n", brightness, rainbowSpeed);
             
-            // Enter light sleep if enabled
+            // Enter deep sleep if enabled
             if (enableSleep) {
                 // Configure wake sources
                 esp_sleep_enable_timer_wakeup(450 * 1000); // Wake up 450ms later (50ms before next transmission)
                 
-                // Enter light sleep
-                esp_light_sleep_start();
+                // Save any necessary state before sleep
+                // Note: Most peripherals will need to be reinitialized after wake
                 
-                // After waking up, reinitialize necessary peripherals
-                WiFi.mode(WIFI_STA);
-                if (esp_now_init() != ESP_OK) {
-                    Serial.println("Error reinitializing ESP-NOW after sleep");
-                    return;
-                }
+                // Enter deep sleep
+                esp_deep_sleep_start();
                 
-                // Re-add peer
-                esp_now_peer_info_t peerInfo;
-                memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-                peerInfo.channel = 0;  
-                peerInfo.encrypt = false;
-                
-                if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-                    Serial.println("Failed to re-add peer after sleep");
-                    return;
-                }
+                // Code after this point will not be executed until after wake
             }
         } else {
             Serial.println("Error sending the data");
