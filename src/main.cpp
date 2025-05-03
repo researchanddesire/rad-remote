@@ -83,7 +83,7 @@ unsigned long lastBatteryCheck = 0;
 bool enableSleep = true; // Flag to control sleep functionality
 
 // LSM6DS3TR-C setup
-LSM6DS3 imu;
+LSM6DS3 imu(0x6A); // Initialize with address 0x6A
 float accelX = 0, accelY = 0, accelZ = 0;
 float lastAccelX = 0, lastAccelY = 0, lastAccelZ = 0;
 
@@ -180,7 +180,6 @@ void rainbow(uint8_t wait)
         rainbowIndex = (rainbowIndex + 1) & 255;
     }
 }
-
 // Control variables
 uint8_t brightness = 20;   // Initial brightness (0-255)
 uint8_t rainbowSpeed = 20; // Initial speed (ms delay)
@@ -222,6 +221,7 @@ void IRAM_ATTR readRightEncoder()
 //     vTaskDelete(NULL); // Delete this task when done
 // }
 
+
 // Timer ISR for buzzer PWM
 void IRAM_ATTR buzzerTimerISR(void *arg)
 {
@@ -241,6 +241,8 @@ void updateBatteryStatus()
         voltBatteryPercent = (uint8_t)maxlipo.cellPercent();
         voltBatteryVoltage = maxlipo.cellVoltage();
         float currentChargeRate = maxlipo.chargeRate();
+        Serial.printf("Battery Update - Joule: %d%%, Current: %d mA, Volt: %d%%, Voltage: %.2fV, Charge Rate: %.2f%%/hr\n",
+                      jouleBatteryPercent, jouleBatteryCurrent, voltBatteryPercent, voltBatteryVoltage, currentChargeRate);
     }
 }
 
@@ -413,12 +415,67 @@ EncoderDial leftDial("Speed", "", true, 0, DISPLAY_HEIGHT / 2 - 30);
 // Create a right encoder dial
 EncoderDial rightDial("Depth", "", false, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT / 2 - 30);
 
+void scanI2CDevices()
+{
+    Serial.println("\nScanning I2C bus...");
+    byte error, address;
+    int deviceCount = 0;
+
+    for (address = 1; address < 127; address++)
+    {
+        Wire.beginTransmission(address);
+        error = Wire.endTransmission();
+
+        if (error == 0)
+        {
+            Serial.printf("I2C device found at address 0x%02X\n", address);
+            deviceCount++;
+
+            // Print known device names
+            switch (address)
+            {
+            case 0x20:
+                Serial.println("  -> MCP23017 (GPIO Expander)");
+                break;
+            case 0x36:
+                Serial.println("  -> MAX17048 (Battery Monitor)");
+                break;
+            case 0x55:
+                Serial.println("  -> BQ27220 (Battery Fuel Gauge)");
+                break;
+            case 0x6A:
+                Serial.println("  -> LSM6DS3 (Accelerometer)");
+                break;
+            case 0x6B:
+                Serial.println("  -> LSM6DS3 (Accelerometer - Alternate Address)");
+                break;
+            default:
+                Serial.println("  -> Unknown device");
+                break;
+            }
+        }
+    }
+
+    if (deviceCount == 0)
+    {
+        Serial.println("No I2C devices found!");
+    }
+    else
+    {
+        Serial.printf("Found %d I2C device(s)\n", deviceCount);
+    }
+    Serial.println();
+}
+
 void setup()
 {
     Serial.begin(115200);
 
     // Initialize I2C
     Wire.begin(pins::I2C_SDA, pins::I2C_SCL);
+
+    // Scan for I2C devices
+    scanI2CDevices();
 
     // Set BQ27220 full charge capacity to 500mAh
     setFullChargeCapacity(500);
@@ -432,17 +489,16 @@ void setup()
             delay(10);
         }
     }
-
-    Serial.println("LSM6DS3TR-C Found!");
-
+    else
+    {
+        Serial.println("LSM6DS3TR-C Found!");
+    }
     // // Configure accelerometer
     // imu.settings.accelEnabled = 1;
     // imu.settings.accelRange = 2;  // 2G range
     // imu.settings.accelSampleRate = 104;  // 104Hz
     // imu.settings.accelBandWidth = 10;  // 10Hz bandwidth
-
-    // Apply the settings
-    imu.begin();
+  
 
     // Initialize screen
     pinMode(pins::TFT_BACKLIGHT, OUTPUT);
@@ -576,52 +632,6 @@ void handleBuzzer()
     }
 }
 
-void drawProgressBar(int x, int y, int width, int value, int maxValue, uint16_t color, String &label, String &action, bool isLeft)
-{
-
-    // Draw background
-    tft.drawCircle(x, y, width / 2, 0x7BEF);     // Dark grey color
-    tft.drawCircle(x, y, width / 2 + 4, 0x7BEF); // Dark grey color
-
-    // Center text horizontally with smallest font
-    tft.setTextSize(1);
-    tft.setTextColor(0x7BEF);                // Dark grey color for label
-    int16_t textWidth = label.length() * 6;  // Approximate width based on font size
-    tft.setCursor(x - textWidth / 2, y - 6); // Position label above
-    tft.print(label);
-
-    // Display percentage centered with smallest font
-    String percentStr = String(value) + "%";
-    textWidth = percentStr.length() * 6;
-    tft.setCursor(x - textWidth / 2, y + 6); // Position percentage at center
-    tft.setTextColor(0x7BEF);                // Light gray color for percentage
-    tft.print(percentStr);
-
-    // Draw a small circle with an action label centered below it
-    if (isLeft)
-    {
-        int circleX = x + width / 2;
-        int circleY = y + width / 2;
-        tft.drawCircle(circleX, circleY, 5, 0x7BEF);
-
-        // Center text under the circle
-        int16_t textWidth = action.length() * 6;             // Approximate width based on font size
-        tft.setCursor(circleX - textWidth / 2, circleY + 8); // Position text below circle
-        tft.print(action);
-    }
-    else
-    {
-        int circleX = x - width / 2;
-        int circleY = y + width / 2;
-        tft.drawCircle(circleX, circleY, 5, 0x7BEF);
-
-        // Center text under the circle
-        int16_t textWidth = action.length() * 6;             // Approximate width based on font size
-        tft.setCursor(circleX - textWidth / 2, circleY + 8); // Position text below circle
-        tft.print(action);
-    }
-}
-
 void drawShoulderButtons()
 {
 
@@ -692,7 +702,7 @@ void broadcastEspNow()
     if (millis() - lastEspNowTime >= 500)
     { // Broadcast every 500ms
         lastEspNowTime = millis();
-
+        WiFi.setSleep(false);
         // Update data structure
         myData.brightness = brightness;
         myData.speed = rainbowSpeed;
@@ -703,26 +713,34 @@ void broadcastEspNow()
         if (result == ESP_OK)
         {
             Serial.printf("Broadcasting - Brightness: %d, Speed: %d\n", brightness, rainbowSpeed);
-
-            // Enter deep sleep if enabled
-            if (enableSleep)
-            {
-                // Configure wake sources
-                esp_sleep_enable_timer_wakeup(450 * 1000); // Wake up 450ms later (50ms before next transmission)
-
-                // Save any necessary state before sleep
-                // Note: Most peripherals will need to be reinitialized after wake
-
-                // Enter deep sleep
-                esp_deep_sleep_start();
-
-                // Code after this point will not be executed until after wake
-            }
         }
         else
         {
             Serial.println("Error sending the data");
+            Serial.println(result);
+            Serial.println(esp_err_to_name(result));
         }
+
+        // Configure wake sources
+        // esp_sleep_enable_timer_wakeup(1000 * 1000); // Wake up 450ms later (50ms before next transmission)
+        WiFi.setSleep(true);
+        // Save any necessary state before sleep
+        // Note: Most peripherals will need to be reinitialized after wake
+
+        // Enter light sleep
+        // Enable wake on encoder pins
+        // esp_sleep_enable_ext1_wakeup(BIT(32), ESP_EXT1_WAKEUP_ANY_HIGH); // Left encoder A
+        // esp_sleep_enable_ext1_wakeup(BIT(33), ESP_EXT1_WAKEUP_ANY_HIGH); // Left encoder B
+        // esp_sleep_enable_ext1_wakeup(BIT(34), ESP_EXT1_WAKEUP_ANY_HIGH); // Right encoder A
+        // esp_sleep_enable_ext1_wakeup(BIT(35), ESP_EXT1_WAKEUP_ANY_HIGH); // Right encoder B
+
+        // // Enable wake on MCP23017 interrupt pins
+        // esp_sleep_enable_ext1_wakeup(BIT(16), ESP_EXT1_WAKEUP_ANY_HIGH); // MCP GPIOA
+        // esp_sleep_enable_ext1_wakeup(BIT(17), ESP_EXT1_WAKEUP_ANY_HIGH); // MCP GPIOB
+
+        // esp_light_sleep_start();
+
+        // Code after this point will not be executed until after wake
     }
 }
 
