@@ -29,7 +29,6 @@ Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 #define TFT_SDA 27
 
 // Screen setup
-
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_A0, TFT_RST);
 
 // Function declarations
@@ -88,10 +87,10 @@ int16_t lastJouleBatteryCurrent = 0;
 unsigned long lastBatteryCheck = 0;
 
 // Add to control variables section
-bool enableSleep = true;  // Flag to control sleep functionality
+bool enableSleep = true; // Flag to control sleep functionality
 
 // LSM6DS3TR-C setup
-LSM6DS3  imu;
+LSM6DS3 imu(0x6A); // Initialize with address 0x6A
 float accelX = 0, accelY = 0, accelZ = 0;
 float lastAccelX = 0, lastAccelY = 0, lastAccelZ = 0;
 
@@ -99,22 +98,26 @@ float lastAccelX = 0, lastAccelY = 0, lastAccelZ = 0;
 uint16_t fullChargeCapacity = 0;
 uint16_t lastFullChargeCapacity = 0;
 
-uint16_t readJouleBatteryStatus() {
-  Wire.beginTransmission(BQ27220_ADDR);
-  Wire.write(0x00);  // CONTROL_STATUS command (0x00)
-//   Wire.write(0x00);  // Subcommand MSB
-//   Wire.write(0x00);  // Subcommand LSB
-  Wire.endTransmission(false);  // Restart for read
+uint16_t readJouleBatteryStatus()
+{
+    Wire.beginTransmission(BQ27220_ADDR);
+    Wire.write(0x00);            // CONTROL_STATUS command (0x00)
+                                 //   Wire.write(0x00);  // Subcommand MSB
+                                 //   Wire.write(0x00);  // Subcommand LSB
+    Wire.endTransmission(false); // Restart for read
 
-  Wire.requestFrom(BQ27220_ADDR, 2);
-  if (Wire.available() == 2) {
-    uint8_t lowByte = Wire.read();
-    uint8_t highByte = Wire.read();
-    return (highByte << 8) | lowByte;
-  } else {
-    Serial.println("Failed to read CONTROL_STATUS");
-    return 0xFFFF;
-  }
+    Wire.requestFrom(BQ27220_ADDR, 2);
+    if (Wire.available() == 2)
+    {
+        uint8_t lowByte = Wire.read();
+        uint8_t highByte = Wire.read();
+        return (highByte << 8) | lowByte;
+    }
+    else
+    {
+        Serial.println("Failed to read CONTROL_STATUS");
+        return 0xFFFF;
+    }
 }
 
 uint8_t readJouleBatteryPercent()
@@ -138,7 +141,7 @@ uint8_t readJouleBatteryPercent()
 int16_t readJouleBatteryCurrent()
 {
     Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x0C);  // Current register
+    Wire.write(0x0C); // Current register
     Wire.endTransmission(false);
     Wire.requestFrom(BQ27220_ADDR, 2);
     if (Wire.available() == 2)
@@ -146,20 +149,22 @@ int16_t readJouleBatteryCurrent()
         uint8_t lowByte = Wire.read();
         uint8_t highByte = Wire.read();
         int16_t currentRaw = (highByte << 8) | lowByte;
-        return currentRaw;  // Returns current in mA
+        return currentRaw; // Returns current in mA
     }
     return 0;
 }
 
-uint16_t readFullChargeCapacity() {
+uint16_t readFullChargeCapacity()
+{
     Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x12);  // Full Charge Capacity register
+    Wire.write(0x12); // Full Charge Capacity register
     Wire.endTransmission(false);
     Wire.requestFrom(BQ27220_ADDR, 2);
-    if (Wire.available() == 2) {
+    if (Wire.available() == 2)
+    {
         uint8_t lowByte = Wire.read();
         uint8_t highByte = Wire.read();
-        return (highByte << 8) | lowByte;  // Returns capacity in mAh
+        return (highByte << 8) | lowByte; // Returns capacity in mAh
     }
     return 0;
 }
@@ -207,6 +212,10 @@ Adafruit_MCP23X17 mcp;
 #define CENTER_BTN 13
 #define RIGHT_BTN 14
 
+// MCP23017 interrupt pins
+#define MCP_INTB_PIN 16 // GPIOB interrupt
+#define MCP_INTA_PIN 17 // GPIOA interrupt
+
 // Control variables
 uint8_t brightness = 128;  // Initial brightness (0-255)
 uint8_t rainbowSpeed = 20; // Initial speed (ms delay)
@@ -230,12 +239,22 @@ void IRAM_ATTR readRightEncoder()
 {
     rightEncoder.readEncoder_ISR();
 }
-
 // Button handling task
 void buttonTask(void *parameter)
 {
-    // Check if center button is actually pressed (debounce)
-    if (mcp.digitalRead(CENTER_BTN) == LOW)
+    // Read all button states
+    bool rightShoulder = (mcp.digitalRead(RIGHT_SHOULDER_BTN) == LOW);
+    bool leftShoulder = (mcp.digitalRead(LEFT_SHOULDER_BTN) == LOW);
+    bool leftBtn = (mcp.digitalRead(LEFT_BTN) == LOW);
+    bool centerBtn = (mcp.digitalRead(CENTER_BTN) == LOW);
+    bool rightBtn = (mcp.digitalRead(RIGHT_BTN) == LOW);
+    bool extIO3 = (mcp.digitalRead(EXT_IO3) == LOW);
+    bool extIO4 = (mcp.digitalRead(EXT_IO4) == LOW);
+    bool gyroInt1 = (mcp.digitalRead(GYRO_INT1) == LOW);
+    bool gyroInt2 = (mcp.digitalRead(GYRO_INT2) == LOW);
+
+    // Handle center button press
+    if (centerBtn)
     {
         // Activate vibrator
         vibratorActive = true;
@@ -245,16 +264,37 @@ void buttonTask(void *parameter)
         buzzerActive = true;
         buzzerStartTime = millis();
     }
+
+    // Update last button states
+    lastRightShoulder = rightShoulder;
+    lastLeftShoulder = leftShoulder;
+    lastLeftBtn = leftBtn;
+    lastCenterBtn = centerBtn;
+    lastRightBtn = rightBtn;
+
     vTaskDelete(NULL); // Delete this task when done
 }
-
 // MCP23017 interrupt handler - creates a task to handle the button press
-void IRAM_ATTR handleMCPInterrupt()
+void IRAM_ATTR handleMCPInterruptA()
 {
     TaskHandle_t buttonTaskHandle = NULL;
     xTaskCreatePinnedToCore(
         buttonTask,        // Task function
-        "ButtonTask",      // Task name
+        "ButtonTaskA",     // Task name
+        2048,              // Stack size
+        NULL,              // Task parameters
+        1,                 // Task priority
+        &buttonTaskHandle, // Task handle
+        1                  // Core to run on (core 1)
+    );
+}
+
+void IRAM_ATTR handleMCPInterruptB()
+{
+    TaskHandle_t buttonTaskHandle = NULL;
+    xTaskCreatePinnedToCore(
+        buttonTask,        // Task function
+        "ButtonTaskB",     // Task name
         2048,              // Stack size
         NULL,              // Task parameters
         1,                 // Task priority
@@ -334,8 +374,8 @@ void updateBatteryStatus()
         voltBatteryPercent = (uint8_t)maxlipo.cellPercent();
         voltBatteryVoltage = maxlipo.cellVoltage();
         float currentChargeRate = maxlipo.chargeRate();
-        Serial.printf("Battery Update - Joule: %d%%, Current: %d mA, Volt: %d%%, Voltage: %.2fV, Charge Rate: %.2f%%/hr\n", 
-            jouleBatteryPercent, jouleBatteryCurrent, voltBatteryPercent, voltBatteryVoltage, currentChargeRate);
+        Serial.printf("Battery Update - Joule: %d%%, Current: %d mA, Volt: %d%%, Voltage: %.2fV, Charge Rate: %.2f%%/hr\n",
+                      jouleBatteryPercent, jouleBatteryCurrent, voltBatteryPercent, voltBatteryVoltage, currentChargeRate);
     }
 }
 
@@ -367,118 +407,178 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
     }
 }
 
-void unsealBQ27220() {
+void unsealBQ27220()
+{
     // Send unseal key (0xFFFFFF)
     Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00);  // Control register
-    Wire.write(0xFF);  // Key MSB
-    Wire.write(0xFF);  // Key middle byte
+    Wire.write(0x00); // Control register
+    Wire.write(0xFF); // Key MSB
+    Wire.write(0xFF); // Key middle byte
     Wire.endTransmission();
-    
+
     Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00);  // Control register
-    Wire.write(0xFF);  // Key LSB
-    Wire.write(0xFF);  // Key MSB
+    Wire.write(0x00); // Control register
+    Wire.write(0xFF); // Key LSB
+    Wire.write(0xFF); // Key MSB
     Wire.endTransmission();
-    
+
     Serial.println("BQ27220 unsealed");
 }
 
-void enterConfigUpdateMode() {
+void enterConfigUpdateMode()
+{
     Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00);  // Control register
-    Wire.write(0x13);  // Enter config update mode command
-    Wire.write(0x00);  // Subcommand
+    Wire.write(0x00); // Control register
+    Wire.write(0x13); // Enter config update mode command
+    Wire.write(0x00); // Subcommand
     Wire.endTransmission();
-    
+
     Serial.println("Entered config update mode");
 }
 
-void setDataFlashAddress(uint16_t address) {
+void setDataFlashAddress(uint16_t address)
+{
     Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00);  // Control register
-    Wire.write(0x61);  // Data flash address command
-    Wire.write(address & 0xFF);  // Address low byte
-    Wire.write((address >> 8) & 0xFF);  // Address high byte
+    Wire.write(0x00);                  // Control register
+    Wire.write(0x61);                  // Data flash address command
+    Wire.write(address & 0xFF);        // Address low byte
+    Wire.write((address >> 8) & 0xFF); // Address high byte
     Wire.endTransmission();
-    
+
     Serial.printf("Set data flash address to 0x%04X\n", address);
 }
 
-void writeDataFlash(uint16_t data) {
+void writeDataFlash(uint16_t data)
+{
     Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x40);  // Data flash data register
-    Wire.write(data & 0xFF);  // Data low byte
-    Wire.write((data >> 8) & 0xFF);  // Data high byte
+    Wire.write(0x40);               // Data flash data register
+    Wire.write(data & 0xFF);        // Data low byte
+    Wire.write((data >> 8) & 0xFF); // Data high byte
     Wire.endTransmission();
-    
+
     Serial.printf("Wrote 0x%04X to data flash\n", data);
 }
 
-void updateChecksum() {
+void updateChecksum()
+{
     Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00);  // Control register
-    Wire.write(0x60);  // Update checksum command
-    Wire.write(0x00);  // Subcommand
+    Wire.write(0x00); // Control register
+    Wire.write(0x60); // Update checksum command
+    Wire.write(0x00); // Subcommand
     Wire.endTransmission();
-    
+
     Serial.println("Updated checksum");
 }
 
-void exitConfigUpdateMode() {
+void exitConfigUpdateMode()
+{
     Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00);  // Control register
-    Wire.write(0x42);  // Exit config update mode command
-    Wire.write(0x00);  // Subcommand
+    Wire.write(0x00); // Control register
+    Wire.write(0x42); // Exit config update mode command
+    Wire.write(0x00); // Subcommand
     Wire.endTransmission();
-    
+
     Serial.println("Exited config update mode");
 }
 
-void writeDesignCapacity(uint16_t capacity) {
+void writeDesignCapacity(uint16_t capacity)
+{
     // Set data flash address to Design Capacity (0x0C)
     setDataFlashAddress(0x0C);
     delay(100);
-    
+
     // Write the new capacity value
     writeDataFlash(capacity);
     delay(100);
-    
+
     // Update checksum
     updateChecksum();
     delay(100);
-    
+
     Serial.printf("Set design capacity to %d mAh\n", capacity);
 }
 
-void setFullChargeCapacity(uint16_t capacity) {
+void setFullChargeCapacity(uint16_t capacity)
+{
     // Unseal the device
     unsealBQ27220();
     delay(100);
-    
+
     // Enter config update mode
     enterConfigUpdateMode();
     delay(100);
-    
+
     // Set data flash address to FCC (0x0A)
     setDataFlashAddress(0x0A);
     delay(100);
-    
+
     // Write the new capacity value
     writeDataFlash(capacity);
     delay(100);
-    
+
     // Update checksum
     updateChecksum();
     delay(100);
-    
+
     // Also set the design capacity
     writeDesignCapacity(capacity);
-    
+
     // Exit config update mode
     exitConfigUpdateMode();
-    
+
     Serial.printf("Set full charge capacity to %d mAh\n", capacity);
+}
+
+void scanI2CDevices()
+{
+    Serial.println("\nScanning I2C bus...");
+    byte error, address;
+    int deviceCount = 0;
+
+    for (address = 1; address < 127; address++)
+    {
+        Wire.beginTransmission(address);
+        error = Wire.endTransmission();
+
+        if (error == 0)
+        {
+            Serial.printf("I2C device found at address 0x%02X\n", address);
+            deviceCount++;
+
+            // Print known device names
+            switch (address)
+            {
+            case 0x20:
+                Serial.println("  -> MCP23017 (GPIO Expander)");
+                break;
+            case 0x36:
+                Serial.println("  -> MAX17048 (Battery Monitor)");
+                break;
+            case 0x55:
+                Serial.println("  -> BQ27220 (Battery Fuel Gauge)");
+                break;
+            case 0x6A:
+                Serial.println("  -> LSM6DS3 (Accelerometer)");
+                break;
+            case 0x6B:
+                Serial.println("  -> LSM6DS3 (Accelerometer - Alternate Address)");
+                break;
+            default:
+                Serial.println("  -> Unknown device");
+                break;
+            }
+        }
+    }
+
+    if (deviceCount == 0)
+    {
+        Serial.println("No I2C devices found!");
+    }
+    else
+    {
+        Serial.printf("Found %d I2C device(s)\n", deviceCount);
+    }
+    Serial.println();
 }
 
 void setup()
@@ -488,27 +588,33 @@ void setup()
     // Initialize I2C
     Wire.begin(21, 22); // SDA, SCL
 
+    // Scan for I2C devices
+    scanI2CDevices();
+
     // Set BQ27220 full charge capacity to 500mAh
     setFullChargeCapacity(500);
 
     // Initialize LSM6DS3TR-C
-    if (!imu.begin()) {
+    if (!imu.begin())
+    {
         Serial.println("Failed to find LSM6DS3TR-C chip");
-        while (1) {
+        while (1)
+        {
             delay(10);
         }
     }
-    
-    Serial.println("LSM6DS3TR-C Found!");
-    
+    else
+    {
+        Serial.println("LSM6DS3TR-C Found!");
+    }
     // // Configure accelerometer
     // imu.settings.accelEnabled = 1;
     // imu.settings.accelRange = 2;  // 2G range
     // imu.settings.accelSampleRate = 104;  // 104Hz
     // imu.settings.accelBandWidth = 10;  // 10Hz bandwidth
-    
-    // Apply the settings
-    imu.begin();
+
+    // // Apply the settings
+    // imu.begin();
 
     // Initialize screen
     pinMode(TFT_BACKLIGHT, OUTPUT);
@@ -547,19 +653,26 @@ void setup()
     mcp.pinMode(FUEL_GAUGE, OUTPUT);
 
     // Configure MCP23017 interrupts
-    mcp.setupInterrupts(true, false, LOW);                                   // Enable interrupts, mirror INTA/B, active LOW
-    mcp.setupInterruptPin(CENTER_BTN, CHANGE);                               // Interrupt on any change
-    attachInterrupt(digitalPinToInterrupt(16), handleMCPInterrupt, FALLING); // INT A pin
+    mcp.setupInterrupts(true, false, LOW); // Enable interrupts, mirror INTA/B, active LOW
 
-    // Configure buzzer timer
-    timer_config_t timerConfig = {
-        .alarm_en = TIMER_ALARM_EN,
-        .counter_en = TIMER_PAUSE,
-        .intr_type = TIMER_INTR_LEVEL,
-        .counter_dir = TIMER_COUNT_UP,
-        .auto_reload = TIMER_AUTORELOAD_EN,
-        .divider = 80 // 80MHz / 80 = 1MHz timer frequency
-    };
+    // Configure interrupt pins
+    pinMode(MCP_INTA_PIN, INPUT_PULLUP);
+    pinMode(MCP_INTB_PIN, INPUT_PULLUP);
+
+    // Set up interrupts for all buttons
+    mcp.setupInterruptPin(RIGHT_SHOULDER_BTN, CHANGE);
+    mcp.setupInterruptPin(LEFT_SHOULDER_BTN, CHANGE);
+    mcp.setupInterruptPin(LEFT_BTN, CHANGE);
+    mcp.setupInterruptPin(CENTER_BTN, CHANGE);
+    mcp.setupInterruptPin(RIGHT_BTN, CHANGE);
+    mcp.setupInterruptPin(EXT_IO3, CHANGE);
+    mcp.setupInterruptPin(EXT_IO4, CHANGE);
+    mcp.setupInterruptPin(GYRO_INT1, CHANGE);
+    mcp.setupInterruptPin(GYRO_INT2, CHANGE);
+
+    // Attach interrupt handlers
+    attachInterrupt(digitalPinToInterrupt(MCP_INTA_PIN), handleMCPInterruptA, FALLING);
+    attachInterrupt(digitalPinToInterrupt(MCP_INTB_PIN), handleMCPInterruptB, FALLING);
 
     // Initialize encoders
     leftEncoder.begin();
@@ -690,14 +803,14 @@ void updateScreen()
     // Draw vertical progress bars for encoders
     int leftValue = 100 - leftEncoder.readEncoder();
     int rightValue = 100 - rightEncoder.readEncoder();
-    
+
     // Left progress bar
     drawProgressBar(10, 40, 20, 180, leftValue, 100, ST77XX_MAGENTA);
     tft.setTextSize(1);
     tft.setTextColor(ST77XX_WHITE);
     tft.setCursor(40, 40);
     tft.printf("Left: %d%%", leftValue);
-    
+
     // Right progress bar
     drawProgressBar(290, 40, 20, 180, rightValue, 100, ST77XX_MAGENTA);
     tft.setCursor(40, 60);
@@ -713,12 +826,13 @@ void updateScreen()
     tft.setTextColor(ST77XX_YELLOW);
     tft.setCursor(40, 100);
     tft.println("Acceleration");
-    
+
     tft.setTextSize(1);
     tft.setTextColor(ST77XX_WHITE);
-    
+
     // Update acceleration values if changed
-    if (accelX != lastAccelX || accelY != lastAccelY || accelZ != lastAccelZ) {
+    if (accelX != lastAccelX || accelY != lastAccelY || accelZ != lastAccelZ)
+    {
         tft.fillRect(40, 120, 240, 60, ST77XX_BLACK);
         tft.setCursor(40, 120);
         tft.printf("X: %.2f m/s^2\n", accelX);
@@ -726,24 +840,26 @@ void updateScreen()
         tft.printf("Y: %.2f m/s^2\n", accelY);
         tft.setCursor(40, 140);
         tft.printf("Z: %.2f m/s^2\n", accelZ);
-        
+
         lastAccelX = accelX;
         lastAccelY = accelY;
         lastAccelZ = accelZ;
     }
-    
+
     // Update battery status if changed
-    if (jouleBatteryPercent != lastJouleBatteryPercent) {
+    if (jouleBatteryPercent != lastJouleBatteryPercent)
+    {
         tft.fillRect(40, 180, 240, 10, ST77XX_BLACK);
         tft.setCursor(40, 180);
         tft.printf("Joule Batt: %d%%\n", jouleBatteryPercent);
         lastJouleBatteryPercent = jouleBatteryPercent;
     }
-    
-    if (voltBatteryPercent != lastVoltBatteryPercent || 
+
+    if (voltBatteryPercent != lastVoltBatteryPercent ||
         voltBatteryVoltage != lastVoltBatteryVoltage ||
         maxlipo.chargeRate() != lastChargeRate ||
-        jouleBatteryCurrent != lastJouleBatteryCurrent) {
+        jouleBatteryCurrent != lastJouleBatteryCurrent)
+    {
         tft.fillRect(40, 190, 240, 40, ST77XX_BLACK);
         tft.setCursor(40, 190);
         tft.printf("Volt Batt: %d%%\n", voltBatteryPercent);
@@ -758,40 +874,45 @@ void updateScreen()
         lastChargeRate = maxlipo.chargeRate();
         lastJouleBatteryCurrent = jouleBatteryCurrent;
     }
-    
+
     // Update full charge capacity if changed
     fullChargeCapacity = readFullChargeCapacity();
-    if (fullChargeCapacity != lastFullChargeCapacity) {
+    if (fullChargeCapacity != lastFullChargeCapacity)
+    {
         tft.fillRect(40, 230, 240, 20, ST77XX_BLACK);
         tft.setCursor(40, 230);
         tft.printf("Full Capacity: %d mAh\n", fullChargeCapacity);
         lastFullChargeCapacity = fullChargeCapacity;
     }
-    
+
     // Only update values that have changed
     int16_t currentBrightness = (brightness * 100) / 255;
-    if (currentBrightness != lastBrightness) {
+    if (currentBrightness != lastBrightness)
+    {
         tft.fillRect(40, 240, 240, 20, ST77XX_BLACK);
         tft.setCursor(40, 250);
         tft.printf("Brightness: %d%%\n", currentBrightness);
         lastBrightness = currentBrightness;
     }
-    
-    if (rainbowSpeed != lastSpeed) {
+
+    if (rainbowSpeed != lastSpeed)
+    {
         tft.fillRect(40, 250, 240, 20, ST77XX_BLACK);
         tft.setCursor(40, 260);
         tft.printf("Speed: %dms\n", rainbowSpeed);
         lastSpeed = rainbowSpeed;
     }
-    
-    if (vibratorActive != lastVibratorState) {
+
+    if (vibratorActive != lastVibratorState)
+    {
         tft.fillRect(40, 260, 240, 20, ST77XX_BLACK);
         tft.setCursor(40, 270);
         tft.printf("Vibrator: %s\n", vibratorActive ? "ON" : "OFF");
         lastVibratorState = vibratorActive;
     }
-    
-    if (buzzerActive != lastBuzzerState) {
+
+    if (buzzerActive != lastBuzzerState)
+    {
         tft.fillRect(40, 270, 240, 20, ST77XX_BLACK);
         tft.setCursor(40, 280);
         tft.printf("Buzzer: %s\n", buzzerActive ? "ON" : "OFF");
@@ -808,38 +929,53 @@ void broadcastEspNow()
     if (millis() - lastEspNowTime >= 500)
     { // Broadcast every 500ms
         lastEspNowTime = millis();
-        
+        WiFi.setSleep(false);
         // Update data structure
         myData.brightness = brightness;
         myData.speed = rainbowSpeed;
-        
+
         // Send data
         esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
-        
-        if (result == ESP_OK) {
+
+        if (result == ESP_OK)
+        {
             Serial.printf("Broadcasting - Brightness: %d, Speed: %d\n", brightness, rainbowSpeed);
-            
+
             // Enter deep sleep if enabled
-            if (enableSleep) {
-                // Configure wake sources
-                esp_sleep_enable_timer_wakeup(450 * 1000); // Wake up 450ms later (50ms before next transmission)
-                
-                // Save any necessary state before sleep
-                // Note: Most peripherals will need to be reinitialized after wake
-                
-                // Enter deep sleep
-                esp_deep_sleep_start();
-                
-                // Code after this point will not be executed until after wake
-            }
-        } else {
-            Serial.println("Error sending the data");
         }
+        else
+        {
+            Serial.println("Error sending the data");
+            Serial.println(result);
+            Serial.println(esp_err_to_name(result));
+        }
+
+        // Configure wake sources
+        // esp_sleep_enable_timer_wakeup(1000 * 1000); // Wake up 450ms later (50ms before next transmission)
+        WiFi.setSleep(true);
+        // Save any necessary state before sleep
+        // Note: Most peripherals will need to be reinitialized after wake
+
+        // Enter light sleep
+        // Enable wake on encoder pins
+        // esp_sleep_enable_ext1_wakeup(BIT(32), ESP_EXT1_WAKEUP_ANY_HIGH); // Left encoder A
+        // esp_sleep_enable_ext1_wakeup(BIT(33), ESP_EXT1_WAKEUP_ANY_HIGH); // Left encoder B
+        // esp_sleep_enable_ext1_wakeup(BIT(34), ESP_EXT1_WAKEUP_ANY_HIGH); // Right encoder A
+        // esp_sleep_enable_ext1_wakeup(BIT(35), ESP_EXT1_WAKEUP_ANY_HIGH); // Right encoder B
+
+        // // Enable wake on MCP23017 interrupt pins
+        // esp_sleep_enable_ext1_wakeup(BIT(16), ESP_EXT1_WAKEUP_ANY_HIGH); // MCP GPIOA
+        // esp_sleep_enable_ext1_wakeup(BIT(17), ESP_EXT1_WAKEUP_ANY_HIGH); // MCP GPIOB
+
+        // esp_light_sleep_start();
+
+        // Code after this point will not be executed until after wake
     }
 }
 
 // Add function to toggle sleep functionality
-void toggleSleep() {
+void toggleSleep()
+{
     enableSleep = !enableSleep;
     Serial.printf("Sleep mode %s\n", enableSleep ? "enabled" : "disabled");
 }
