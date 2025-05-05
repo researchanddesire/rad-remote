@@ -19,27 +19,8 @@
 #include "components/TextButton.h"
 #include "services/display.h"
 #include "services/mcp.h"
+#include "services/leds.h"
 #include "components/EncoderDial.h"
-
-// LED strip setup
-Adafruit_NeoPixel strip(pins::NUM_LEDS, pins::LED_PIN, NEO_GRB + NEO_KHZ800);
-
-// Function declarations
-uint32_t Wheel(byte WheelPos)
-{
-    WheelPos = 255 - WheelPos;
-    if (WheelPos < 85)
-    {
-        return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
-    }
-    if (WheelPos < 170)
-    {
-        WheelPos -= 85;
-        return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
-    }
-    WheelPos -= 170;
-    return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
-}
 
 // Add these variables at the top with other control variables
 unsigned long lastRainbowUpdate = 0;
@@ -162,26 +143,7 @@ uint16_t readFullChargeCapacity()
     return 0;
 }
 
-// Non-blocking rainbow function
-void rainbow(uint8_t wait)
-{
-    if (millis() - lastRainbowUpdate >= wait)
-    {
-        lastRainbowUpdate = millis();
-
-        // Update all pixels
-        for (int i = 0; i < strip.numPixels(); i++)
-        {
-            strip.setPixelColor(i, Wheel((i + rainbowIndex) & 255));
-        }
-        strip.show();
-
-        // Increment rainbow index
-        rainbowIndex = (rainbowIndex + 1) & 255;
-    }
-}
 // Control variables
-uint8_t brightness = 20;   // Initial brightness (0-255)
 uint8_t rainbowSpeed = 20; // Initial speed (ms delay)
 unsigned long vibratorStartTime = 0;
 bool vibratorActive = false;
@@ -220,7 +182,6 @@ void IRAM_ATTR readRightEncoder()
 //     }
 //     vTaskDelete(NULL); // Delete this task when done
 // }
-
 
 // Timer ISR for buzzer PWM
 void IRAM_ATTR buzzerTimerISR(void *arg)
@@ -498,7 +459,6 @@ void setup()
     // imu.settings.accelRange = 2;  // 2G range
     // imu.settings.accelSampleRate = 104;  // 104Hz
     // imu.settings.accelBandWidth = 10;  // 10Hz bandwidth
-  
 
     // Initialize screen
     pinMode(pins::TFT_BACKLIGHT, OUTPUT);
@@ -544,11 +504,6 @@ void setup()
     leftEncoder.setEncoderValue(brightness * 100 / 255); // Convert 0-255 to 0-100
     rightEncoder.setEncoderValue(rainbowSpeed);
 
-    // Initialize LED strip
-    strip.begin();
-    strip.setBrightness(brightness);
-    strip.show(); // Initialize all pixels to 'off'
-
     // Initialize battery monitors
     Wire.beginTransmission(BQ27220_ADDR);
     if (Wire.endTransmission() != 0)
@@ -580,24 +535,6 @@ void setup()
     {
         Serial.println("Failed to add peer");
         return;
-    }
-}
-
-void handleEncoders()
-{
-    // Update brightness from left encoder (0-100%)
-    if (leftEncoder.encoderChanged())
-    {
-        uint8_t percent = 100 - leftEncoder.readEncoder(); // Invert direction
-        brightness = (percent * 255) / 100;                // Convert 0-100 to 0-255
-        strip.setBrightness(brightness);
-        strip.show();
-    }
-
-    // Update speed from right encoder (1-100ms)
-    if (rightEncoder.encoderChanged())
-    {
-        rainbowSpeed = 100 - rightEncoder.readEncoder(); // Invert direction
     }
 }
 
@@ -753,7 +690,6 @@ void toggleSleep()
 
 void loop()
 {
-    handleEncoders();
     handleVibrator();
     handleBuzzer();
     updateBatteryStatus();
