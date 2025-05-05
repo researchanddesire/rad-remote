@@ -9,7 +9,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
-#include <Adafruit_MAX1704X.h>
 #include <esp_now.h>
 #include <WiFi.h>
 #include <esp_sleep.h>
@@ -20,6 +19,7 @@
 #include "services/display.h"
 #include "services/mcp.h"
 #include "services/leds.h"
+#include "services/battery.h"
 #include "components/EncoderDial.h"
 
 // Add these variables at the top with other control variables
@@ -43,9 +43,6 @@ bool lastRightBtn = false;
 // BQ27220 registers
 #define BQ27220_SOC 0x2C   // State of Charge register
 #define BQ27220_FLAGS 0x0A // Flags register
-
-// MAX17048 setup
-Adafruit_MAX17048 maxlipo;
 
 // Add to control variables section
 uint8_t jouleBatteryPercent = 0;
@@ -166,23 +163,6 @@ void IRAM_ATTR readRightEncoder()
     rightEncoder.readEncoder_ISR();
 }
 
-// // Button handling task
-// void buttonTask(void *parameter)
-// {
-//     // Check if center button is actually pressed (debounce)
-//     if (mcp.digitalRead(pins::CENTER_BTN) == LOW)
-//     {
-//         // Activate vibrator
-//         vibratorActive = true;
-//         vibratorStartTime = millis();
-
-//         // Activate buzzer
-//         buzzerActive = true;
-//         buzzerStartTime = millis();
-//     }
-//     vTaskDelete(NULL); // Delete this task when done
-// }
-
 // Timer ISR for buzzer PWM
 void IRAM_ATTR buzzerTimerISR(void *arg)
 {
@@ -199,9 +179,9 @@ void updateBatteryStatus()
         lastBatteryCheck = millis();
         jouleBatteryPercent = readJouleBatteryPercent();
         jouleBatteryCurrent = readJouleBatteryCurrent();
-        voltBatteryPercent = (uint8_t)maxlipo.cellPercent();
-        voltBatteryVoltage = maxlipo.cellVoltage();
-        float currentChargeRate = maxlipo.chargeRate();
+        voltBatteryPercent = getBatteryPercent();
+        voltBatteryVoltage = getBatteryVoltage();
+        float currentChargeRate = getChargeRate();
         Serial.printf("Battery Update - Joule: %d%%, Current: %d mA, Volt: %d%%, Voltage: %.2fV, Charge Rate: %.2f%%/hr\n",
                       jouleBatteryPercent, jouleBatteryCurrent, voltBatteryPercent, voltBatteryVoltage, currentChargeRate);
     }
@@ -477,6 +457,12 @@ void setup()
             ;
     }
 
+    // Initialize battery service
+    if (!initBatteryService())
+    {
+        Serial.println("Failed to initialize battery service!");
+    }
+
     // Configure buzzer timer
     timer_config_t timerConfig = {
         .alarm_en = TIMER_ALARM_EN,
@@ -503,18 +489,6 @@ void setup()
     // Set initial values
     leftEncoder.setEncoderValue(brightness * 100 / 255); // Convert 0-255 to 0-100
     rightEncoder.setEncoderValue(rainbowSpeed);
-
-    // Initialize battery monitors
-    Wire.beginTransmission(BQ27220_ADDR);
-    if (Wire.endTransmission() != 0)
-    {
-        Serial.println("Error: BQ27220 not found!");
-    }
-
-    if (!maxlipo.begin())
-    {
-        Serial.println("Error: MAX17048 not found!");
-    }
 
     // Initialize ESP-NOW
     WiFi.mode(WIFI_STA);
