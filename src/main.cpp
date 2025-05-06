@@ -40,23 +40,6 @@ bool lastRightBtn = false;
 // BQ27220 I2C address
 #define BQ27220_ADDR 0x55
 
-// BQ27220 registers
-#define BQ27220_SOC 0x2C   // State of Charge register
-#define BQ27220_FLAGS 0x0A // Flags register
-
-// Add to control variables section
-uint8_t jouleBatteryPercent = 0;
-uint16_t jouleBatteryStatus = 0;
-uint8_t voltBatteryPercent = 0;
-float voltBatteryVoltage = 0.0;
-float lastChargeRate = 0.0;
-int16_t jouleBatteryCurrent = 0;
-uint8_t lastJouleBatteryPercent = 0;
-uint8_t lastVoltBatteryPercent = 0;
-float lastVoltBatteryVoltage = 0.0;
-int16_t lastJouleBatteryCurrent = 0;
-unsigned long lastBatteryCheck = 0;
-
 // Add to control variables section
 bool enableSleep = true; // Flag to control sleep functionality
 
@@ -64,81 +47,6 @@ bool enableSleep = true; // Flag to control sleep functionality
 LSM6DS3 imu(0x6A); // Initialize with address 0x6A
 float accelX = 0, accelY = 0, accelZ = 0;
 float lastAccelX = 0, lastAccelY = 0, lastAccelZ = 0;
-
-// Add to control variables section
-uint16_t fullChargeCapacity = 0;
-uint16_t lastFullChargeCapacity = 0;
-
-uint16_t readJouleBatteryStatus()
-{
-    Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00);            // CONTROL_STATUS command (0x00)
-                                 //   Wire.write(0x00);  // Subcommand MSB
-                                 //   Wire.write(0x00);  // Subcommand LSB
-    Wire.endTransmission(false); // Restart for read
-
-    Wire.requestFrom(BQ27220_ADDR, 2);
-    if (Wire.available() == 2)
-    {
-        uint8_t lowByte = Wire.read();
-        uint8_t highByte = Wire.read();
-        return (highByte << 8) | lowByte;
-    }
-    else
-    {
-        Serial.println("Failed to read CONTROL_STATUS");
-        return 0xFFFF;
-    }
-}
-
-uint8_t readJouleBatteryPercent()
-{
-    Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(BQ27220_SOC);
-    Wire.endTransmission(false);
-    Wire.requestFrom(BQ27220_ADDR, 2);
-    if (Wire.available() == 2)
-    {
-        uint8_t lowByte = Wire.read();
-        uint8_t highByte = Wire.read();
-        // Serial.printf("Joule Battery high byte: %d, low byte: %d\n", highByte, lowByte);
-        uint16_t socRaw = (highByte << 8) | lowByte;
-
-        return socRaw; // SOC is typically returned in 0.01% units
-    }
-    return 1;
-}
-
-int16_t readJouleBatteryCurrent()
-{
-    Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x0C); // Current register
-    Wire.endTransmission(false);
-    Wire.requestFrom(BQ27220_ADDR, 2);
-    if (Wire.available() == 2)
-    {
-        uint8_t lowByte = Wire.read();
-        uint8_t highByte = Wire.read();
-        int16_t currentRaw = (highByte << 8) | lowByte;
-        return currentRaw; // Returns current in mA
-    }
-    return 0;
-}
-
-uint16_t readFullChargeCapacity()
-{
-    Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x12); // Full Charge Capacity register
-    Wire.endTransmission(false);
-    Wire.requestFrom(BQ27220_ADDR, 2);
-    if (Wire.available() == 2)
-    {
-        uint8_t lowByte = Wire.read();
-        uint8_t highByte = Wire.read();
-        return (highByte << 8) | lowByte; // Returns capacity in mAh
-    }
-    return 0;
-}
 
 // Control variables
 uint8_t rainbowSpeed = 20; // Initial speed (ms delay)
@@ -172,21 +80,6 @@ void IRAM_ATTR buzzerTimerISR(void *arg)
     }
 }
 
-void updateBatteryStatus()
-{
-    if (millis() - lastBatteryCheck >= 1000)
-    { // Check every second
-        lastBatteryCheck = millis();
-        jouleBatteryPercent = readJouleBatteryPercent();
-        jouleBatteryCurrent = readJouleBatteryCurrent();
-        voltBatteryPercent = getBatteryPercent();
-        voltBatteryVoltage = getBatteryVoltage();
-        float currentChargeRate = getChargeRate();
-        Serial.printf("Battery Update - Joule: %d%%, Current: %d mA, Volt: %d%%, Voltage: %.2fV, Charge Rate: %.2f%%/hr\n",
-                      jouleBatteryPercent, jouleBatteryCurrent, voltBatteryPercent, voltBatteryVoltage, currentChargeRate);
-    }
-}
-
 // ESP-NOW broadcast address
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -213,128 +106,6 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
     {
         Serial.println("ESP-NOW message failed to send");
     }
-}
-
-void unsealBQ27220()
-{
-    // Send unseal key (0xFFFFFF)
-    Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00); // Control register
-    Wire.write(0xFF); // Key MSB
-    Wire.write(0xFF); // Key middle byte
-    Wire.endTransmission();
-
-    Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00); // Control register
-    Wire.write(0xFF); // Key LSB
-    Wire.write(0xFF); // Key MSB
-    Wire.endTransmission();
-
-    Serial.println("BQ27220 unsealed");
-}
-
-void enterConfigUpdateMode()
-{
-    Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00); // Control register
-    Wire.write(0x13); // Enter config update mode command
-    Wire.write(0x00); // Subcommand
-    Wire.endTransmission();
-
-    Serial.println("Entered config update mode");
-}
-
-void setDataFlashAddress(uint16_t address)
-{
-    Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00);                  // Control register
-    Wire.write(0x61);                  // Data flash address command
-    Wire.write(address & 0xFF);        // Address low byte
-    Wire.write((address >> 8) & 0xFF); // Address high byte
-    Wire.endTransmission();
-
-    Serial.printf("Set data flash address to 0x%04X\n", address);
-}
-
-void writeDataFlash(uint16_t data)
-{
-    Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x40);               // Data flash data register
-    Wire.write(data & 0xFF);        // Data low byte
-    Wire.write((data >> 8) & 0xFF); // Data high byte
-    Wire.endTransmission();
-
-    Serial.printf("Wrote 0x%04X to data flash\n", data);
-}
-
-void updateChecksum()
-{
-    Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00); // Control register
-    Wire.write(0x60); // Update checksum command
-    Wire.write(0x00); // Subcommand
-    Wire.endTransmission();
-
-    Serial.println("Updated checksum");
-}
-
-void exitConfigUpdateMode()
-{
-    Wire.beginTransmission(BQ27220_ADDR);
-    Wire.write(0x00); // Control register
-    Wire.write(0x42); // Exit config update mode command
-    Wire.write(0x00); // Subcommand
-    Wire.endTransmission();
-
-    Serial.println("Exited config update mode");
-}
-
-void writeDesignCapacity(uint16_t capacity)
-{
-    // Set data flash address to Design Capacity (0x0C)
-    setDataFlashAddress(0x0C);
-    delay(100);
-
-    // Write the new capacity value
-    writeDataFlash(capacity);
-    delay(100);
-
-    // Update checksum
-    updateChecksum();
-    delay(100);
-
-    Serial.printf("Set design capacity to %d mAh\n", capacity);
-}
-
-void setFullChargeCapacity(uint16_t capacity)
-{
-    // Unseal the device
-    unsealBQ27220();
-    delay(100);
-
-    // Enter config update mode
-    enterConfigUpdateMode();
-    delay(100);
-
-    // Set data flash address to FCC (0x0A)
-    setDataFlashAddress(0x0A);
-    delay(100);
-
-    // Write the new capacity value
-    writeDataFlash(capacity);
-    delay(100);
-
-    // Update checksum
-    updateChecksum();
-    delay(100);
-
-    // Also set the design capacity
-    writeDesignCapacity(capacity);
-
-    // Exit config update mode
-    exitConfigUpdateMode();
-
-    Serial.printf("Set full charge capacity to %d mAh\n", capacity);
 }
 
 // Top bumpers
@@ -545,26 +316,16 @@ void handleBuzzer()
 
 void drawShoulderButtons()
 {
-
     int buttonWidth = 60;
     int buttonHeight = 25;
     int buttonRadius = 5;
 
-    // tft.drawRoundRect(0, 0, buttonWidth, buttonHeight, buttonRadius, 0x7BEF);
     tft.drawRoundRect(DISPLAY_WIDTH - buttonWidth, 0, buttonWidth, buttonHeight, buttonRadius, 0x7BEF);
     tft.setTextColor(0x7BEF);
 
-    // // Center "left" text in left button
-    // tft.setTextSize(1);
-    int16_t textWidth = 4 * 6; // "left" is 4 characters, approx 6 pixels per character
-    int16_t textX = (buttonWidth - textWidth) / 2;
+    int16_t textWidth = 5 * 6; // "right" is 5 characters
+    int16_t textX = DISPLAY_WIDTH - buttonWidth + (buttonWidth - textWidth) / 2;
     int16_t textY = (buttonHeight - 8) / 2; // 8 is approx height of text
-    // tft.setCursor(textX, textY);
-    // tft.print("back up");
-
-    // Center "right" text in right button
-    textWidth = 5 * 6; // "right" is 5 characters
-    textX = DISPLAY_WIDTH - buttonWidth + (buttonWidth - textWidth) / 2;
     tft.setCursor(textX, textY);
     tft.print("deeper");
 }
@@ -632,26 +393,7 @@ void broadcastEspNow()
             Serial.println(esp_err_to_name(result));
         }
 
-        // Configure wake sources
-        // esp_sleep_enable_timer_wakeup(1000 * 1000); // Wake up 450ms later (50ms before next transmission)
         WiFi.setSleep(true);
-        // Save any necessary state before sleep
-        // Note: Most peripherals will need to be reinitialized after wake
-
-        // Enter light sleep
-        // Enable wake on encoder pins
-        // esp_sleep_enable_ext1_wakeup(BIT(32), ESP_EXT1_WAKEUP_ANY_HIGH); // Left encoder A
-        // esp_sleep_enable_ext1_wakeup(BIT(33), ESP_EXT1_WAKEUP_ANY_HIGH); // Left encoder B
-        // esp_sleep_enable_ext1_wakeup(BIT(34), ESP_EXT1_WAKEUP_ANY_HIGH); // Right encoder A
-        // esp_sleep_enable_ext1_wakeup(BIT(35), ESP_EXT1_WAKEUP_ANY_HIGH); // Right encoder B
-
-        // // Enable wake on MCP23017 interrupt pins
-        // esp_sleep_enable_ext1_wakeup(BIT(16), ESP_EXT1_WAKEUP_ANY_HIGH); // MCP GPIOA
-        // esp_sleep_enable_ext1_wakeup(BIT(17), ESP_EXT1_WAKEUP_ANY_HIGH); // MCP GPIOB
-
-        // esp_light_sleep_start();
-
-        // Code after this point will not be executed until after wake
     }
 }
 
@@ -667,10 +409,6 @@ void loop()
     handleVibrator();
     handleBuzzer();
     updateBatteryStatus();
-    // broadcastEspNow(); // Add ESP-NOW broadcasting
-
-    // // Show rainbow effect with current speed
-    // rainbow(rainbowSpeed);
 
     leftDial.setValue(100 - leftEncoder.readEncoder());
     rightDial.setValue(100 - rightEncoder.readEncoder());
@@ -678,8 +416,6 @@ void loop()
     // Print debug info every 2 seconds
     if (millis() - lastDebugTime >= 50)
     {
-        // updateScreen();
-
         topLeftBumper.tick();
         topRightBumper.tick();
 
@@ -712,6 +448,4 @@ void loop()
     {
         rightDial.setTextAndValue("Depth", 100 - rightEncoder.readEncoder());
     }
-
-    // delay(1); // Small delay to prevent overwhelming the system
 }
