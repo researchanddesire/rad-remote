@@ -158,47 +158,13 @@ void setup()
     // Scan for I2C devices
     scanI2CDevices();
 
-    // Set BQ27220 full charge capacity to 500mAh
-    setFullChargeCapacity(500);
-
-    // Initialize IMU service
-    if (!initIMUService())
-    {
-        Serial.println("Failed to initialize IMU service!");
-        while (1)
-        {
-            delay(10);
-        }
-    }
-
-    // Initialize screen
-    pinMode(pins::TFT_BACKLIGHT, OUTPUT);
-    digitalWrite(pins::TFT_BACKLIGHT, HIGH);
-    SPI.begin(pins::TFT_SCK, -1, pins::TFT_SDA, -1);
-    tft.init(240, 320); // Initialize with screen dimensions
-    tft.setRotation(1); // Landscape mode
-    tft.fillScreen(ST77XX_BLACK);
-    tft.setTextColor(ST77XX_WHITE);
-    tft.setTextSize(1);
-
-    // Initialize MCP23017
-    if (!initMCP())
-    {
-        while (1)
-            ;
-    }
-
-    // Initialize battery service
-    if (!initBatteryService())
-    {
-        Serial.println("Failed to initialize battery service!");
-    }
-
-    // Initialize encoder service
+    initBattery(500);
+    initIMUService();
+    initDisplay();
+    initMCP();
     initEncoderService();
-
-    // Initialize buzzer
     initBuzzer();
+    initVibrator();
 
     // Initialize ESP-NOW
     WiFi.mode(WIFI_STA);
@@ -220,9 +186,6 @@ void setup()
         Serial.println("Failed to add peer");
         return;
     }
-
-    // Initialize vibrator
-    initVibrator();
 }
 
 void broadcastEspNow()
@@ -301,7 +264,7 @@ void loop()
     if (millis() - lastVibratorTime >= 2000)
     {
         lastVibratorTime = millis();
-        playVibratorPattern(VibratorPattern::TRIPLE_PULSE);
-        playBuzzerPattern(BuzzerPattern::SINGLE_BEEP);
+        playVibratorPattern(VibratorPattern::SINGLE_PULSE);
+        playBuzzerPattern(BuzzerPattern::TRIPLE_BEEP);
     }
 }

@@ -7,4 +7,7 @@
 // Global TFT instance
 extern Adafruit_ST7789 tft;
 
+// Initialize the display
+bool initDisplay();
+
 #endif

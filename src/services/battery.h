@@ -15,6 +15,7 @@ extern Adafruit_MAX17048 batteryService;
 
 // Function declarations
 bool initBatteryService();
+bool initBattery(uint16_t fullChargeCapacity = 500); // Default to 500mAh if not specified
 
 // MAX17048 functions
 uint8_t getBatteryPercent();
