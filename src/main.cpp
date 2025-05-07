@@ -12,7 +12,6 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include <esp_sleep.h>
-#include "SparkFunLSM6DS3.h"
 #include "pins.h"
 #include "constants.h"
 #include "components/TextButton.h"
@@ -20,7 +19,10 @@
 #include "services/mcp.h"
 #include "services/leds.h"
 #include "services/battery.h"
+#include "services/imu.h"
 #include "components/EncoderDial.h"
+#include "utils/buzzer.h"
+#include "utils/vibrator.h"
 
 // Add these variables at the top with other control variables
 unsigned long lastRainbowUpdate = 0;
@@ -37,25 +39,15 @@ bool lastLeftBtn = false;
 bool lastCenterBtn = false;
 bool lastRightBtn = false;
 
-// BQ27220 I2C address
-#define BQ27220_ADDR 0x55
-
 // Add to control variables section
 bool enableSleep = true; // Flag to control sleep functionality
 
-// LSM6DS3TR-C setup
-LSM6DS3 imu(0x6A); // Initialize with address 0x6A
-float accelX = 0, accelY = 0, accelZ = 0;
-float lastAccelX = 0, lastAccelY = 0, lastAccelZ = 0;
-
 // Control variables
 uint8_t rainbowSpeed = 20; // Initial speed (ms delay)
-unsigned long vibratorStartTime = 0;
-bool vibratorActive = false;
 unsigned long lastDebugTime = 0;
-bool buzzerActive = false;
-unsigned long buzzerStartTime = 0;
 static unsigned long lastToggle = 0;
+static long lastBuzzerTime = 0;
+static long lastVibratorTime = 0;
 
 // Rotary encoder instances
 AiEsp32RotaryEncoder leftEncoder = AiEsp32RotaryEncoder(pins::LEFT_ENCODER_A, pins::LEFT_ENCODER_B, -1, -1);
@@ -69,15 +61,6 @@ void IRAM_ATTR readLeftEncoder()
 void IRAM_ATTR readRightEncoder()
 {
     rightEncoder.readEncoder_ISR();
-}
-
-// Timer ISR for buzzer PWM
-void IRAM_ATTR buzzerTimerISR(void *arg)
-{
-    if (buzzerActive)
-    {
-        mcp.digitalWrite(pins::BUZZER, !mcp.digitalRead(pins::BUZZER));
-    }
 }
 
 // ESP-NOW broadcast address
@@ -192,24 +175,15 @@ void setup()
     // Set BQ27220 full charge capacity to 500mAh
     setFullChargeCapacity(500);
 
-    // Initialize LSM6DS3TR-C
-    if (!imu.begin())
+    // Initialize IMU service
+    if (!initIMUService())
     {
-        Serial.println("Failed to find LSM6DS3TR-C chip");
+        Serial.println("Failed to initialize IMU service!");
         while (1)
         {
             delay(10);
         }
     }
-    else
-    {
-        Serial.println("LSM6DS3TR-C Found!");
-    }
-    // // Configure accelerometer
-    // imu.settings.accelEnabled = 1;
-    // imu.settings.accelRange = 2;  // 2G range
-    // imu.settings.accelSampleRate = 104;  // 104Hz
-    // imu.settings.accelBandWidth = 10;  // 10Hz bandwidth
 
     // Initialize screen
     pinMode(pins::TFT_BACKLIGHT, OUTPUT);
@@ -234,15 +208,8 @@ void setup()
         Serial.println("Failed to initialize battery service!");
     }
 
-    // Configure buzzer timer
-    timer_config_t timerConfig = {
-        .alarm_en = TIMER_ALARM_EN,
-        .counter_en = TIMER_PAUSE,
-        .intr_type = TIMER_INTR_LEVEL,
-        .counter_dir = TIMER_COUNT_UP,
-        .auto_reload = TIMER_AUTORELOAD_EN,
-        .divider = 80 // 80MHz / 80 = 1MHz timer frequency
-    };
+    // Initialize buzzer
+    initBuzzer();
 
     // Initialize encoders
     leftEncoder.begin();
@@ -281,92 +248,9 @@ void setup()
         Serial.println("Failed to add peer");
         return;
     }
-}
 
-void handleVibrator()
-{
-    if (vibratorActive && (millis() - vibratorStartTime >= 1000))
-    {
-        vibratorActive = false;
-        mcp.digitalWrite(pins::VIBRATOR, LOW);
-    }
-    else if (vibratorActive && (millis() - vibratorStartTime < 1000))
-    {
-        mcp.digitalWrite(pins::VIBRATOR, HIGH);
-    }
-}
-
-void handleBuzzer()
-{
-    if (buzzerActive)
-    {
-        buzzerStartTime = millis();
-        while (millis() - buzzerStartTime <= 500)
-        {
-            buzzerActive = false;
-            // Toggle buzzer every 1ms
-
-            mcp.digitalWrite(pins::BUZZER, HIGH);
-            delay(1);
-            mcp.digitalWrite(pins::BUZZER, LOW);
-        }
-        mcp.digitalWrite(pins::BUZZER, LOW);
-    }
-}
-
-void drawShoulderButtons()
-{
-    int buttonWidth = 60;
-    int buttonHeight = 25;
-    int buttonRadius = 5;
-
-    tft.drawRoundRect(DISPLAY_WIDTH - buttonWidth, 0, buttonWidth, buttonHeight, buttonRadius, 0x7BEF);
-    tft.setTextColor(0x7BEF);
-
-    int16_t textWidth = 5 * 6; // "right" is 5 characters
-    int16_t textX = DISPLAY_WIDTH - buttonWidth + (buttonWidth - textWidth) / 2;
-    int16_t textY = (buttonHeight - 8) / 2; // 8 is approx height of text
-    tft.setCursor(textX, textY);
-    tft.print("deeper");
-}
-
-void drawBottomButtons()
-{
-    int buttonWidth = 60;
-    int buttonHeight = 25;
-    int buttonRadius = 5;
-
-    // bottom left and bottom right
-    tft.drawRoundRect(0, DISPLAY_HEIGHT - buttonHeight, buttonWidth, buttonHeight, buttonRadius, 0x7BEF);
-    tft.drawRoundRect(DISPLAY_WIDTH - buttonWidth, DISPLAY_HEIGHT - buttonHeight, buttonWidth, buttonHeight, buttonRadius, 0x7BEF);
-
-    // text - centered in buttons
-    tft.setTextColor(0x7BEF);
-    tft.setTextSize(1);
-
-    // Center "left" text in bottom left button
-    int16_t leftTextWidth = 4 * 6; // "left" is 4 characters, approx 6 pixels per character
-    int16_t leftTextX = (buttonWidth - leftTextWidth) / 2;
-    int16_t textY = (buttonHeight - 8) / 2; // 8 is approx height of text
-    tft.setCursor(leftTextX, DISPLAY_HEIGHT - buttonHeight + textY);
-    tft.print("left");
-
-    // Center "right" text in bottom right button
-    int16_t rightTextWidth = 5 * 6; // "right" is 5 characters
-    int16_t rightTextX = DISPLAY_WIDTH - buttonWidth + (buttonWidth - rightTextWidth) / 2;
-    tft.setCursor(rightTextX, DISPLAY_HEIGHT - buttonHeight + textY);
-    tft.print("right");
-
-    // and two small icon buttons, also rounded rect but near the center of the screen
-    // Calculate positions to center the two small buttons
-    int centerSpacing = 20;             // Space between the two center buttons
-    int smallButtonSize = buttonHeight; // Using buttonHeight for square buttons
-    int leftCenterX = DISPLAY_WIDTH / 2 - smallButtonSize - centerSpacing / 2;
-    int rightCenterX = DISPLAY_WIDTH / 2 + centerSpacing / 2;
-
-    // Draw the two centered buttons
-    tft.drawRoundRect(leftCenterX, DISPLAY_HEIGHT - buttonHeight, smallButtonSize, smallButtonSize, buttonRadius, 0x7BEF);
-    tft.drawRoundRect(rightCenterX, DISPLAY_HEIGHT - buttonHeight, smallButtonSize, smallButtonSize, buttonRadius, 0x7BEF);
+    // Initialize vibrator
+    initVibrator();
 }
 
 void broadcastEspNow()
@@ -397,18 +281,10 @@ void broadcastEspNow()
     }
 }
 
-// Add function to toggle sleep functionality
-void toggleSleep()
-{
-    enableSleep = !enableSleep;
-    Serial.printf("Sleep mode %s\n", enableSleep ? "enabled" : "disabled");
-}
-
 void loop()
 {
-    handleVibrator();
-    handleBuzzer();
     updateBatteryStatus();
+    updateIMUReadings();
 
     leftDial.setValue(100 - leftEncoder.readEncoder());
     rightDial.setValue(100 - rightEncoder.readEncoder());
@@ -447,5 +323,13 @@ void loop()
     else
     {
         rightDial.setTextAndValue("Depth", 100 - rightEncoder.readEncoder());
+    }
+
+    // every 2 seconds run the vibrator
+    if (millis() - lastVibratorTime >= 2000)
+    {
+        lastVibratorTime = millis();
+        playVibratorPattern(VibratorPattern::TRIPLE_PULSE);
+        playBuzzerPattern(BuzzerPattern::SINGLE_BEEP);
     }
 }
