@@ -2,7 +2,6 @@
 #include <Wire.h>
 #include <Adafruit_MCP23X17.h>
 #include <Adafruit_NeoPixel.h>
-#include <AiEsp32RotaryEncoder.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <driver/timer.h>
@@ -20,6 +19,7 @@
 #include "services/leds.h"
 #include "services/battery.h"
 #include "services/imu.h"
+#include "services/encoder.h"
 #include "components/EncoderDial.h"
 #include "utils/buzzer.h"
 #include "utils/vibrator.h"
@@ -48,20 +48,6 @@ unsigned long lastDebugTime = 0;
 static unsigned long lastToggle = 0;
 static long lastBuzzerTime = 0;
 static long lastVibratorTime = 0;
-
-// Rotary encoder instances
-AiEsp32RotaryEncoder leftEncoder = AiEsp32RotaryEncoder(pins::LEFT_ENCODER_A, pins::LEFT_ENCODER_B, -1, -1);
-AiEsp32RotaryEncoder rightEncoder = AiEsp32RotaryEncoder(pins::RIGHT_ENCODER_A, pins::RIGHT_ENCODER_B, -1, -1);
-
-void IRAM_ATTR readLeftEncoder()
-{
-    leftEncoder.readEncoder_ISR();
-}
-
-void IRAM_ATTR readRightEncoder()
-{
-    rightEncoder.readEncoder_ISR();
-}
 
 // ESP-NOW broadcast address
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
@@ -208,25 +194,11 @@ void setup()
         Serial.println("Failed to initialize battery service!");
     }
 
+    // Initialize encoder service
+    initEncoderService();
+
     // Initialize buzzer
     initBuzzer();
-
-    // Initialize encoders
-    leftEncoder.begin();
-    rightEncoder.begin();
-
-    leftEncoder.setup(readLeftEncoder);
-    rightEncoder.setup(readRightEncoder);
-
-    // Set encoder boundaries and step size
-    leftEncoder.setBoundaries(0, 100, false);  // 0-100% brightness
-    leftEncoder.setAcceleration(0);            // No acceleration for linear response
-    rightEncoder.setBoundaries(1, 100, false); // 1-100ms delay
-    rightEncoder.setAcceleration(0);           // No acceleration for linear response
-
-    // Set initial values
-    leftEncoder.setEncoderValue(brightness * 100 / 255); // Convert 0-255 to 0-100
-    rightEncoder.setEncoderValue(rainbowSpeed);
 
     // Initialize ESP-NOW
     WiFi.mode(WIFI_STA);
