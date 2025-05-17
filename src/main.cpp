@@ -52,8 +52,8 @@ static long lastBuzzerTime = 0;
 static long lastVibratorTime = 0;
 
 // Top bumpers
-TextButton topLeftBumper("modify", pins::LEFT_SHOULDER_BTN, 0, 0);
-TextButton topRightBumper("modify", pins::RIGHT_SHOULDER_BTN, DISPLAY_WIDTH - 60, 0);
+TextButton topLeftBumper("<-", pins::LEFT_SHOULDER_BTN, 0, 0);
+TextButton topRightBumper("->", pins::RIGHT_SHOULDER_BTN, DISPLAY_WIDTH - 60, 0);
 
 // Bottom bumpers
 TextButton bottomLeftBumper("Home", pins::LEFT_BTN, 0, DISPLAY_HEIGHT - 25);
