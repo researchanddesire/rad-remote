@@ -18,6 +18,8 @@ bool initMCP()
         return false;
     }
 
+    Serial.println("MCP23017 initialized successfully");
+
     // Configure MCP23017 pins
     // Input pins with pull-up
     mcp.pinMode(pins::RIGHT_SHOULDER_BTN, INPUT_PULLUP);
@@ -35,6 +37,13 @@ bool initMCP()
     mcp.pinMode(pins::VIBRATOR, OUTPUT);
     mcp.pinMode(pins::REGULATOR_EN, OUTPUT);
     mcp.pinMode(pins::FUEL_GAUGE, OUTPUT);
+
+    // Test buzzer pin
+    Serial.println("Testing buzzer pin...");
+    mcp.digitalWrite(pins::BUZZER, HIGH);
+    delay(100);
+    mcp.digitalWrite(pins::BUZZER, LOW);
+    Serial.println("Buzzer test complete");
 
     // Configure MCP23017 interrupts
     // mcp.setupInterrupts(true, false, LOW);                                                  // Enable interrupts, mirror INTA/B, active LOW

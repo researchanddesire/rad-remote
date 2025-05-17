@@ -24,6 +24,10 @@ const PatternInfo PATTERN_MAP[] = {
     {TRIPLE_PULSE, sizeof(TRIPLE_PULSE) / sizeof(TRIPLE_PULSE[0])},
     {ERROR_PULSE, sizeof(ERROR_PULSE) / sizeof(ERROR_PULSE[0])}};
 
+// Task configuration constants
+constexpr uint32_t VIBRATOR_TASK_STACK_SIZE = 2 * configMINIMAL_STACK_SIZE; // 2 * minimum stack size (1024)
+constexpr UBaseType_t VIBRATOR_TASK_PRIORITY = 1;
+
 void vibratorTask(void *parameter)
 {
     VibratorPattern pattern = *((VibratorPattern *)parameter);
@@ -54,6 +58,9 @@ void vibratorTask(void *parameter)
     // Ensure vibrator is off at the end
     mcp.digitalWrite(pins::VIBRATOR, LOW);
 
+    // pause for 100ms between patterns
+    vTaskDelay(pdMS_TO_TICKS(100));
+
     vibratorActive = false;
     vibratorTaskHandle = NULL;
     vTaskDelete(NULL);
@@ -61,7 +68,8 @@ void vibratorTask(void *parameter)
 
 void initVibrator()
 {
-    // Nothing to initialize for now
+    // set mcp to low
+    mcp.digitalWrite(pins::VIBRATOR, LOW);
 }
 
 void playVibratorPattern(VibratorPattern pattern)
@@ -71,28 +79,40 @@ void playVibratorPattern(VibratorPattern pattern)
     {
         vTaskDelete(vibratorTaskHandle);
         vibratorTaskHandle = NULL;
+        vibratorActive = false;
     }
 
     // Create new parameter for the task
     VibratorPattern *patternParam = new VibratorPattern(pattern);
+    if (patternParam == nullptr)
+    {
+        return; // Memory allocation failed
+    }
 
     // Create the task
-    vibratorActive = true;
-    xTaskCreate(
-        vibratorTask,       // Task function
-        "VibratorTask",     // Task name
-        2048,               // Stack size
-        patternParam,       // Parameter
-        1,                  // Priority
-        &vibratorTaskHandle // Task handle
+    BaseType_t taskCreated = xTaskCreate(
+        vibratorTask,             // Task function
+        "VibratorTask",           // Task name
+        VIBRATOR_TASK_STACK_SIZE, // Stack size
+        patternParam,             // Parameter
+        VIBRATOR_TASK_PRIORITY,   // Priority
+        &vibratorTaskHandle       // Task handle
     );
+
+    if (taskCreated != pdPASS)
+    {
+        delete patternParam; // Clean up if task creation failed
+        return;
+    }
+
+    vibratorActive = true;
 }
 
 void stopVibrator()
 {
-    if (vibratorActive && vibratorTaskHandle != NULL)
+    // if no task is running, just set the mcp to low JUST to be safe.
+    if (vibratorTaskHandle == NULL)
     {
-        vTaskDelete(vibratorTaskHandle);
         vibratorTaskHandle = NULL;
         mcp.digitalWrite(pins::VIBRATOR, LOW);
         vibratorActive = false;

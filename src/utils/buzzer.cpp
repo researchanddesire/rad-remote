@@ -4,52 +4,58 @@
 static TaskHandle_t buzzerTaskHandle = NULL;
 static bool buzzerActive = false;
 
-// Pattern timing constants (in milliseconds)
-const int BEEP_DURATION = 100;
-const int BEEP_GAP = 100;
-const int ERROR_BEEP_DURATION = 300;
+// Internal pattern definitions
+const unsigned short SINGLE_BEEP[] = {100};
+const unsigned short DOUBLE_BEEP[] = {100, 100, 100};
+const unsigned short TRIPLE_BEEP[] = {100, 100, 100, 100, 100};
+const unsigned short ERROR_BEEP[] = {300};
+
+// Pattern mapping structure
+struct PatternInfo
+{
+    const unsigned short *pattern;
+    size_t length;
+};
+
+// Pattern lookup table
+const PatternInfo PATTERN_MAP[] = {
+    {SINGLE_BEEP, sizeof(SINGLE_BEEP) / sizeof(SINGLE_BEEP[0])},
+    {DOUBLE_BEEP, sizeof(DOUBLE_BEEP) / sizeof(DOUBLE_BEEP[0])},
+    {TRIPLE_BEEP, sizeof(TRIPLE_BEEP) / sizeof(TRIPLE_BEEP[0])},
+    {ERROR_BEEP, sizeof(ERROR_BEEP) / sizeof(ERROR_BEEP[0])}};
 
 void buzzerTask(void *parameter)
 {
     BuzzerPattern pattern = *((BuzzerPattern *)parameter);
     delete (BuzzerPattern *)parameter; // Clean up the parameter
 
-    switch (pattern)
+    Serial.printf("Starting buzzer pattern %d\n", static_cast<int>(pattern));
+
+    // Get pattern info from lookup table
+    const PatternInfo &info = PATTERN_MAP[static_cast<int>(pattern)];
+    const unsigned short *durations = info.pattern;
+    size_t length = info.length;
+
+    // Play the pattern
+    for (size_t i = 0; i < length; i++)
     {
-    case BuzzerPattern::SINGLE_BEEP:
-        mcp.digitalWrite(pins::BUZZER, HIGH);
-        vTaskDelay(pdMS_TO_TICKS(BEEP_DURATION));
-        mcp.digitalWrite(pins::BUZZER, LOW);
-        break;
-
-    case BuzzerPattern::DOUBLE_BEEP:
-        for (int i = 0; i < 2; i++)
+        if (i % 2 == 0)
         {
+            // Even indices are beep durations
             mcp.digitalWrite(pins::BUZZER, HIGH);
-            vTaskDelay(pdMS_TO_TICKS(BEEP_DURATION));
-            mcp.digitalWrite(pins::BUZZER, LOW);
-            if (i < 1)
-                vTaskDelay(pdMS_TO_TICKS(BEEP_GAP));
+            vTaskDelay(pdMS_TO_TICKS(durations[i]));
         }
-        break;
-
-    case BuzzerPattern::TRIPLE_BEEP:
-        for (int i = 0; i < 3; i++)
+        else
         {
-            mcp.digitalWrite(pins::BUZZER, HIGH);
-            vTaskDelay(pdMS_TO_TICKS(BEEP_DURATION));
+            // Odd indices are pause durations
             mcp.digitalWrite(pins::BUZZER, LOW);
-            if (i < 2)
-                vTaskDelay(pdMS_TO_TICKS(BEEP_GAP));
+            vTaskDelay(pdMS_TO_TICKS(durations[i]));
         }
-        break;
-
-    case BuzzerPattern::ERROR_BEEP:
-        mcp.digitalWrite(pins::BUZZER, HIGH);
-        vTaskDelay(pdMS_TO_TICKS(ERROR_BEEP_DURATION));
-        mcp.digitalWrite(pins::BUZZER, LOW);
-        break;
     }
+
+    // Ensure buzzer is off at the end
+    mcp.digitalWrite(pins::BUZZER, LOW);
+    Serial.println("Buzzer pattern complete");
 
     buzzerActive = false;
     buzzerTaskHandle = NULL;

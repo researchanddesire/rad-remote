@@ -6,93 +6,124 @@
 #include <Adafruit_ST77xx.h>
 #include "services/display.h"
 #include "services/mcp.h"
+#include <map>
+#include "utils/vibrator.h"
+#include "utils/buzzer.h"
 
 class EncoderDial : public DisplayButton
 {
 private:
     static bool lastButtonState;
-    mutable String label;
+    std::map<String, int> parameters;
     const String action;
     const bool isLeft;
-    int value;
-    const int maxValue;
     const uint16_t color;
+    const int maxValue = 100;
+    int focusedIndex = 0; // Track which arc is focused
 
-    void fillArc(int centerX, int centerY, int innerRadius, int outerRadius, int startAngle, int endAngle, uint16_t color)
+    void drawArc(int arcRadius, int centerX, int centerY, int fillSteps, int steps, int circleRadius, bool isFocused)
     {
-        // Convert angles to radians
-        float startRad = startAngle * PI / 180.0;
-        float endRad = endAngle * PI / 180.0;
+        int startAngle = 0;
+        int endAngle = 270;
 
-        // Calculate optimal number of steps based on arc size (angle difference)
-        // More steps for larger arcs to ensure smooth rendering
-        int arcDegrees = abs(endAngle - startAngle);
-        int steps = max(arcDegrees, 12); // At least 1 step per degree, minimum 12 steps
-        steps = min(steps, 256);         // Cap at 256 steps for performance
-
-        // Pre-calculate angle step
-        float angleStep = (endRad - startRad) / steps;
-
-        // Draw triangles for each step
-        for (int i = 0; i < steps; i++)
+        for (int i = steps - 1; i >= 0; i--)
         {
-            float angle1 = startRad + angleStep * i;
-            float angle2 = startRad + angleStep * (i + 1);
-
-            // Calculate points for the triangle
-            int x1 = centerX + innerRadius * cos(angle1);
-            int y1 = centerY + innerRadius * sin(angle1);
-            int x2 = centerX + outerRadius * cos(angle1);
-            int y2 = centerY + outerRadius * sin(angle1);
-            int x3 = centerX + outerRadius * cos(angle2);
-            int y3 = centerY + outerRadius * sin(angle2);
-
-            // Draw filled triangle
-            canvas->fillTriangle(x1, y1, x2, y2, x3, y3, color);
-
-            // Draw second triangle to complete the segment
-            x3 = centerX + innerRadius * cos(angle2);
-            y3 = centerY + innerRadius * sin(angle2);
-            canvas->fillTriangle(x1, y1, x2, y2, x3, y3, color);
+            float angle = (startAngle + (i * (endAngle - startAngle) / steps)) * PI / 180.0;
+            int x = centerX + arcRadius * cos(angle + 3 * PI / 4);
+            int y = centerY + arcRadius * sin(angle + 3 * PI / 4);
+            if (i < fillSteps || i == 0)
+            {
+                canvas->fillCircle(x, y, circleRadius, isFocused ? ST77XX_WHITE : 0xAD55);
+            }
+            else
+            {
+                canvas->fillCircle(x, y, circleRadius, 0x7BEF); // Dark gray color
+            }
         }
     }
 
 public:
-    EncoderDial(const String &label, const String &action, bool isLeft, int16_t x, int16_t y, int16_t width = 60, int16_t height = 60)
+    EncoderDial(const std::map<String, int> &initialParams, const String &action, bool isLeft, int16_t x, int16_t y, int16_t width = 90, int16_t height = 90)
         : DisplayButton(x, y, width, height),
-          label(label),
+          parameters(initialParams),
           action(action),
           isLeft(isLeft),
-          value(0),
-          maxValue(100),
           color(ST77XX_WHITE)
     {
     }
 
-    void setValue(int newValue)
+    void setFocusedIndex(int index)
     {
-        if (newValue != value)
+        if (index >= 0 && index < parameters.size() && focusedIndex != index)
         {
-            value = newValue;
+            focusedIndex = index;
             isDirty = true;
         }
     }
 
-    void setTextAndValue(const String &newLabel, int newValue)
+    int getFocusedIndex()
     {
-        bool needsUpdate = false;
-        if (newLabel != label)
+        return focusedIndex;
+    }
+
+    void setParameters(const std::map<String, int> &newParams)
+    {
+        if (newParams != parameters)
         {
-            label = newLabel;
-            needsUpdate = true;
+            parameters = newParams;
+            isDirty = true;
         }
-        if (newValue != value)
+    }
+
+    void setParameter(int value)
+    {
+        if (parameters.size() == 0)
+            return;
+
+        auto it = parameters.begin();
+        std::advance(it, focusedIndex);
+        if (it != parameters.end() && it->second != value)
         {
-            value = newValue;
-            needsUpdate = true;
+            // Check if we're crossing 0% or 100% boundary
+            if ((it->second != 0 && value == 0) || (it->second != 100 && value == 100))
+            {
+                playVibratorPattern(VibratorPattern::SINGLE_PULSE);
+                playBuzzerPattern(BuzzerPattern::SINGLE_BEEP);
+            }
+
+            it->second = value;
+            isDirty = true;
         }
-        if (needsUpdate)
+    }
+
+    int getParameter() const
+    {
+        ESP_LOGI("EncoderDial", "Getting parameter");
+        int safeIndex = focusedIndex % parameters.size();
+
+        auto it = parameters.begin();
+        std::advance(it, safeIndex);
+        ESP_LOGI("EncoderDial", "Parameter: %d", it->second);
+        return it->second;
+    }
+
+    String getParameterName() const
+    {
+        if (parameters.size() == 0)
+            return "";
+
+        auto it = parameters.begin();
+        std::advance(it, focusedIndex);
+        return it != parameters.end() ? it->first : "";
+    }
+
+    // Keep the old method for backward compatibility but mark it as deprecated
+    [[deprecated("Use setParameter(int value) instead")]]
+    void setParameter(const String &name, int value)
+    {
+        if (parameters[name] != value)
         {
+            parameters[name] = value;
             isDirty = true;
         }
     }
@@ -106,45 +137,67 @@ public:
     {
         canvas->fillScreen(ST77XX_BLACK);
 
-        // Draw background circles
+        int steps = 100;
+        int circleRadius = 2;
+        int maxArcRadius = width / 2 - circleRadius;
+        int arcSpacing = maxArcRadius / (parameters.size() + 1); // Space between arcs
+
         int centerX = width / 2;
         int centerY = height / 2;
-        int outerRadius = width / 2;
-        int innerRadius = width / 2 - 4;
 
-        // Draw the base circles
-        canvas->drawCircle(centerX, centerY, outerRadius, ST77XX_WHITE); // Dark grey color
-        canvas->drawCircle(centerX, centerY, innerRadius, ST77XX_WHITE); // Dark grey color
+        // Draw arcs for each parameter
+        int arcIndex = 0;
+        for (const auto &param : parameters)
+        {
+            int currentRadius = maxArcRadius - (arcIndex * arcSpacing);
+            int fillSteps = (param.second * steps) / maxValue;
+            drawArc(currentRadius, centerX, centerY, fillSteps, steps, circleRadius, arcIndex == focusedIndex);
+            arcIndex++;
+        }
 
-        // Fill the arc based on value percentage, starting from top (90 degrees)
-        int fillAngle = (value * 360) / maxValue;
-        fillArc(centerX, centerY, innerRadius, outerRadius, 90, 90 + fillAngle, ST77XX_WHITE);
-
-        // Draw label
+        // Draw focused parameter label at bottom
         canvas->setTextSize(1);
         canvas->setTextColor(ST77XX_WHITE);
-        int16_t textWidth = label.length() * 6;
-        canvas->setCursor(centerX - textWidth / 2, centerY - 6);
-        canvas->print(label);
 
-        // Draw percentage
-        String percentStr = String(value) + "%";
-        textWidth = percentStr.length() * 6;
-        canvas->setCursor(centerX - textWidth / 2, centerY + 6);
-        canvas->print(percentStr);
+        // Find the focused parameter
+        auto it = parameters.begin();
+        std::advance(it, focusedIndex);
+        if (it != parameters.end())
+        {
+            // Draw parameter name at bottom
+            String label = it->first;
+            int16_t textWidth = label.length() * 6; // 6 pixels per character at text size 1
+            canvas->setCursor(centerX - textWidth / 2, height - 10);
+            canvas->print(label);
 
-        // // Draw action indicator
-        // int circleX = isLeft ? centerX + width / 2 : centerX - width / 2;
-        // int circleY = centerY + width / 2;
-        // canvas->drawCircle(circleX, circleY, 5, 0x7BEF);
+            // Draw large percentage in center
+            String percentStr = String(it->second);
+            textWidth = percentStr.length() * 6; // Approximate width for 9pt font
+            canvas->setCursor(centerX - textWidth / 2, centerY - 10);
+            canvas->print(percentStr);
+        }
 
-        // // Draw action text
-        // textWidth = action.length() * 6;
-        // canvas->setCursor(circleX - textWidth / 2, circleY + 8);
-        // canvas->print(action);
-
-        // Draw the canvas to the screen
         tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
+    }
+
+    int incrementFocus()
+    {
+        ESP_LOGI("EncoderDial", "Incrementing focus");
+        if (parameters.size() > 0)
+        {
+            setFocusedIndex((focusedIndex + 1) % parameters.size());
+            ESP_LOGI("EncoderDial", "Focused index: %d", focusedIndex);
+        }
+        return getParameter();
+    }
+
+    int decrementFocus()
+    {
+        if (parameters.size() > 0)
+        {
+            setFocusedIndex((focusedIndex - 1 + parameters.size()) % parameters.size());
+        }
+        return getParameter();
     }
 };
 

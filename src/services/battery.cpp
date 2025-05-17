@@ -18,6 +18,21 @@ unsigned long lastBatteryCheck = 0;
 uint16_t fullChargeCapacity = 0;
 uint16_t lastFullChargeCapacity = 0;
 
+bool initBattery(uint16_t fullChargeCapacity)
+{
+    // Initialize the MAX17048 service
+    if (!initBatteryService())
+    {
+        Serial.println("Failed to initialize MAX17048 battery service!");
+        return false;
+    }
+
+    // Set the full charge capacity
+    setFullChargeCapacity(fullChargeCapacity);
+
+    return true;
+}
+
 bool initBatteryService()
 {
     if (!batteryService.begin())
