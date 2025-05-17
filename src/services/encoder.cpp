@@ -24,9 +24,9 @@ void initEncoderService()
     rightEncoder.setup(readRightEncoder);
 
     // Set encoder boundaries and step size
-    leftEncoder.setBoundaries(0, 100, false);  // 0-100% brightness
+    leftEncoder.setBoundaries(0, 100, false);  // 0-100% speed
     leftEncoder.setAcceleration(0);            // No acceleration for linear response
-    rightEncoder.setBoundaries(1, 100, false); // 1-100ms delay
+    rightEncoder.setBoundaries(0, 100, false); // 0-100% focus switcher on "stroke", "sensation", "depth", etc
     rightEncoder.setAcceleration(0);           // No acceleration for linear response
 
     // Set initial values

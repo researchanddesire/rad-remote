@@ -42,14 +42,12 @@ void buzzerTask(void *parameter)
         if (i % 2 == 0)
         {
             // Even indices are beep durations
-            Serial.println("Buzzer ON");
             mcp.digitalWrite(pins::BUZZER, HIGH);
             vTaskDelay(pdMS_TO_TICKS(durations[i]));
         }
         else
         {
             // Odd indices are pause durations
-            Serial.println("Buzzer OFF");
             mcp.digitalWrite(pins::BUZZER, LOW);
             vTaskDelay(pdMS_TO_TICKS(durations[i]));
         }
