@@ -9,7 +9,8 @@
 
 // template <typename Event>
 //
-const auto is_valid = [](const base_event &event, sender &s)
+template <typename Event>
+const auto is_valid = [](const Event &event, sender &s)
 {
     ESP_LOGI("TEST", "is_valid");
     return true;
