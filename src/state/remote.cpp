@@ -11,12 +11,14 @@ SettingPercents settings = {
 sender s{};
 
 // Static pointer to hold the state machine instance
-static sml::sm<ossm_remote_state> *stateMachine = nullptr;
+sml::sm<ossm_remote_state> *stateMachine = nullptr;
 
 void initStateMachine()
 {
     if (stateMachine == nullptr)
     {
         stateMachine = new sml::sm<ossm_remote_state>(s);
+
+        stateMachine->process_event(done{});
     }
 }

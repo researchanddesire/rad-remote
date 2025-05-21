@@ -7,4 +7,6 @@
 
 void drawControllerTask(void *pvParameters);
 
+void drawPatternMenuTask(void *pvParameters);
+
 #endif

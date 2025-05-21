@@ -1,12 +1,39 @@
 #include "mcp.h"
 #include "pins.h"
 #include <Arduino.h>
+#include "state/remote.h"
 
 Adafruit_MCP23X17 mcp;
 
+static bool interrupted = false;
 void handleMCPInterrupt()
 {
-    Serial.println("MCP Interrupt");
+    interrupted = true;
+}
+void mcpTask(void *pvParameters)
+{
+    while (true)
+    {
+        if (!interrupted)
+        {
+            vTaskDelay(100);
+            continue;
+        }
+
+        // Check button states
+        bool leftBtn = !mcp.digitalRead(pins::LEFT_BTN); // Inverted due to pullup
+        bool centerBtn = !mcp.digitalRead(pins::CENTER_BTN);
+        bool rightBtn = !mcp.digitalRead(pins::RIGHT_BTN);
+
+        if (leftBtn)
+            stateMachine->process_event(left_button_pressed());
+        if (centerBtn)
+            stateMachine->process_event(middle_button_pressed());
+        if (rightBtn)
+            stateMachine->process_event(right_button_pressed());
+
+        interrupted = false;
+    }
 }
 
 bool initMCP()
@@ -38,17 +65,19 @@ bool initMCP()
     mcp.pinMode(pins::REGULATOR_EN, OUTPUT);
     mcp.pinMode(pins::FUEL_GAUGE, OUTPUT);
 
-    // Test buzzer pin
-    Serial.println("Testing buzzer pin...");
-    mcp.digitalWrite(pins::BUZZER, HIGH);
-    delay(100);
-    mcp.digitalWrite(pins::BUZZER, LOW);
-    Serial.println("Buzzer test complete");
+    mcp.setupInterrupts(true, false, LOW); // Enable interrupts, mirror INTA/B, active LOW
+    mcp.setupInterruptPin(pins::CENTER_BTN, CHANGE);
+    mcp.setupInterruptPin(pins::RIGHT_BTN, CHANGE);
+    mcp.setupInterruptPin(pins::LEFT_BTN, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(pins::MCP_INT_PIN), handleMCPInterrupt, FALLING); // INT A pin
 
-    // Configure MCP23017 interrupts
-    // mcp.setupInterrupts(true, false, LOW);                                                  // Enable interrupts, mirror INTA/B, active LOW
-    // mcp.setupInterruptPin(pins::CENTER_BTN, CHANGE);                                        // Interrupt on any change
-    // attachInterrupt(digitalPinToInterrupt(pins::MCP_INT_PIN), handleMCPInterrupt, FALLING); // INT A pin
+    xTaskCreatePinnedToCore(
+        mcpTask,
+        "mcpTask",
+        2048,
+        NULL,
+        5,
+        NULL, 0);
 
     return true;
 }

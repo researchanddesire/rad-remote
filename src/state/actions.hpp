@@ -18,8 +18,12 @@ namespace actions
 
     auto drawControl = [](sender &s)
     {
-        // start 'drawControlTask'
-        xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 15 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 0);
+        xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+    };
+
+    auto drawPatternMenu = [](sender &s)
+    {
+        xTaskCreatePinnedToCore(drawPatternMenuTask, "drawPatternMenuTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
     };
 
 } // namespace actions

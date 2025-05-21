@@ -148,12 +148,19 @@ void setup()
         "espnowTask", 4 * configMINIMAL_STACK_SIZE, nullptr, 1, nullptr, 0);
 
     initStateMachine();
-}
 
-void loop()
-{
+    using namespace sml;
+    auto result = stateMachine->is("ossm_control"_s);
+    Serial.printf("Initial state is ossm_control: %s\n", result ? "true" : "false");
+
     updateBatteryStatus();
     updateIMUReadings();
 
     stopVibrator();
+}
+
+void loop()
+{
+    // delete the loop task. Everything is managed by the state machine now.
+    vTaskDelete(NULL);
 }

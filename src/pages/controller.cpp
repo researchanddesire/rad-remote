@@ -6,6 +6,7 @@
 #include <state/remote.h>
 #include <services/encoder.h>
 
+using namespace sml;
 void drawControllerTask(void *pvParameters)
 {
 
@@ -38,7 +39,12 @@ void drawControllerTask(void *pvParameters)
     bool currentLeftShoulderState = HIGH;
     bool currentRightShoulderState = HIGH;
 
-    while (true)
+    auto isInCorrectState = []()
+    {
+        return stateMachine->is("ossm_control"_s);
+    };
+
+    while (isInCorrectState())
     {
 
         settings.speed = 100 - leftEncoder.readEncoder();
@@ -95,6 +101,30 @@ void drawControllerTask(void *pvParameters)
         rightDial.tick();
 
         vTaskDelay(50 / portTICK_PERIOD_MS);
+    }
+
+    vTaskDelete(NULL);
+}
+
+void drawPatternMenuTask(void *pvParameters)
+{
+
+    auto isInCorrectState = []()
+    {
+        return stateMachine->is("ossm_pattern_menu"_s);
+    };
+
+    while (isInCorrectState())
+    {
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+            tft.fillScreen(ST77XX_BLACK);
+            tft.setTextSize(1);
+            tft.setTextColor(ST77XX_WHITE);
+            tft.setCursor(0, 0);
+            tft.println("Pattern Menu");
+            xSemaphoreGive(displayMutex);
+        }
     }
 
     vTaskDelete(NULL);

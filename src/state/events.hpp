@@ -23,3 +23,27 @@ struct release : public base_event
 struct timeout : public base_event
 {
 };
+
+struct left_shoulder_pressed : public base_event
+{
+};
+
+struct right_shoulder_pressed : public base_event
+{
+};
+
+struct left_button_pressed : public base_event
+{
+};
+
+struct right_button_pressed : public base_event
+{
+};
+
+struct middle_button_pressed : public base_event
+{
+};
+
+struct done : public base_event
+{
+};
