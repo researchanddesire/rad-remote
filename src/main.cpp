@@ -13,14 +13,12 @@
 #include <esp_sleep.h>
 #include "pins.h"
 #include "constants.h"
-#include "components/TextButton.h"
 #include "services/display.h"
 #include "services/mcp.h"
 #include "services/leds.h"
 #include "services/battery.h"
 #include "services/imu.h"
 #include "services/encoder.h"
-#include "components/EncoderDial.h"
 #include "utils/buzzer.h"
 #include "utils/vibrator.h"
 #include "services/coms.h"
@@ -51,31 +49,8 @@ static unsigned long lastToggle = 0;
 static long lastBuzzerTime = 0;
 static long lastVibratorTime = 0;
 
-// Top bumpers
-TextButton topLeftBumper("<-", pins::LEFT_SHOULDER_BTN, 0, 0);
-TextButton topRightBumper("->", pins::RIGHT_SHOULDER_BTN, DISPLAY_WIDTH - 60, 0);
-
-// Bottom bumpers
-TextButton bottomLeftBumper("Home", pins::LEFT_BTN, 0, DISPLAY_HEIGHT - 25);
-TextButton bottomRightBumper("Patterns", pins::RIGHT_BTN, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25);
-
-TextButton centerButton("STOP", pins::CENTER_BTN, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
-
 // Add to control variables section
 static TaskHandle_t buttonUpdateTaskHandle = NULL;
-
-// Create a left encoder dial with Speed parameter
-std::map<String, int> leftParams = {
-    {"Speed", 0}};
-EncoderDial leftDial(leftParams, "", true, 0, DISPLAY_HEIGHT / 2 - 30);
-
-// Create a right encoder dial with all parameters
-std::map<String, int> rightParams = {
-    {"Stroke", 0},
-    {"Depth", 0},
-    {"Sens.", 0}};
-
-EncoderDial rightDial(rightParams, "", false, DISPLAY_WIDTH - 90, DISPLAY_HEIGHT / 2 - 30);
 
 // Add these variables at the top with other global variables
 int currentRightParamIndex = 0;
@@ -171,74 +146,14 @@ void setup()
             }
         },
         "espnowTask", 4 * configMINIMAL_STACK_SIZE, nullptr, 1, nullptr, 0);
+
+    initStateMachine();
 }
 
 void loop()
 {
     updateBatteryStatus();
     updateIMUReadings();
-
-    settings.speed = 100 - leftEncoder.readEncoder();
-    leftDial.setParameter(settings.speed);
-
-    if (rightDial.getFocusedIndex() == 0)
-    {
-        settings.stroke = 100 - rightEncoder.readEncoder();
-        rightDial.setParameter(settings.stroke);
-    }
-    else if (rightDial.getFocusedIndex() == 1)
-    {
-        settings.depth = 100 - rightEncoder.readEncoder();
-        rightDial.setParameter(settings.depth);
-    }
-    else if (rightDial.getFocusedIndex() == 2)
-    {
-        settings.sensation = 100 - rightEncoder.readEncoder();
-        rightDial.setParameter(settings.sensation);
-    }
-
-    // Handle shoulder button presses for parameter cycling
-    static bool lastLeftShoulderState = HIGH;
-    static bool lastRightShoulderState = HIGH;
-
-    bool currentLeftShoulderState = mcp.digitalRead(pins::LEFT_SHOULDER_BTN);
-    bool currentRightShoulderState = mcp.digitalRead(pins::RIGHT_SHOULDER_BTN);
-
-    // Check for falling edge (button press) on right shoulder
-    if (currentRightShoulderState == LOW && lastRightShoulderState == HIGH)
-    {
-        // Increment focus
-        int newParameter = rightDial.incrementFocus();
-        rightEncoder.setEncoderValue(100 - newParameter);
-    }
-
-    // Check for falling edge (button press) on left shoulder
-    if (currentLeftShoulderState == LOW && lastLeftShoulderState == HIGH)
-    {
-        // Decrement focus
-        int newParameter = rightDial.decrementFocus();
-        rightEncoder.setEncoderValue(100 - newParameter);
-    }
-
-    // Store current states for next iteration
-    lastLeftShoulderState = currentLeftShoulderState;
-    lastRightShoulderState = currentRightShoulderState;
-
-    // Print debug info every 2 seconds
-    if (millis() - lastDebugTime >= 50)
-    {
-        topLeftBumper.tick();
-        topRightBumper.tick();
-
-        bottomLeftBumper.tick();
-        bottomRightBumper.tick();
-        centerButton.tick();
-
-        leftDial.tick();
-        rightDial.tick();
-
-        lastDebugTime = millis();
-    }
 
     stopVibrator();
 }

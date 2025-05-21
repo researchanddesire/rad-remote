@@ -7,6 +7,8 @@
 
 extern SettingPercents settings;
 extern sender s;
-extern sml::sm<tcp_release> sm;
+
+// Initialize the state machine
+void initStateMachine();
 
 #endif // REMOTE_H

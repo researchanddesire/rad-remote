@@ -59,8 +59,11 @@ public:
         canvas->setCursor(textX, textY);
         canvas->print(buttonText);
 
-        // draw the canvas to the screen
-        tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
+        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
+        {
+            tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
+            xSemaphoreGive(displayMutex);
+        }
     }
 };
 
