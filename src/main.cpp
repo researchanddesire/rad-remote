@@ -74,6 +74,7 @@ std::map<String, int> rightParams = {
     {"Stroke", 0},
     {"Depth", 0},
     {"Sens.", 0}};
+
 EncoderDial rightDial(rightParams, "", false, DISPLAY_WIDTH - 90, DISPLAY_HEIGHT / 2 - 30);
 
 // Add these variables at the top with other global variables

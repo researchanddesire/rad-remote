@@ -7,3 +7,6 @@ SettingPercents settings = {
     .depth = 0,
     .pattern = StrokePatterns::SimpleStroke,
     .speedKnob = 0};
+
+sender s{};
+sml::sm<tcp_release> sm{s};
