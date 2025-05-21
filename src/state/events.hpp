@@ -1,12 +1,9 @@
 #pragma once
 #include <stdlib.h>
-
 struct base_event
 {
     virtual ~base_event() = default;
-
-public:
-    int id{rand()};
+    int id{};
 };
 
 struct ack : public base_event
@@ -16,7 +13,6 @@ struct ack : public base_event
 
 struct fin : public base_event
 {
-    int id{};
     bool valid{};
 };
 

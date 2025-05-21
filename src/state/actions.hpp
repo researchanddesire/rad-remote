@@ -9,7 +9,8 @@ namespace actions
     auto send_fin = [](sender &s)
     { s.send(fin{}); };
 
-    auto send_ack = [](const base_event &event, sender &s)
+    template <typename T>
+    auto send_ack = [](const T &event, sender &s)
     {
         s.send(event);
     };
