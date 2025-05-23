@@ -5,6 +5,7 @@
 #include <components/EncoderDial.h>
 #include <state/remote.h>
 #include <services/encoder.h>
+#include <components/Image.h>
 
 using namespace sml;
 void drawControllerTask(void *pvParameters)
@@ -103,6 +104,15 @@ void drawControllerTask(void *pvParameters)
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }
 
+    // call destructor on encoder dial.
+    leftDial.~EncoderDial();
+    rightDial.~EncoderDial();
+    topLeftBumper.~TextButton();
+    topRightBumper.~TextButton();
+    bottomLeftBumper.~TextButton();
+    bottomRightBumper.~TextButton();
+    centerButton.~TextButton();
+
     vTaskDelete(NULL);
 }
 
@@ -114,18 +124,35 @@ void drawPatternMenuTask(void *pvParameters)
         return stateMachine->is("ossm_pattern_menu"_s);
     };
 
+    Image image(0, 0, 64, 64);
+
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
+    {
+        tft.fillScreen(ST77XX_BLACK);
+        tft.setTextSize(1);
+        tft.setTextColor(ST77XX_WHITE);
+        tft.setCursor(0, 0);
+        tft.println("Pattern Menu");
+        xSemaphoreGive(displayMutex);
+    }
+
+    image.draw();
+
     while (isInCorrectState())
     {
         vTaskDelay(50 / portTICK_PERIOD_MS);
-        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-            tft.fillScreen(ST77XX_BLACK);
-            tft.setTextSize(1);
-            tft.setTextColor(ST77XX_WHITE);
-            tft.setCursor(0, 0);
-            tft.println("Pattern Menu");
-            xSemaphoreGive(displayMutex);
-        }
     }
+
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
+    {
+        tft.fillScreen(ST77XX_BLACK);
+        tft.setTextSize(1);
+        tft.setTextColor(ST77XX_WHITE);
+        tft.setCursor(0, 0);
+        xSemaphoreGive(displayMutex);
+    }
+
+    image.~Image();
 
     vTaskDelete(NULL);
 }
