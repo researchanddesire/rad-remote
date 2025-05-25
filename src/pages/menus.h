@@ -13,6 +13,9 @@ extern const MenuItem *activeMenu;
 extern int activeMenuCount;
 extern int currentOption;
 
+extern TaskHandle_t menuTaskHandle;
+
+
 void drawMenu(Adafruit_ST7789 *display);
 void drawMenuTask(void *pvParameters);
 

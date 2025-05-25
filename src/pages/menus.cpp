@@ -3,6 +3,8 @@
 #include <services/encoder.h>
 #include <state/remote.h>
 
+TaskHandle_t menuTaskHandle = NULL;
+
 const MenuItem *activeMenu = mainMenu;
 int activeMenuCount = numMainMenu;
 int currentOption = 0;
@@ -26,7 +28,7 @@ static void drawScrollBar(int currentOption, int numOptions)
     scrollCanvas->fillRoundRect(0, scrollPosition, scrollWidth, 20, 3,
                                 Colors::white);
 
-    if (xSemaphoreTake(displayMutex, 100) == pdTRUE)
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
         tft.drawRGBBitmap(
             Display::WIDTH - scrollWidth, Display::StatusbarHeight,
@@ -78,7 +80,7 @@ static void drawMenuItem(int index, const MenuItem &option, bool selected = fals
     menuItemCanvas.setCursor(padding, textOffset + menuItemHeight / 2);
     menuItemCanvas.print(text);
 
-    if (xSemaphoreTake(displayMutex, 100) == pdTRUE)
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
         tft.drawRGBBitmap(Display::Padding::P1, y,
                           menuItemCanvas.getBuffer(), menuWidth,
@@ -132,10 +134,9 @@ void drawMenu()
 
 void drawMenuTask(void *pvParameters)
 {
-
     int lastEncoderValue = -1;
-    rightEncoder.setBoundaries(0, activeMenuCount - 1);
-    rightEncoder.setAcceleration(0);
+    std::string lastState = "";
+    String lastStateName = "";
 
     auto isInCorrectState = []()
     {
@@ -146,17 +147,26 @@ void drawMenuTask(void *pvParameters)
     {
         vTaskDelay(100 / portTICK_PERIOD_MS);
 
+        String stateName = "";
+        stateMachine->visit_current_states(
+            [&](auto state)
+            { stateName = state.c_str(); });
+
         currentOption = rightEncoder.readEncoder();
 
-        if (lastEncoderValue == currentOption)
+        if (lastEncoderValue == currentOption && stateName == lastStateName)
         {
             continue;
         }
         else
         {
             lastEncoderValue = currentOption;
+            lastStateName = stateName;
+            drawMenu();
         }
-
-        drawMenu();
     }
+
+    menuTaskHandle = nullptr;
+
+    vTaskDelete(NULL);
 }
