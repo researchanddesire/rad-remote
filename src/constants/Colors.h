@@ -1,0 +1,23 @@
+#ifndef COLORS_H
+#define COLORS_H
+
+#include <Adafruit_ST77xx.h>
+
+namespace Colors
+{
+    // black
+    constexpr int black = 0x0000;
+    constexpr int white = ST77XX_WHITE;
+    constexpr int red = ST77XX_RED;
+    constexpr int dimRed = 0x8000;
+    constexpr int green = ST77XX_GREEN;
+    constexpr int yellow = ST77XX_YELLOW;
+
+    // bg-gray-900 rgb(17 24 39);
+    constexpr int bgGray900 = 0x10c5;
+
+    // bg-gray-600 rgb(75 85 99);
+    constexpr int bgGray600 = 0x4aac;
+}
+
+#endif // COLORS_H

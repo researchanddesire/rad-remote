@@ -10,7 +10,11 @@ enum MenuItemE
     OSSM_CONTROLLER,
     SETTINGS,
     SLEEP,
-    RESTART
+    RESTART,
+    BACK,
+    WIFI_SETTINGS,
+    PAIRING,
+    UPDATE
 };
 
 struct MenuItem
@@ -37,5 +41,17 @@ static const MenuItem mainMenu[] = {
 };
 
 static const int numMainMenu = sizeof(mainMenu) / sizeof(mainMenu[0]);
+
+
+// SettingsMenu
+static const MenuItem settingsMenu[] = {
+    {MenuItemE::BACK, "Go Back", bitmap_back},
+    {MenuItemE::WIFI_SETTINGS, "WiFi Settings", bitmap_wifi},
+    {MenuItemE::PAIRING, "Pairing", bitmap_link},
+    {MenuItemE::UPDATE, "Update Device", bitmap_update},
+    {MenuItemE::RESTART, "Restart Device", bitmap_restart},
+};
+
+static const int numSettingsMenu = sizeof(settingsMenu) / sizeof(settingsMenu[0]);
 
 #endif

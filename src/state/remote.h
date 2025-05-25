@@ -1,14 +1,18 @@
 #ifndef REMOTE_H
 #define REMOTE_H
 
+#include <utils/RecusiveMutex.h>
 #include <stdint.h>
 #include <structs/SettingPercents.h>
 #include "machine.h"
+#include "utils/StateLogger.h"
 
 extern SettingPercents settings;
 extern sender s;
+extern ESP32RecursiveMutex mutex;
+extern StateLogger stateLogger;
 
-extern sml::sm<ossm_remote_state> *stateMachine;
+extern sml::sm<ossm_remote_state, sml::thread_safe<ESP32RecursiveMutex>, sml::logger<StateLogger>> *stateMachine;
 
 // Initialize the state machine
 void initStateMachine();

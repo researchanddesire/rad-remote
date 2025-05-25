@@ -4,6 +4,8 @@
 #include "events.hpp"
 #include "dependencies.hpp"
 #include "pages/controller.h"
+#include "pages/menus.h"
+
 namespace actions
 {
 
@@ -23,7 +25,28 @@ namespace actions
 
     auto drawPatternMenu = [](sender &s)
     {
-        xTaskCreatePinnedToCore(drawPatternMenuTask, "drawPatternMenuTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+        xTaskCreatePinnedToCore(drawPatternMenuTask, "drawPatternMenuTask", 15 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+    };
+
+    auto clearScreen = [](sender &s)
+    {
+        tft.fillScreen(Colors::black);
+    };
+
+    auto drawActiveMenu = [](const MenuItem *menu, int count)
+    {
+        return [menu, count](sender &s)
+        {
+            activeMenu = menu;
+            activeMenuCount = count;
+
+            xTaskCreatePinnedToCore(drawMenuTask, "drawMenuTask", 5 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+        };
+    };
+
+    auto espRestart = [](sender &s)
+    {
+        esp_restart();
     };
 
 } // namespace actions

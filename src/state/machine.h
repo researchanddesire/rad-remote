@@ -15,11 +15,25 @@ struct ossm_remote_state
         using namespace actions;
 
         return make_transition_table(
-            *"init"_s + event<done> = "ossm_control"_s,
+            *"init"_s + event<done> = "main_menu"_s,
+
+            "main_menu"_s + on_entry<_> / drawActiveMenu(mainMenu, numMainMenu),
+            "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::OSSM_CONTROLLER)] = "ossm_control"_s,
+            "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::SETTINGS)] = "settings_menu"_s,
+            "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::RESTART)] = "restart"_s,
+            "main_menu"_s + sml::on_exit<_> / clearScreen,
+
+            "settings_menu"_s + on_entry<_> / drawActiveMenu(settingsMenu, numSettingsMenu),
 
             "ossm_control"_s + on_entry<_> / drawControl,
             "ossm_control"_s + event<right_button_pressed> = "ossm_pattern_menu"_s,
+            "ossm_control"_s + sml::on_exit<_> / clearScreen,
+
             "ossm_pattern_menu"_s + on_entry<_> / drawPatternMenu,
-            "ossm_pattern_menu"_s + event<right_button_pressed> = "ossm_control"_s);
+            "ossm_pattern_menu"_s + event<right_button_pressed> = "ossm_control"_s,
+            "ossm_pattern_menu"_s + sml::on_exit<_> / clearScreen,
+
+            "restart"_s + on_entry<_> / espRestart,
+            "restart"_s = X);
     }
 };

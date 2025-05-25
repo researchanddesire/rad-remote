@@ -14,7 +14,6 @@ const uint16_t image_data[] PROGMEM = {
 };
 // clang-format on
 
-
 class Image
 {
 private:
@@ -22,44 +21,32 @@ private:
     int height;
     int16_t x;
     int16_t y;
-    const uint8_t *jpegData;
-    size_t jpegSize;
-
-    static bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t *bitmap)
-    {
-        Serial.print("hey");
-        // // Stop further decoding as image is running off bottom of screen
-        // if (y >= tft.height())
-        //     return 0;
-
-        // This function will clip the image block rendering automatically at the TFT boundaries
-
-        // Return 1 to decode next block
-        return 1;
-    }
 
 public:
     Image(int16_t x = 0, int16_t y = 0, int w = 64, int h = 64, const uint8_t *jpeg = nullptr, size_t size = 0)
         : x(x), y(y), width(w), height(h)
-    {
-        // Initialize TJpg_Decoder
-        TJpgDec.setJpgScale(1);
-        TJpgDec.setSwapBytes(true);
-        TJpgDec.setCallback(tft_output);
-    }
-
-    // Set JPEG data
-    void setJpeg(const uint8_t *jpeg, size_t size)
     {
     }
 
     // Draw the image at specified coordinates
     void draw()
     {
-
         if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
         {
-            tft.drawRGBBitmap(0, 0, image_data, IMAGE_WIDTH, IMAGE_HEIGHT);
+            const uint8_t LINES_PER_CHUNK = 20;                        // Number of lines to process at once
+            const uint16_t CHUNK_SIZE = IMAGE_WIDTH * LINES_PER_CHUNK; // Process N rows at a time
+            uint16_t buffer[CHUNK_SIZE];
+
+            // Process image in chunks of N rows
+            for (uint16_t y = 0; y < IMAGE_HEIGHT; y += LINES_PER_CHUNK)
+            {
+                // Copy N rows from PROGMEM to RAM
+                memcpy_P(buffer, &image_data[y * IMAGE_WIDTH], IMAGE_WIDTH * LINES_PER_CHUNK * sizeof(uint16_t));
+
+                // Draw N rows at once
+                tft.drawRGBBitmap(0, y, buffer, IMAGE_WIDTH, LINES_PER_CHUNK);
+            }
+
             xSemaphoreGive(displayMutex);
         }
     }

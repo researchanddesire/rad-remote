@@ -10,14 +10,15 @@ SettingPercents settings = {
 
 sender s{};
 
+StateLogger stateLogger;
 // Static pointer to hold the state machine instance
-sml::sm<ossm_remote_state> *stateMachine = nullptr;
+sml::sm<ossm_remote_state, sml::thread_safe<ESP32RecursiveMutex>, sml::logger<StateLogger>> *stateMachine = nullptr;
 
 void initStateMachine()
 {
     if (stateMachine == nullptr)
     {
-        stateMachine = new sml::sm<ossm_remote_state>(s);
+        stateMachine = new sml::sm<ossm_remote_state, sml::thread_safe<ESP32RecursiveMutex>, sml::logger<StateLogger>>(s, stateLogger);
 
         stateMachine->process_event(done{});
     }
