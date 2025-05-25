@@ -9,6 +9,7 @@
 #include <map>
 #include "utils/vibrator.h"
 #include "utils/buzzer.h"
+#include "esp_log.h"
 
 class EncoderDial : public DisplayButton
 {

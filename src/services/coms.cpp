@@ -25,9 +25,8 @@ esp_now_peer_info_t peerInfo;
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
-    Serial.print("\r\nLast Packet Send Status:\t");
-    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success"
-                                                  : "Delivery Fail");
+    ESP_LOGD("COMS", "Last Packet Send Status: %s", 
+        status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
 void initESPNow()
@@ -41,7 +40,7 @@ void initESPNow()
     // Init ESP-NOW
     if (esp_now_init() != ESP_OK)
     {
-        Serial.println("Error initializing ESP-NOW");
+        ESP_LOGD("COMS", "Error initializing ESP-NOW");
         return;
     }
 
@@ -57,7 +56,7 @@ void initESPNow()
     // Add peer
     if (esp_now_add_peer(&peerInfo) != ESP_OK)
     {
-        Serial.println("Failed to add peer");
+        ESP_LOGD("COMS", "Failed to add peer");
         return;
     }
 }
@@ -90,10 +89,10 @@ void sendESPNow(SettingPercents settings)
 
     if (result == ESP_OK)
     {
-        Serial.println("Sent with success");
+        ESP_LOGD("COMS", "Sent with success");
     }
     else
     {
-        Serial.println("Error sending the data");
+        ESP_LOGD("COMS", "Error sending the data");
     }
 }

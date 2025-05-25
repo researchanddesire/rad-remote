@@ -23,6 +23,7 @@
 #include "utils/vibrator.h"
 #include "services/coms.h"
 #include "state/remote.h"
+#include "esp_log.h"
 
 // Add these variables at the top with other control variables
 unsigned long lastRainbowUpdate = 0;
@@ -55,10 +56,9 @@ static TaskHandle_t buttonUpdateTaskHandle = NULL;
 // Add these variables at the top with other global variables
 int currentRightParamIndex = 0;
 const String rightParamNames[] = {"Stroke", "Depth", "Sens."};
-
 void scanI2CDevices()
 {
-    Serial.println("\nScanning I2C bus...");
+    ESP_LOGD("I2C", "Scanning I2C bus...");
     byte error, address;
     int deviceCount = 0;
 
@@ -69,29 +69,29 @@ void scanI2CDevices()
 
         if (error == 0)
         {
-            Serial.printf("I2C device found at address 0x%02X\n", address);
+            ESP_LOGD("I2C", "Device found at address 0x%02X", address);
             deviceCount++;
 
             // Print known device names
             switch (address)
             {
             case 0x20:
-                Serial.println("  -> MCP23017 (GPIO Expander)");
+                ESP_LOGD("I2C", "  -> MCP23017 (GPIO Expander)");
                 break;
             case 0x36:
-                Serial.println("  -> MAX17048 (Battery Monitor)");
+                ESP_LOGD("I2C", "  -> MAX17048 (Battery Monitor)");
                 break;
             case 0x55:
-                Serial.println("  -> BQ27220 (Battery Fuel Gauge)");
+                ESP_LOGD("I2C", "  -> BQ27220 (Battery Fuel Gauge)");
                 break;
             case 0x6A:
-                Serial.println("  -> LSM6DS3 (Accelerometer)");
+                ESP_LOGD("I2C", "  -> LSM6DS3 (Accelerometer)");
                 break;
             case 0x6B:
-                Serial.println("  -> LSM6DS3 (Accelerometer - Alternate Address)");
+                ESP_LOGD("I2C", "  -> LSM6DS3 (Accelerometer - Alternate Address)");
                 break;
             default:
-                Serial.println("  -> Unknown device");
+                ESP_LOGD("I2C", "  -> Unknown device");
                 break;
             }
         }
@@ -99,13 +99,12 @@ void scanI2CDevices()
 
     if (deviceCount == 0)
     {
-        Serial.println("No I2C devices found!");
+        ESP_LOGD("I2C", "No I2C devices found!");
     }
     else
     {
-        Serial.printf("Found %d I2C device(s)\n", deviceCount);
+        ESP_LOGD("I2C", "Found %d I2C device(s)", deviceCount);
     }
-    Serial.println();
 }
 
 void setup()
@@ -130,7 +129,7 @@ void setup()
     WiFi.mode(WIFI_STA);
     if (esp_now_init() != ESP_OK)
     {
-        Serial.println("Error initializing ESP-NOW");
+        ESP_LOGD("COMS", "Error initializing ESP-NOW");
         return;
     }
 
@@ -148,11 +147,6 @@ void setup()
         "espnowTask", 4 * configMINIMAL_STACK_SIZE, nullptr, 1, nullptr, 0);
 
     initStateMachine();
-
-    using namespace sml;
-    auto result = stateMachine->is("ossm_control"_s);
-    Serial.printf("Initial state is ossm_control: %s\n", result ? "true" : "false");
-
     updateBatteryStatus();
     updateIMUReadings();
 

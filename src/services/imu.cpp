@@ -11,11 +11,11 @@ bool initIMUService()
 {
     if (!imuInstance.begin())
     {
-        Serial.println("Failed to find LSM6DS3TR-C chip");
+        ESP_LOGD("IMU", "Failed to find LSM6DS3TR-C chip");
         return false;
     }
 
-    Serial.println("LSM6DS3TR-C Found!");
+    ESP_LOGD("IMU", "LSM6DS3TR-C Found!");
     return true;
 }
 

@@ -5,6 +5,7 @@
 
 #include <boost/sml.hpp>
 #include <cassert>
+#include "esp_log.h"
 
 #include "services/lastInteraction.h"
 

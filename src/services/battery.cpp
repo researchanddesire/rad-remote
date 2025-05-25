@@ -1,4 +1,7 @@
 #include "battery.h"
+#include "esp_log.h"
+
+static const char *TAG = "Battery";
 
 // Initialize the global service instance
 Adafruit_MAX17048 batteryService;
@@ -23,7 +26,7 @@ bool initBattery(uint16_t fullChargeCapacity)
     // Initialize the MAX17048 service
     if (!initBatteryService())
     {
-        Serial.println("Failed to initialize MAX17048 battery service!");
+        ESP_LOGD(TAG, "Failed to initialize MAX17048 battery service!");
         return false;
     }
 
@@ -37,7 +40,7 @@ bool initBatteryService()
 {
     if (!batteryService.begin())
     {
-        Serial.println("Error: MAX17048 not found!");
+        ESP_LOGD(TAG, "Error: MAX17048 not found!");
         return false;
     }
     return true;
@@ -73,7 +76,7 @@ uint16_t readJouleBatteryStatus()
     }
     else
     {
-        Serial.println("Failed to read CONTROL_STATUS");
+        ESP_LOGD(TAG, "Failed to read CONTROL_STATUS");
         return 0xFFFF;
     }
 }
@@ -140,7 +143,7 @@ void unsealBQ27220()
     Wire.write(0xFF); // Key MSB
     Wire.endTransmission();
 
-    Serial.println("BQ27220 unsealed");
+    ESP_LOGD(TAG, "BQ27220 unsealed");
 }
 
 void enterConfigUpdateMode()
@@ -151,7 +154,7 @@ void enterConfigUpdateMode()
     Wire.write(0x00); // Subcommand
     Wire.endTransmission();
 
-    Serial.println("Entered config update mode");
+    ESP_LOGD(TAG, "Entered config update mode");
 }
 
 void setDataFlashAddress(uint16_t address)
@@ -163,7 +166,7 @@ void setDataFlashAddress(uint16_t address)
     Wire.write((address >> 8) & 0xFF); // Address high byte
     Wire.endTransmission();
 
-    Serial.printf("Set data flash address to 0x%04X\n", address);
+    ESP_LOGD(TAG, "Set data flash address to 0x%04X", address);
 }
 
 void writeDataFlash(uint16_t data)
@@ -174,7 +177,7 @@ void writeDataFlash(uint16_t data)
     Wire.write((data >> 8) & 0xFF); // Data high byte
     Wire.endTransmission();
 
-    Serial.printf("Wrote 0x%04X to data flash\n", data);
+    ESP_LOGD(TAG, "Wrote 0x%04X to data flash", data);
 }
 
 void updateChecksum()
@@ -185,7 +188,7 @@ void updateChecksum()
     Wire.write(0x00); // Subcommand
     Wire.endTransmission();
 
-    Serial.println("Updated checksum");
+    ESP_LOGD(TAG, "Updated checksum");
 }
 
 void exitConfigUpdateMode()
@@ -196,7 +199,7 @@ void exitConfigUpdateMode()
     Wire.write(0x00); // Subcommand
     Wire.endTransmission();
 
-    Serial.println("Exited config update mode");
+    ESP_LOGD(TAG, "Exited config update mode");
 }
 
 void writeDesignCapacity(uint16_t capacity)
@@ -213,7 +216,7 @@ void writeDesignCapacity(uint16_t capacity)
     updateChecksum();
     delay(100);
 
-    Serial.printf("Set design capacity to %d mAh\n", capacity);
+    ESP_LOGD(TAG, "Set design capacity to %d mAh", capacity);
 }
 
 void setFullChargeCapacity(uint16_t capacity)
@@ -244,7 +247,7 @@ void setFullChargeCapacity(uint16_t capacity)
     // Exit config update mode
     exitConfigUpdateMode();
 
-    Serial.printf("Set full charge capacity to %d mAh\n", capacity);
+    ESP_LOGD(TAG, "Set full charge capacity to %d mAh", capacity);
 }
 
 void updateBatteryStatus()
@@ -257,7 +260,7 @@ void updateBatteryStatus()
         voltBatteryPercent = getBatteryPercent();
         voltBatteryVoltage = getBatteryVoltage();
         float currentChargeRate = getChargeRate();
-        Serial.printf("Battery Update - Joule: %d%%, Current: %d mA, Volt: %d%%, Voltage: %.2fV, Charge Rate: %.2f%%/hr\n",
-                      jouleBatteryPercent, jouleBatteryCurrent, voltBatteryPercent, voltBatteryVoltage, currentChargeRate);
+        ESP_LOGD(TAG, "Battery Update - Joule: %d%%, Current: %d mA, Volt: %d%%, Voltage: %.2fV, Charge Rate: %.2f%%/hr",
+                 jouleBatteryPercent, jouleBatteryCurrent, voltBatteryPercent, voltBatteryVoltage, currentChargeRate);
     }
 }

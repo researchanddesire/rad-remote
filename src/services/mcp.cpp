@@ -9,6 +9,7 @@ static bool interrupted = false;
 void handleMCPInterrupt()
 {
     interrupted = true;
+    ESP_LOGD("MCP", "Interrupt detected");
 }
 void mcpTask(void *pvParameters)
 {
@@ -24,6 +25,8 @@ void mcpTask(void *pvParameters)
         bool leftBtn = !mcp.digitalRead(pins::LEFT_BTN); // Inverted due to pullup
         bool centerBtn = !mcp.digitalRead(pins::CENTER_BTN);
         bool rightBtn = !mcp.digitalRead(pins::RIGHT_BTN);
+
+        ESP_LOGD("MCP", "Button states - Left: %d, Center: %d, Right: %d", leftBtn, centerBtn, rightBtn);
 
         if (leftBtn)
             stateMachine->process_event(left_button_pressed());
@@ -41,11 +44,11 @@ bool initMCP()
     // Initialize MCP23017
     if (!mcp.begin_I2C())
     {
-        Serial.println("Error: MCP23017 not found!");
+        ESP_LOGD("MCP", "Error: MCP23017 not found!");
         return false;
     }
 
-    Serial.println("MCP23017 initialized successfully");
+    ESP_LOGD("MCP", "MCP23017 initialized successfully");
 
     // Configure MCP23017 pins
     // Input pins with pull-up
