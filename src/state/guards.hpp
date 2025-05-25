@@ -25,20 +25,16 @@ auto isOption = [](MenuItemE value)
         auto currentOption = rightEncoder.readEncoder();
         auto indexOfValue = -1;
 
-        ESP_LOGD("GUARDS", "Checking if option %d is selected (current: %d)", value, currentOption);
-
         for (int i = 0; i < activeMenuCount; i++)
         {
             if (activeMenu[i].id == value)
             {
                 indexOfValue = i;
-                ESP_LOGD("GUARDS", "Found option %d at index %d", value, i);
                 break;
             }
         }
 
         bool result = currentOption == indexOfValue;
-        ESP_LOGD("GUARDS", "Option match result: %d", result);
         return result;
     };
 };
