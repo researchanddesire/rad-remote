@@ -76,7 +76,7 @@ void drawControllerTask(void *pvParameters)
         {
             // Increment focus
             int newParameter = rightDial.incrementFocus();
-            rightEncoder.setEncoderValue(100 - newParameter);
+            rightEncoder.setEncoderValue(100 - newParameter - 1);
         }
 
         // Check for falling edge (button press) on left shoulder
@@ -84,7 +84,7 @@ void drawControllerTask(void *pvParameters)
         {
             // Decrement focus
             int newParameter = rightDial.decrementFocus();
-            rightEncoder.setEncoderValue(100 - newParameter);
+            rightEncoder.setEncoderValue(100 - newParameter - 1);
         }
 
         // Store current states for next iteration
@@ -113,6 +113,68 @@ void drawControllerTask(void *pvParameters)
     bottomRightBumper.~TextButton();
     centerButton.~TextButton();
 
+    vTaskDelete(NULL);
+}
+
+void drawStopTask(void *pvParameters)
+{
+
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
+    {
+        tft.fillScreen(ST77XX_RED);
+
+        // Draw stop sign octagon
+        int centerX = tft.width() / 2;
+        int centerY = tft.height() / 2;
+        int radius = min(tft.width(), tft.height()) / 3;
+
+        // Draw octagon - rotated 22.5 degrees (PI/8) to make top flat
+        for (int i = 0; i < 8; i++)
+        {
+            float angle1 = (i * PI / 4) + (PI / 8);
+            float angle2 = ((i + 1) * PI / 4) + (PI / 8);
+            int x1 = centerX + radius * cos(angle1);
+            int y1 = centerY + radius * sin(angle1);
+            int x2 = centerX + radius * cos(angle2);
+            int y2 = centerY + radius * sin(angle2);
+            // Draw multiple lines with slight offsets to create thicker lines
+            for (int offset = -1; offset <= 1; offset++)
+            {
+                tft.drawLine(x1 + offset, y1, x2 + offset, y2, ST77XX_WHITE);
+                tft.drawLine(x1, y1 + offset, x2, y2 + offset, ST77XX_WHITE);
+            }
+        }
+
+        // Draw text
+        tft.setTextSize(2);
+        tft.setTextColor(ST77XX_WHITE);
+        tft.setTextWrap(false);
+
+        // Center text
+        int16_t x1, y1;
+        uint16_t w, h;
+        tft.getTextBounds("EMERGENCY", 0, 0, &x1, &y1, &w, &h);
+        tft.setCursor(centerX - w / 2, centerY - h - 5);
+        tft.println("EMERGENCY");
+
+        tft.getTextBounds("STOP", 0, 0, &x1, &y1, &w, &h);
+        tft.setCursor(centerX - w / 2, centerY + 5);
+        tft.println("STOP");
+
+        // Draw instruction text below stop sign
+        tft.setTextSize(1);
+        tft.setTextColor(ST77XX_WHITE); // High contrast color
+        tft.setTextWrap(true);
+
+        // Calculate position for instruction text
+        int instructionY = centerY + radius + 10; // Position below the stop sign
+        tft.setCursor(5, instructionY);
+        tft.println("You've emergency stopped your OSSM. Restart your controller and your OSSM to continue");
+
+        xSemaphoreGive(displayMutex);
+    }
+
+    vTaskDelay(50 / portTICK_PERIOD_MS);
     vTaskDelete(NULL);
 }
 

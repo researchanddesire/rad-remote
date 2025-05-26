@@ -33,7 +33,30 @@ namespace actions
     {
         delay(100);
         clearScreen(s);
+
+        rightEncoder.setBoundaries(0, 100, false);
+        rightEncoder.setAcceleration(0);
+        rightEncoder.setEncoderValue(100);
+
+        leftEncoder.setBoundaries(0, 100, false);
+        leftEncoder.setAcceleration(0);
+        leftEncoder.setEncoderValue(100);
+
+        // settings.speed = 0;
+        // settings.stroke = 0;
+        // settings.sensation = 0;
+        // settings.depth = 0;
+        // settings.pattern = StrokePatterns::SimpleStroke;
+        // settings.speedKnob = 0;
+
         xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+    };
+
+    auto drawStop = [](sender &s)
+    {
+        delay(100);
+        clearScreen(s);
+        xTaskCreatePinnedToCore(drawStopTask, "drawStopTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
     };
 
     auto drawPatternMenu = [](sender &s)
