@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <structs/SettingPercents.h>
+#include "state/remote.h"
 
 void initESPNow();
 

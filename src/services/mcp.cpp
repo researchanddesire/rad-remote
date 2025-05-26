@@ -33,6 +33,7 @@ void mcpTask(void *pvParameters)
     {
         vTaskDelay(10);
         unsigned long currentTime = millis();
+        bool anyButtonPressed = false;
 
         for (auto &btn : buttons)
         {
@@ -55,8 +56,9 @@ void mcpTask(void *pvParameters)
             // Handle button press
             if (currentState && !btn.lastStableState)
             {
-                ESP_LOGD("MCP", "%s button pressed", btn.name);
+                ESP_LOGV("MCP", "%s button pressed", btn.name);
                 btn.event();
+                anyButtonPressed = true;
             }
 
             btn.lastStableState = currentState;

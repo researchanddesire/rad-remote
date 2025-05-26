@@ -12,6 +12,7 @@
 
 #include "coms.h"
 
+
 // REPLACE WITH YOUR RECEIVER MAC Address
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -25,14 +26,12 @@ esp_now_peer_info_t peerInfo;
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
-    ESP_LOGD("COMS", "Last Packet Send Status: %s", 
-        status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+    ESP_LOGD("COMS", "Last Packet Send Status: %s",
+             status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
 void initESPNow()
 {
-    // Init Serial Monitor
-    Serial.begin(115200);
 
     // Set device as a Wi-Fi Station
     WiFi.mode(WIFI_STA);
@@ -59,6 +58,18 @@ void initESPNow()
         ESP_LOGD("COMS", "Failed to add peer");
         return;
     }
+
+    xTaskCreatePinnedToCore(
+        [](void *pvParameters)
+        {
+            while (true)
+            {
+                sendESPNow(settings);
+                vTaskDelay(
+                    10 / portTICK_PERIOD_MS); // 100ms delay between broadcasts
+            }
+        },
+        "espnowTask", 4 * configMINIMAL_STACK_SIZE, nullptr, 1, nullptr, 0);
 }
 
 void sendESPNow(SettingPercents settings)

@@ -36,12 +36,9 @@ struct MenuItem
 static const MenuItem mainMenu[] = {
     {MenuItemE::OSSM_CONTROLLER, "OSSM Controller", researchAndDesireWaves},
     {MenuItemE::SETTINGS, "Settings", bitmap_settings},
-    {MenuItemE::SLEEP, "Sleep", bitmap_sleep},
-    {MenuItemE::RESTART, "Restart", bitmap_restart},
-};
+    {MenuItemE::SLEEP, "Sleep", bitmap_sleep}};
 
 static const int numMainMenu = sizeof(mainMenu) / sizeof(mainMenu[0]);
-
 
 // SettingsMenu
 static const MenuItem settingsMenu[] = {

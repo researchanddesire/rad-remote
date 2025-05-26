@@ -23,13 +23,16 @@ struct ossm_remote_state
             "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::RESTART)] = "restart"_s,
 
             "settings_menu"_s + on_entry<_> / drawActiveMenu(settingsMenu, numSettingsMenu),
+            "settings_menu"_s + event<left_button_pressed> = "main_menu"_s,
             "settings_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::BACK)] = "main_menu"_s,
+            "settings_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::RESTART)] = "restart"_s,
 
             "ossm_control"_s + on_entry<_> / drawControl,
             "ossm_control"_s + event<right_button_pressed> = "ossm_pattern_menu"_s,
             "ossm_control"_s + event<left_button_pressed> = "main_menu"_s,
 
             "ossm_pattern_menu"_s + on_entry<_> / drawPatternMenu,
+            "ossm_pattern_menu"_s + event<left_button_pressed> = "ossm_control"_s,
             "ossm_pattern_menu"_s + event<right_button_pressed> = "ossm_control"_s,
 
             "restart"_s + on_entry<_> / espRestart,

@@ -33,7 +33,7 @@ public:
     {
         if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
         {
-            const uint8_t LINES_PER_CHUNK = 20;                        // Number of lines to process at once
+            const uint8_t LINES_PER_CHUNK = 10;                        // Number of lines to process at once
             const uint16_t CHUNK_SIZE = IMAGE_WIDTH * LINES_PER_CHUNK; // Process N rows at a time
             uint16_t buffer[CHUNK_SIZE];
 

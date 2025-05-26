@@ -51,7 +51,7 @@ namespace actions
 
             rightEncoder.setBoundaries(0, activeMenuCount - 1);
             rightEncoder.setAcceleration(0);
-            rightEncoder.setEncoderValue(0);
+            rightEncoder.setEncoderValue(-1);
 
             clearScreen(s);
 
