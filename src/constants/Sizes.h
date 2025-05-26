@@ -1,0 +1,41 @@
+#ifndef SIZES_H
+#define SIZES_H
+
+namespace Display
+{
+    // black
+    constexpr int WIDTH = 320;
+    constexpr int HEIGHT = 240;
+
+    constexpr int P1 = 6;
+    constexpr int StatusbarIcons = 24;
+    constexpr int StatusbarHeight = StatusbarIcons + P1;
+    constexpr int NotificationBarHeight = StatusbarHeight + StatusbarIcons + P1;
+
+    namespace Icons
+    {
+        constexpr int Big = 120;
+        constexpr int Small = 24;
+    }
+
+    namespace Padding
+    {
+        constexpr int P0 = 3;
+        constexpr int P1 = 6;
+        constexpr int P2 = 12;
+        constexpr int P3 = 18;
+        constexpr int P4 = 24;
+    }
+}
+
+static int16_t getIconX(const int iconNum, const int totalIcons)
+{
+    // Calculate total width of all icons including padding
+    int totalWidth = (Display::Icons::Small + Display::Padding::P1) * totalIcons;
+    // Calculate the starting X position to center all icons
+    int startX = (Display::WIDTH - totalWidth) / 2;
+    // Return the X position for the specific icon
+    return startX + (Display::Icons::Small + Display::Padding::P1) * iconNum;
+}
+
+#endif // SIZES_H

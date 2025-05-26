@@ -12,6 +12,7 @@
 
 #include "coms.h"
 
+
 // REPLACE WITH YOUR RECEIVER MAC Address
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -25,15 +26,12 @@ esp_now_peer_info_t peerInfo;
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
-    Serial.print("\r\nLast Packet Send Status:\t");
-    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success"
-                                                  : "Delivery Fail");
+    ESP_LOGV("COMS", "Last Packet Send Status: %s",
+             status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
 void initESPNow()
 {
-    // Init Serial Monitor
-    Serial.begin(115200);
 
     // Set device as a Wi-Fi Station
     WiFi.mode(WIFI_STA);
@@ -41,7 +39,7 @@ void initESPNow()
     // Init ESP-NOW
     if (esp_now_init() != ESP_OK)
     {
-        Serial.println("Error initializing ESP-NOW");
+        ESP_LOGD("COMS", "Error initializing ESP-NOW");
         return;
     }
 
@@ -57,9 +55,21 @@ void initESPNow()
     // Add peer
     if (esp_now_add_peer(&peerInfo) != ESP_OK)
     {
-        Serial.println("Failed to add peer");
+        ESP_LOGD("COMS", "Failed to add peer");
         return;
     }
+
+    xTaskCreatePinnedToCore(
+        [](void *pvParameters)
+        {
+            while (true)
+            {
+                sendESPNow(settings);
+                vTaskDelay(
+                    10 / portTICK_PERIOD_MS); // 100ms delay between broadcasts
+            }
+        },
+        "espnowTask", 4 * configMINIMAL_STACK_SIZE, nullptr, 1, nullptr, 0);
 }
 
 void sendESPNow(SettingPercents settings)
@@ -90,10 +100,10 @@ void sendESPNow(SettingPercents settings)
 
     if (result == ESP_OK)
     {
-        Serial.println("Sent with success");
+        ESP_LOGV("COMS", "Sent with success");
     }
     else
     {
-        Serial.println("Error sending the data");
+        ESP_LOGD("COMS", "Error sending the data");
     }
 }

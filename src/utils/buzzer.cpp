@@ -29,7 +29,7 @@ void buzzerTask(void *parameter)
     BuzzerPattern pattern = *((BuzzerPattern *)parameter);
     delete (BuzzerPattern *)parameter; // Clean up the parameter
 
-    Serial.printf("Starting buzzer pattern %d\n", static_cast<int>(pattern));
+    ESP_LOGV("BUZZER", "Starting buzzer pattern %d", static_cast<int>(pattern));
 
     // Get pattern info from lookup table
     const PatternInfo &info = PATTERN_MAP[static_cast<int>(pattern)];
@@ -55,7 +55,7 @@ void buzzerTask(void *parameter)
 
     // Ensure buzzer is off at the end
     mcp.digitalWrite(pins::BUZZER, LOW);
-    Serial.println("Buzzer pattern complete");
+    ESP_LOGV("BUZZER", "Buzzer pattern complete");
 
     buzzerActive = false;
     buzzerTaskHandle = NULL;

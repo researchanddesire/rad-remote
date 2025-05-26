@@ -8,4 +8,5 @@ extern Adafruit_MCP23X17 mcp;
 // Initialize MCP23017 with all pin configurations and interrupts
 bool initMCP();
 
+void mcpTask(void *pvParameters);
 #endif

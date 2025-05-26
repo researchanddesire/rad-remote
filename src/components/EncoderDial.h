@@ -9,6 +9,7 @@
 #include <map>
 #include "utils/vibrator.h"
 #include "utils/buzzer.h"
+#include "esp_log.h"
 
 class EncoderDial : public DisplayButton
 {
@@ -177,7 +178,10 @@ public:
             canvas->print(percentStr);
         }
 
-        tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
+        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+            tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
+            xSemaphoreGive(displayMutex);
+        }
     }
 
     int incrementFocus()
