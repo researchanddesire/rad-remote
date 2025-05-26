@@ -24,6 +24,7 @@
 #include "services/coms.h"
 #include "state/remote.h"
 #include "esp_log.h"
+#include "components/AnimatedIcons.h"
 
 void scanI2CDevices()
 {
@@ -97,6 +98,8 @@ void setup()
     initStateMachine();
     updateBatteryStatus();
     updateIMUReadings();
+
+    setupAnimatedIcons();
 }
 
 void loop()

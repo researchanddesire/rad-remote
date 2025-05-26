@@ -28,9 +28,14 @@ namespace Display
     }
 }
 
-static int16_t getIconX(const int iconNum)
+static int16_t getIconX(const int iconNum, const int totalIcons)
 {
-    return Display::WIDTH - (Display::Icons::Small + Display::Padding::P1) * (iconNum + 1) + Display::Padding::P1;
+    // Calculate total width of all icons including padding
+    int totalWidth = (Display::Icons::Small + Display::Padding::P1) * totalIcons;
+    // Calculate the starting X position to center all icons
+    int startX = (Display::WIDTH - totalWidth) / 2;
+    // Return the X position for the specific icon
+    return startX + (Display::Icons::Small + Display::Padding::P1) * iconNum;
 }
 
 #endif // SIZES_H

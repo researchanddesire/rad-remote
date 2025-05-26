@@ -250,6 +250,23 @@ void setFullChargeCapacity(uint16_t capacity)
     ESP_LOGD(TAG, "Set full charge capacity to %d mAh", capacity);
 }
 
+bool isCharging()
+{
+    // Check Joule battery current - positive current indicates charging
+    if (jouleBatteryCurrent > 50)
+    { // Using 50mA threshold to account for small fluctuations
+        return true;
+    }
+
+    // Check Volt battery charge rate
+    if (lastChargeRate > 0.1)
+    { // Using 0.1%/hr threshold to account for small fluctuations
+        return true;
+    }
+
+    return false;
+}
+
 void updateBatteryStatus()
 {
     if (millis() - lastBatteryCheck >= 1000)
@@ -260,7 +277,7 @@ void updateBatteryStatus()
         voltBatteryPercent = getBatteryPercent();
         voltBatteryVoltage = getBatteryVoltage();
         float currentChargeRate = getChargeRate();
-        ESP_LOGD(TAG, "Battery Update - Joule: %d%%, Current: %d mA, Volt: %d%%, Voltage: %.2fV, Charge Rate: %.2f%%/hr",
+        ESP_LOGV(TAG, "Battery Update - Joule: %d%%, Current: %d mA, Volt: %d%%, Voltage: %.2fV, Charge Rate: %.2f%%/hr",
                  jouleBatteryPercent, jouleBatteryCurrent, voltBatteryPercent, voltBatteryVoltage, currentChargeRate);
     }
 }

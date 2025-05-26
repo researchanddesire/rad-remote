@@ -54,4 +54,7 @@ extern uint16_t lastFullChargeCapacity;
 // Battery update function
 void updateBatteryStatus();
 
+// Charging status function
+bool isCharging();
+
 #endif // BATTERY_H
