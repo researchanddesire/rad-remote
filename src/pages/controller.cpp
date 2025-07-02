@@ -52,17 +52,17 @@ void drawControllerTask(void *pvParameters)
 
         leftDial.setParameter(settings.speed);
 
-        if (rightDial.getFocusedIndex() == 0)
+        if (rightDial.getFocusedIndex() == 2)
         {
             settings.stroke = 100 - rightEncoder.readEncoder();
             rightDial.setParameter(settings.stroke);
         }
-        else if (rightDial.getFocusedIndex() == 1)
+        else if (rightDial.getFocusedIndex() == 0)
         {
             settings.depth = 100 - rightEncoder.readEncoder();
             rightDial.setParameter(settings.depth);
         }
-        else if (rightDial.getFocusedIndex() == 2)
+        else if (rightDial.getFocusedIndex() == 1)
         {
             settings.sensation = 100 - rightEncoder.readEncoder();
             rightDial.setParameter(settings.sensation);

@@ -91,6 +91,10 @@ void sendESPNow(SettingPercents settings)
     myData.depth = settings.depth;
     myData.pattern = static_cast<int>(settings.pattern);
 
+    // Log myData values for debugging
+    ESP_LOGD("COMS", "Sending myData - Speed: %d, Stroke: %d, Sensation: %d, Depth: %d, Pattern: %d", 
+             myData.speed, myData.stroke, myData.sens, myData.depth, myData.pattern);
+
     // Update lastState
     lastState = settings;
 
