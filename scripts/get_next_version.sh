@@ -68,7 +68,7 @@ version_gte() {
 }
 
 echo "::group::[Lockbox] Fetch remote version"
-REMOTE_JSON=$(curl -sfL "https://researchanddesire.github.io/Lockbox/v/latest/version.json" || echo "null")
+REMOTE_JSON=$(curl -sfL "https://researchanddesire.github.io/ossm-remote/v/latest/version.json" || echo "null")
 REMOTE_VERSION=""
 if [[ "$REMOTE_JSON" != "null" ]]; then
   REMOTE_VERSION=$(echo "$REMOTE_JSON" | grep -oE '"version" *: *"[0-9]+\.[0-9]+\.[0-9]+"' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
