@@ -1,0 +1,11 @@
+[
+    {
+        "version": "0.0.1",
+        "major": 0,
+        "minor": 0,
+        "patch": 1,
+        "url": "./v/0.0.1/version.json",
+        "firmware": "./v/0.0.1/firmware.bin",
+        "datetime": "2025-07-08T15:59:23Z"
+    }
+]
