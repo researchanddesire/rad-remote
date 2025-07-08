@@ -1,0 +1,61 @@
+name: Release Latest as Alpha
+
+on:
+  workflow_dispatch:
+    inputs: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release-alpha:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Copy latest to alpha
+        run: |
+          rm -rf ./docs/alpha/*
+          cp -r ./docs/v/latest/* ./docs/alpha/
+
+      - name: Get Version
+        id: get_version
+        run: |
+          VERSION=$(jq -r .version ./docs/v/latest/version.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        if: ${{ github.event.sender.login != 'github-actions[bot]' }}
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "AUTO: Release new Alpha version ${{ steps.get_version.outputs.version }}"
+          title: "AUTO: Release new Alpha version ${{ steps.get_version.outputs.version }}"
+          body: "Automated Alpha release PR for version ${{ steps.get_version.outputs.version }}"
+          branch: "auto/release-alpha-${{ steps.get_version.outputs.version }}"
+          base: main
+          delete-branch: true
+
+      - name: Enable Pull Request Auto-merge
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+          merge-method: squash
+
+      - name: Set success status for bot commits or no changes
+        if: ${{ github.event.sender.login == 'github-actions[bot]' }}
+        run: |
+          if [ "${{ github.event.sender.login }}" == "github-actions[bot]" ]; then
+            echo "No Alpha release needed - commit was from bot"
+          else
+            echo "No Alpha release needed - no changes in docs/alpha directory"
+          fi
+          exit 0

@@ -1,0 +1,62 @@
+name: Release Alpha as Production
+
+on:
+  workflow_dispatch:
+    inputs: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release-production:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Copy alpha to production
+        run: |
+          rm -rf ./docs/production/*
+          cp -r ./docs/alpha/* ./docs/production/
+          cp ./docs/alpha/version.json ./docs/version.json
+
+      - name: Get Version
+        id: get_version
+        run: |
+          VERSION=$(jq -r .version ./docs/alpha/version.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        if: ${{ github.event.sender.login != 'github-actions[bot]' }}
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "AUTO: Release new Production version ${{ steps.get_version.outputs.version }}"
+          title: "AUTO: Release new Production version ${{ steps.get_version.outputs.version }}"
+          body: "Automated Production release PR for version ${{ steps.get_version.outputs.version }}"
+          branch: "auto/release-production-${{ steps.get_version.outputs.version }}"
+          base: main
+          delete-branch: true
+
+      - name: Enable Pull Request Auto-merge
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+          merge-method: squash
+
+      - name: Set success status for bot commits or no changes
+        if: ${{ github.event.sender.login == 'github-actions[bot]' }}
+        run: |
+          if [ "${{ github.event.sender.login }}" == "github-actions[bot]" ]; then
+            echo "No Production release needed - commit was from bot"
+          else
+            echo "No Production release needed - no changes in docs/production directory"
+          fi
+          exit 0
