@@ -8,6 +8,14 @@ SettingPercents settings = {
     .pattern = StrokePatterns::SimpleStroke,
     .speedKnob = 0};
 
+SettingPercents lastSettings = {
+    .speed = 0,
+    .stroke = 0,
+    .sensation = 0,
+    .depth = 0,
+    .pattern = StrokePatterns::SimpleStroke,
+    .speedKnob = 0};
+
 sender s{};
 
 StateLogger stateLogger;

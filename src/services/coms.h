@@ -13,6 +13,8 @@
 #define OSSM_CHARACTERISTIC_UUID "522B443A-4F53-534D-0002-420BADBABE69"
 #define OSSM_DEVICE_NAME "OSSM"
 
+void sendCommand(const String &command);
+
 void initBLE();
 
 #endif

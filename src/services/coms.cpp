@@ -11,12 +11,15 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <esp_log.h>
-
+#include <queue>
+#include <regex>
 static const char *TAG = "COMS";
 
 static const NimBLEAdvertisedDevice *advDevice;
 static bool doConnect = false;
 static uint32_t scanTimeMs = 1000; /** scan time in milliseconds, 0 = scan forever */
+
+static std::queue<String> commandQueue;
 
 /**  None of these are required as they will be handled by the library with defaults. **
  **                       Remove as you see fit for your needs                        */
@@ -98,7 +101,8 @@ void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData,
     str += ": Service = " + pRemoteCharacteristic->getRemoteService()->getUUID().toString();
     str += ", Characteristic = " + pRemoteCharacteristic->getUUID().toString();
     str += ", Value = " + std::string((char *)pData, length);
-    ESP_LOGI(TAG, "%s", str.c_str());
+
+    ESP_LOGV(TAG, "%s", str.c_str());
 }
 
 /** Handles the provisioning of clients and connects / interfaces with the server */
@@ -303,6 +307,53 @@ bool connectToServer()
     return true;
 }
 
+void sendCommand(const String &command)
+{
+    // Only allow commands of the form: set:depth|sensation|pattern|speed|stroke:0-100
+    // Example: set:speed:75
+
+    // Regex: ^set:(depth|sensation|pattern|speed|stroke):([0-9]{1,3})$
+    // Value must be 0-100
+
+    std::regex cmdRegex("^set:(depth|sensation|pattern|speed|stroke):([0-9]{1,3})$");
+    std::cmatch match;
+    if (std::regex_match(command.c_str(), match, cmdRegex))
+    {
+        int value = atoi(match[2].str().c_str());
+        if (value >= 0 && value <= 100)
+        {
+            std::string cmdType = match[1].str();
+
+            // Remove any previous commands of the same type from the queue
+            std::queue<String> tempQueue;
+            while (!commandQueue.empty())
+            {
+                String queuedCmd = commandQueue.front();
+                commandQueue.pop();
+
+                std::cmatch queuedMatch;
+                if (std::regex_match(queuedCmd.c_str(), queuedMatch, cmdRegex))
+                {
+                    std::string queuedType = queuedMatch[1].str();
+                    if (queuedType == cmdType)
+                    {
+                        // Skip this command (removes previous of same type)
+                        continue;
+                    }
+                }
+                tempQueue.push(queuedCmd);
+            }
+            // Restore the filtered queue
+            commandQueue = tempQueue;
+
+            // Add the new command
+            commandQueue.push(command);
+            return;
+        }
+    }
+    ESP_LOGW(TAG, "Invalid command format: %s", command.c_str());
+}
+
 void initBLE()
 {
     ESP_LOGI(TAG, "Starting NimBLE Client");
@@ -348,28 +399,85 @@ void initBLE()
     pScan->start(scanTimeMs);
     ESP_LOGI(TAG, "Scanning for peripherals");
 
-    xTaskCreate(
+    xTaskCreatePinnedToCore(
         [](void *pvParameter)
         {
             while (true)
             {
                 vTaskDelay(10);
 
-                if (!doConnect)
+                if (doConnect)
+                {
+                    doConnect = false;
+                    /** Found a device we want to connect to, do it now */
+                    if (connectToServer())
+                    {
+                        ESP_LOGI(TAG, "Success! we should now be getting notifications, scanning for more!");
+                    }
+                    else
+                    {
+                        ESP_LOGE(TAG, "Failed to connect, starting scan");
+                        NimBLEDevice::getScan()->start(scanTimeMs, false, true);
+                    }
+                }
+
+                // if we're not connected continue.
+                if (!NimBLEDevice::getClientByPeerAddress(advDevice->getAddress())->isConnected())
                 {
                     continue;
                 }
 
-                doConnect = false;
-                /** Found a device we want to connect to, do it now */
-                if (connectToServer())
+                // first check for changes in lastSettings
+                if (lastSettings.speed != settings.speed)
                 {
-                    ESP_LOGI(TAG, "Success! we should now be getting notifications, scanning for more!");
+                    sendCommand("set:speed:" + String(settings.speed, 0));
+                    lastSettings.speed = settings.speed;
+                    ESP_LOGI(TAG, "Speed changed, sending command: set:speed:%d", settings.speed);
                 }
-                else
+
+                if (lastSettings.stroke != settings.stroke)
                 {
-                    ESP_LOGE(TAG, "Failed to connect, starting scan");
-                    NimBLEDevice::getScan()->start(scanTimeMs, false, true);
+                    sendCommand("set:stroke:" + String(settings.stroke, 0));
+                    lastSettings.stroke = settings.stroke;
+                    ESP_LOGI(TAG, "Stroke changed, sending command: set:stroke:%d", settings.stroke);
+                }
+
+                if (lastSettings.sensation != settings.sensation)
+                {
+                    sendCommand("set:sensation:" + String(settings.sensation, 0));
+                    lastSettings.sensation = settings.sensation;
+                    ESP_LOGI(TAG, "Sensation changed, sending command: set:sensation:%d", settings.sensation);
+                }
+
+                if (lastSettings.depth != settings.depth)
+                {
+                    sendCommand("set:depth:" + String(settings.depth, 0));
+                    lastSettings.depth = settings.depth;
+                    ESP_LOGI(TAG, "Depth changed, sending command: set:depth:%d", settings.depth);
+                }
+
+                if (lastSettings.pattern != settings.pattern)
+                {
+                    sendCommand("set:pattern:" + String(static_cast<uint8_t>(settings.pattern), 0));
+                    lastSettings.pattern = settings.pattern;
+                    ESP_LOGI(TAG, "Pattern changed, sending command: set:pattern:%d", static_cast<uint8_t>(settings.pattern));
+                }
+
+                // if there's nothing in the queue, continue.
+                if (commandQueue.empty())
+                {
+                    continue;
+                }
+
+                // if there's something in the queue, send it.
+                String command = commandQueue.front();
+                commandQueue.pop();
+                ESP_LOGI(TAG, "Sending command: %s", command.c_str());
+                NimBLERemoteCharacteristic *pChr = NimBLEDevice::getClientByPeerAddress(advDevice->getAddress())->getService(OSSM_SERVICE_UUID)->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
+                if (pChr)
+                {
+                    pChr->writeValue(command);
+                    ESP_LOGI(TAG, "Command sent: %s", command.c_str());
                 }
             }
         },
@@ -377,5 +485,6 @@ void initBLE()
         10000,
         NULL,
         1,
-        NULL);
+        NULL,
+        0);
 }

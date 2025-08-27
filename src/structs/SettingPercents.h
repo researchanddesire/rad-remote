@@ -1,7 +1,8 @@
 #ifndef SOFTWARE_SETTINGPERCENTS_H
 #define SOFTWARE_SETTINGPERCENTS_H
 
-enum class StrokePatterns {
+enum class StrokePatterns
+{
     SimpleStroke,
     TeasingPounding,
     RoboStroke,
@@ -11,7 +12,8 @@ enum class StrokePatterns {
     Insist,
 };
 
-struct SettingPercents {
+struct SettingPercents
+{
     float speed;
     float stroke;
     float sensation;
@@ -20,4 +22,4 @@ struct SettingPercents {
     float speedKnob;
 };
 
-#endif  // SOFTWARE_SETTINGPERCENTS_H
+#endif // SOFTWARE_SETTINGPERCENTS_H
