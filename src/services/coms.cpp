@@ -1,386 +1,381 @@
-/*
-  OSSM Remote Communication Service
-  Uses NimBLE to communicate with OSSM devices over BLE
-*/
-
 #include "coms.h"
+
+/** NimBLE_Client Demo:
+ *
+ *  Demonstrates many of the available features of the NimBLE client library.
+ *
+ *  Created: on March 24 2020
+ *      Author: H2zero
+ */
+
+#include <Arduino.h>
+#include <NimBLEDevice.h>
 #include <esp_log.h>
-#include <NimBLEScan.h>
 
-// Forward declarations
-void onConnect(NimBLEClient *pClient);
-void onDisconnect(NimBLEClient *pClient);
-bool onScanResult(const NimBLEAdvertisedDevice *advertisedDevice);
+static const char *TAG = "COMS";
 
-// Client callbacks class
+static const NimBLEAdvertisedDevice *advDevice;
+static bool doConnect = false;
+static uint32_t scanTimeMs = 1000; /** scan time in milliseconds, 0 = scan forever */
+
+/**  None of these are required as they will be handled by the library with defaults. **
+ **                       Remove as you see fit for your needs                        */
 class ClientCallbacks : public NimBLEClientCallbacks
 {
-    void onConnect(NimBLEClient *pClient) override
-    {
-        ::onConnect(pClient);
-    }
+    void onConnect(NimBLEClient *pClient) override { ESP_LOGI(TAG, "Connected"); }
 
     void onDisconnect(NimBLEClient *pClient, int reason) override
     {
-        ::onDisconnect(pClient);
-        // Restart scanning after disconnect
-        NimBLEDevice::getScan()->start(5, false, true);
+        ESP_LOGI(TAG, "%s Disconnected, reason = %d - Starting scan", pClient->getPeerAddress().toString().c_str(), reason);
+        NimBLEDevice::getScan()->start(scanTimeMs, false, true);
     }
-};
 
-// Scan callbacks class
+    /********************* Security handled here *********************/
+    void onPassKeyEntry(NimBLEConnInfo &connInfo) override
+    {
+        ESP_LOGI(TAG, "Server Passkey Entry");
+        /**
+         * This should prompt the user to enter the passkey displayed
+         * on the peer device.
+         */
+        NimBLEDevice::injectPassKey(connInfo, 123456);
+    }
+
+    void onConfirmPasskey(NimBLEConnInfo &connInfo, uint32_t pass_key) override
+    {
+        ESP_LOGI(TAG, "The passkey YES/NO number: %" PRIu32, pass_key);
+        /** Inject false if passkeys don't match. */
+        NimBLEDevice::injectConfirmPasskey(connInfo, true);
+    }
+
+    /** Pairing process complete, we can check the results in connInfo */
+    void onAuthenticationComplete(NimBLEConnInfo &connInfo) override
+    {
+        if (!connInfo.isEncrypted())
+        {
+            ESP_LOGE(TAG, "Encrypt connection failed - disconnecting");
+            /** Find the client with the connection handle provided in connInfo */
+            NimBLEDevice::getClientByHandle(connInfo.getConnHandle())->disconnect();
+            return;
+        }
+    }
+} clientCallbacks;
+
+/** Define a class to handle the callbacks when scan events are received */
 class ScanCallbacks : public NimBLEScanCallbacks
 {
     void onResult(const NimBLEAdvertisedDevice *advertisedDevice) override
     {
-        onScanResult(advertisedDevice);
-    }
-
-    void onScanEnd(const NimBLEScanResults &results, int reason) override
-    {
-        ESP_LOGD("COMS", "Scan ended, reason: %d, devices found: %d", reason, results.getCount());
-        // Restart scanning if not connected
-        if (!deviceConnected)
+        ESP_LOGI(TAG, "Advertised Device found: %s", advertisedDevice->toString().c_str());
+        if (advertisedDevice->isAdvertisingService(NimBLEUUID(OSSM_SERVICE_UUID)) ||
+            advertisedDevice->getName() == OSSM_DEVICE_NAME)
         {
-            NimBLEDevice::getScan()->start(5, false, true);
+            ESP_LOGI(TAG, "Found Our Service or Device Name");
+            /** stop scan before connecting */
+            NimBLEDevice::getScan()->stop();
+            /** Save the device reference in a global for the client to use*/
+            advDevice = advertisedDevice;
+            /** Ready to connect now */
+            doConnect = true;
         }
     }
-};
 
-// Global variables
-NimBLEClient *pClient = nullptr;
-bool deviceConnected = false;
-bool serviceFound = false;
-OSSMState currentOSSMState;
-
-// BLE scan and connection callbacks
-void onConnect(NimBLEClient *pClient)
-{
-    ESP_LOGI("COMS", "Connected to OSSM device");
-    deviceConnected = true;
-
-    // For now, assume services are available
-    ESP_LOGI("COMS", "Connected, services will be discovered when needed");
-    serviceFound = true;
-}
-
-void onDisconnect(NimBLEClient *pClient)
-{
-    ESP_LOGI("COMS", "Disconnected from OSSM device");
-    deviceConnected = false;
-    serviceFound = false;
-}
-
-bool onScanResult(const NimBLEAdvertisedDevice *advertisedDevice)
-{
-    ESP_LOGD("COMS", "Found device: %s", advertisedDevice->getName().c_str());
-
-    if (advertisedDevice->getName() == OSSM_DEVICE_NAME)
+    /** Callback to process the results of the completed scan or restart it */
+    void onScanEnd(const NimBLEScanResults &results, int reason) override
     {
-        ESP_LOGI("COMS", "Found OSSM device! Address: %s", advertisedDevice->getAddress().toString().c_str());
+        ESP_LOGI(TAG, "Scan Ended, reason: %d, device count: %d; Restarting scan", reason, results.getCount());
+        vTaskDelay(2000);
+        NimBLEDevice::getScan()->start(scanTimeMs, false, true);
+    }
+} scanCallbacks;
 
-        // Stop scanning and connect
-        NimBLEDevice::getScan()->stop();
+/** Notification / Indication receiving handler callback */
+void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
+{
+    std::string str = (isNotify == true) ? "Notification" : "Indication";
+    str += " from ";
+    str += pRemoteCharacteristic->getClient()->getPeerAddress().toString();
+    str += ": Service = " + pRemoteCharacteristic->getRemoteService()->getUUID().toString();
+    str += ", Characteristic = " + pRemoteCharacteristic->getUUID().toString();
+    str += ", Value = " + std::string((char *)pData, length);
+    ESP_LOGI(TAG, "%s", str.c_str());
+}
 
-        // Store the device for connection
-        pClient = NimBLEDevice::createClient();
-        pClient->setClientCallbacks(new ClientCallbacks());
+/** Handles the provisioning of clients and connects / interfaces with the server */
+bool connectToServer()
+{
+    NimBLEClient *pClient = nullptr;
 
-        if (pClient->connect(advertisedDevice))
+    /** Check if we have a client we should reuse first **/
+    if (NimBLEDevice::getCreatedClientCount())
+    {
+        /**
+         *  Special case when we already know this device, we send false as the
+         *  second argument in connect() to prevent refreshing the service database.
+         *  This saves considerable time and power.
+         */
+        pClient = NimBLEDevice::getClientByPeerAddress(advDevice->getAddress());
+        if (pClient)
         {
-            ESP_LOGI("COMS", "Successfully connected to OSSM");
+            if (!pClient->connect(advDevice, false))
+            {
+                ESP_LOGE(TAG, "Reconnect failed");
+                return false;
+            }
+            ESP_LOGI(TAG, "Reconnected client");
         }
         else
         {
-            ESP_LOGE("COMS", "Failed to connect to OSSM");
+            /**
+             *  We don't already have a client that knows this device,
+             *  check for a client that is disconnected that we can use.
+             */
+            pClient = NimBLEDevice::getDisconnectedClient();
         }
-
-        return true;
     }
-    return false;
-}
 
-// Task to periodically read OSSM state
-void ossmStateTask(void *parameter)
-{
-    while (true)
+    /** No client to reuse? Create a new one. */
+    if (!pClient)
     {
-        if (deviceConnected && serviceFound)
+        if (NimBLEDevice::getCreatedClientCount() >= NIMBLE_MAX_CONNECTIONS)
         {
-            readOSSMState();
+            ESP_LOGE(TAG, "Max clients reached - no more connections available");
+            return false;
         }
-        vTaskDelay(1000 / portTICK_PERIOD_MS); // Read every second
+
+        pClient = NimBLEDevice::createClient();
+
+        ESP_LOGI(TAG, "New client created");
+
+        pClient->setClientCallbacks(&clientCallbacks, false);
+        /**
+         *  Set initial connection parameters:
+         *  These settings are safe for 3 clients to connect reliably, can go faster if you have less
+         *  connections. Timeout should be a multiple of the interval, minimum is 100ms.
+         *  Min interval: 12 * 1.25ms = 15, Max interval: 12 * 1.25ms = 15, 0 latency, 150 * 10ms = 1500ms timeout
+         */
+        pClient->setConnectionParams(12, 12, 0, 150);
+
+        /** Set how long we are willing to wait for the connection to complete (milliseconds), default is 30000. */
+        pClient->setConnectTimeout(5 * 1000);
+
+        if (!pClient->connect(advDevice))
+        {
+            /** Created a client but failed to connect, don't need to keep it as it has no data */
+            NimBLEDevice::deleteClient(pClient);
+            ESP_LOGE(TAG, "Failed to connect, deleted client");
+            return false;
+        }
     }
+
+    if (!pClient->isConnected())
+    {
+        if (!pClient->connect(advDevice))
+        {
+            ESP_LOGE(TAG, "Failed to connect");
+            return false;
+        }
+    }
+
+    ESP_LOGI(TAG, "Connected to: %s RSSI: %d", pClient->getPeerAddress().toString().c_str(), pClient->getRssi());
+
+    /** Now we can read/write/subscribe the characteristics of the services we are interested in */
+    NimBLERemoteService *pSvc = nullptr;
+    NimBLERemoteCharacteristic *pChr = nullptr;
+    NimBLERemoteDescriptor *pDsc = nullptr;
+
+    pSvc = pClient->getService("DEAD");
+    if (pSvc)
+    {
+        pChr = pSvc->getCharacteristic("BEEF");
+    }
+
+    if (pChr)
+    {
+        if (pChr->canRead())
+        {
+            ESP_LOGI(TAG, "%s Value: %s", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
+        }
+
+        if (pChr->canWrite())
+        {
+            if (pChr->writeValue("Tasty"))
+            {
+                ESP_LOGI(TAG, "Wrote new value to: %s", pChr->getUUID().toString().c_str());
+            }
+            else
+            {
+                pClient->disconnect();
+                return false;
+            }
+
+            if (pChr->canRead())
+            {
+                ESP_LOGI(TAG, "The value of: %s is now: %s", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
+            }
+        }
+
+        if (pChr->canNotify())
+        {
+            if (!pChr->subscribe(true, notifyCB))
+            {
+                pClient->disconnect();
+                return false;
+            }
+        }
+        else if (pChr->canIndicate())
+        {
+            /** Send false as first argument to subscribe to indications instead of notifications */
+            if (!pChr->subscribe(false, notifyCB))
+            {
+                pClient->disconnect();
+                return false;
+            }
+        }
+    }
+    else
+    {
+        ESP_LOGW(TAG, "DEAD service not found.");
+    }
+
+    pSvc = pClient->getService(OSSM_SERVICE_UUID);
+    if (pSvc)
+    {
+        pChr = pSvc->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
+        if (pChr)
+        {
+            if (pChr->canRead())
+            {
+                ESP_LOGI(TAG, "%s Value: %s", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
+            }
+
+            pDsc = pChr->getDescriptor(NimBLEUUID("C01D"));
+            if (pDsc)
+            {
+                ESP_LOGI(TAG, "Descriptor: %s  Value: %s", pDsc->getUUID().toString().c_str(), pDsc->readValue().c_str());
+            }
+
+            if (pChr->canWrite())
+            {
+                if (pChr->writeValue("go:strokeEngine"))
+                {
+                    ESP_LOGI(TAG, "Wrote new value to: %s", pChr->getUUID().toString().c_str());
+                }
+                else
+                {
+                    pClient->disconnect();
+                    return false;
+                }
+
+                if (pChr->canRead())
+                {
+                    ESP_LOGI(TAG, "The value of: %s is now: %s",
+                             pChr->getUUID().toString().c_str(),
+                             pChr->readValue().c_str());
+                }
+            }
+
+            if (pChr->canNotify())
+            {
+                if (!pChr->subscribe(true, notifyCB))
+                {
+                    pClient->disconnect();
+                    return false;
+                }
+            }
+            else if (pChr->canIndicate())
+            {
+                /** Send false as first argument to subscribe to indications instead of notifications */
+                if (!pChr->subscribe(false, notifyCB))
+                {
+                    pClient->disconnect();
+                    return false;
+                }
+            }
+        }
+    }
+    else
+    {
+        ESP_LOGW(TAG, "BAAD service not found.");
+    }
+
+    ESP_LOGI(TAG, "Done with this device!");
+    return true;
 }
 
 void initBLE()
 {
-    ESP_LOGI("COMS", "Initializing BLE...");
+    ESP_LOGI(TAG, "Starting NimBLE Client");
 
-    // Initialize BLE
-    NimBLEDevice::init("OSSM-Remote");
+    /** Initialize NimBLE and set the device name */
+    NimBLEDevice::init("NimBLE-Client");
 
-    // Set scan parameters
+    /**
+     * Set the IO capabilities of the device, each option will trigger a different pairing method.
+     *  BLE_HS_IO_KEYBOARD_ONLY   - Passkey pairing
+     *  BLE_HS_IO_DISPLAY_YESNO   - Numeric comparison pairing
+     *  BLE_HS_IO_NO_INPUT_OUTPUT - DEFAULT setting - just works pairing
+     */
+    // NimBLEDevice::setSecurityIOCap(BLE_HS_IO_KEYBOARD_ONLY); // use passkey
+    // NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_YESNO); //use numeric comparison
+
+    /**
+     * 2 different ways to set security - both calls achieve the same result.
+     *  no bonding, no man in the middle protection, BLE secure connections.
+     *  These are the default values, only shown here for demonstration.
+     */
+    // NimBLEDevice::setSecurityAuth(false, false, true);
+    // NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND | BLE_SM_PAIR_AUTHREQ_MITM | BLE_SM_PAIR_AUTHREQ_SC);
+
+    /** Optional: set the transmit power */
+    NimBLEDevice::setPower(3); /** 3dbm */
     NimBLEScan *pScan = NimBLEDevice::getScan();
-    pScan->setScanCallbacks(new ScanCallbacks(), false);
-    pScan->setActiveScan(true);
+
+    /** Set the callbacks to call when scan events occur, no duplicates */
+    pScan->setScanCallbacks(&scanCallbacks, false);
+
+    /** Set scan interval (how often) and window (how long) in milliseconds */
     pScan->setInterval(100);
-    pScan->setWindow(99);
+    pScan->setWindow(100);
 
-    ESP_LOGI("COMS", "BLE initialized, starting scan for OSSM devices...");
+    /**
+     * Active scan will gather scan response data from advertisers
+     *  but will use more energy from both devices
+     */
+    pScan->setActiveScan(true);
 
-    // Start scanning for OSSM devices
-    scanForOSSM();
+    /** Start scanning for advertisers */
+    pScan->start(scanTimeMs);
+    ESP_LOGI(TAG, "Scanning for peripherals");
 
-    // Create task to periodically read OSSM state
-    xTaskCreatePinnedToCore(
-        ossmStateTask,
-        "ossmStateTask",
-        4 * configMINIMAL_STACK_SIZE,
-        nullptr,
+    xTaskCreate(
+        [](void *pvParameter)
+        {
+            while (true)
+            {
+                vTaskDelay(10);
+
+                if (!doConnect)
+                {
+                    continue;
+                }
+
+                doConnect = false;
+                /** Found a device we want to connect to, do it now */
+                if (connectToServer())
+                {
+                    ESP_LOGI(TAG, "Success! we should now be getting notifications, scanning for more!");
+                }
+                else
+                {
+                    ESP_LOGE(TAG, "Failed to connect, starting scan");
+                    NimBLEDevice::getScan()->start(scanTimeMs, false, true);
+                }
+            }
+        },
+        "BLE Task",
+        10000,
+        NULL,
         1,
-        nullptr,
-        0);
-}
-
-void scanForOSSM()
-{
-    if (deviceConnected)
-    {
-        ESP_LOGD("COMS", "Already connected to OSSM device");
-        return;
-    }
-
-    ESP_LOGI("COMS", "Scanning for OSSM devices...");
-    NimBLEDevice::getScan()->start(5, false, true); // Scan for 5 seconds, restart when done
-}
-
-void connectToOSSM()
-{
-    if (deviceConnected)
-    {
-        ESP_LOGD("COMS", "Already connected to OSSM device");
-        return;
-    }
-
-    // If we have a stored device, try to connect
-    if (pClient && !pClient->isConnected())
-    {
-        ESP_LOGI("COMS", "Attempting to reconnect to OSSM...");
-        pClient->connect();
-    }
-    else
-    {
-        // Start scanning again
-        NimBLEDevice::getScan()->start(5, false, true);
-    }
-}
-
-void disconnectFromOSSM()
-{
-    if (pClient && pClient->isConnected())
-    {
-        pClient->disconnect();
-    }
-}
-
-void sendCommand(const String &command)
-{
-    if (!deviceConnected || !serviceFound)
-    {
-        ESP_LOGW("COMS", "Cannot send command - not connected to OSSM");
-        return;
-    }
-
-    ESP_LOGD("COMS", "Sending command: %s", command.c_str());
-
-    // Get the service and characteristic
-    NimBLERemoteService *pService = pClient->getService(OSSM_SERVICE_UUID);
-    if (pService == nullptr)
-    {
-        ESP_LOGE("COMS", "Service not found");
-        return;
-    }
-
-    NimBLERemoteCharacteristic *pCharacteristic = pService->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
-    if (pCharacteristic == nullptr)
-    {
-        ESP_LOGE("COMS", "Characteristic not found");
-        return;
-    }
-
-    // Send the command
-    if (pCharacteristic->canWrite())
-    {
-        pCharacteristic->writeValue(command.c_str());
-        ESP_LOGD("COMS", "Command sent successfully");
-    }
-    else
-    {
-        ESP_LOGE("COMS", "Characteristic is not writable");
-    }
-}
-
-void sendSettings(SettingPercents settings)
-{
-    if (!deviceConnected || !serviceFound)
-    {
-        ESP_LOGW("COMS", "Cannot send settings - not connected to OSSM");
-        return;
-    }
-
-    // Create JSON command for settings
-    DynamicJsonDocument doc(200);
-    doc["command"] = "set";
-    doc["speed"] = static_cast<int>(settings.speed);
-    doc["stroke"] = static_cast<int>(settings.stroke);
-    doc["sensation"] = static_cast<int>(settings.sensation);
-    doc["depth"] = static_cast<int>(settings.depth);
-    doc["pattern"] = static_cast<int>(settings.pattern);
-
-    String jsonCommand;
-    serializeJson(doc, jsonCommand);
-
-    ESP_LOGD("COMS", "Sending settings: %s", jsonCommand.c_str());
-    sendCommand(jsonCommand);
-}
-
-void readOSSMState()
-{
-    if (!deviceConnected || !serviceFound)
-    {
-        ESP_LOGW("COMS", "Cannot read state - not connected to OSSM");
-        return;
-    }
-
-    // Get the service and characteristic
-    NimBLERemoteService *pService = pClient->getService(OSSM_SERVICE_UUID);
-    if (pService == nullptr)
-    {
-        ESP_LOGE("COMS", "Service not found");
-        return;
-    }
-
-    NimBLERemoteCharacteristic *pCharacteristic = pService->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
-    if (pCharacteristic == nullptr)
-    {
-        ESP_LOGE("COMS", "Characteristic not found");
-        return;
-    }
-
-    // Read the characteristic value
-    if (pCharacteristic->canRead())
-    {
-        std::string value = pCharacteristic->readValue();
-        ESP_LOGD("COMS", "Read OSSM state: %s", value.c_str());
-
-        // Parse JSON response
-        DynamicJsonDocument doc(200);
-        DeserializationError error = deserializeJson(doc, value);
-
-        if (!error)
-        {
-            currentOSSMState.state = doc["state"].as<String>();
-            currentOSSMState.speed = doc["speed"].as<uint8_t>();
-            currentOSSMState.stroke = doc["stroke"].as<uint8_t>();
-            currentOSSMState.sensation = doc["sensation"].as<uint8_t>();
-            currentOSSMState.depth = doc["depth"].as<uint8_t>();
-            currentOSSMState.pattern = doc["pattern"].as<uint8_t>();
-
-            ESP_LOGD("COMS", "Parsed state: %s, speed: %d, stroke: %d, sensation: %d, depth: %d, pattern: %d",
-                     currentOSSMState.state.c_str(), currentOSSMState.speed, currentOSSMState.stroke,
-                     currentOSSMState.sensation, currentOSSMState.depth, currentOSSMState.pattern);
-        }
-        else
-        {
-            ESP_LOGE("COMS", "Failed to parse JSON: %s", error.c_str());
-        }
-    }
-    else
-    {
-        ESP_LOGE("COMS", "Characteristic is not readable");
-    }
-}
-
-// Legacy function for backward compatibility
-void sendESPNow(SettingPercents newSettings)
-{
-    sendSettings(newSettings);
-}
-
-// Mode control commands
-void goToMenu()
-{
-    ESP_LOGI("COMS", "Sending go:menu command");
-    sendCommand("go:menu");
-}
-
-void goToSimplePenetration()
-{
-    ESP_LOGI("COMS", "Sending go:simplePenetration command");
-    sendCommand("go:simplePenetration");
-}
-
-void goToStrokeEngine()
-{
-    ESP_LOGI("COMS", "Sending go:strokeEngine command");
-    sendCommand("go:strokeEngine");
-}
-
-// Parameter setting commands
-void setStroke(uint8_t value)
-{
-    if (value > 100)
-        value = 100;
-    String command = "set:stroke:" + String(value);
-    ESP_LOGI("COMS", "Sending %s command", command.c_str());
-    sendCommand(command);
-}
-
-void setDepth(uint8_t value)
-{
-    if (value > 100)
-        value = 100;
-    String command = "set:depth:" + String(value);
-    ESP_LOGI("COMS", "Sending %s command", command.c_str());
-    sendCommand(command);
-}
-
-void setSensation(uint8_t value)
-{
-    if (value > 100)
-        value = 100;
-    String command = "set:sensation:" + String(value);
-    ESP_LOGI("COMS", "Sending %s command", command.c_str());
-    sendCommand(command);
-}
-
-void setSpeed(uint8_t value)
-{
-    if (value > 100)
-        value = 100;
-    String command = "set:speed:" + String(value);
-    ESP_LOGI("COMS", "Sending %s command", command.c_str());
-    sendCommand(command);
-}
-
-void setPattern(uint8_t value)
-{
-    if (value > 6)
-        value = 6;
-    String command = "set:pattern:" + String(value);
-    ESP_LOGI("COMS", "Sending %s command", command.c_str());
-    sendCommand(command);
-}
-
-// Utility function to get current OSSM state
-auto getOSSMState()
-{
-    return currentOSSMState;
-}
-
-// Utility function to check if connected
-bool isConnectedToOSSM()
-{
-    return deviceConnected && serviceFound;
+        NULL);
 }
