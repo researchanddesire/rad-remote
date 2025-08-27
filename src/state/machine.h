@@ -27,6 +27,10 @@ struct ossm_remote_state
             "settings_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::BACK)] = "main_menu"_s,
             "settings_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::RESTART)] = "restart"_s,
 
+            // "ossm_search"_s + on_entry<_> / (drawSearch, startTask(searchForDevicesTask, "searchForDevicesTask", nullptr)),
+            "ossm_search"_s + event<right_button_pressed> = "ossm_search"_s,
+            "ossm_search"_s + event<left_button_pressed> = "main_menu"_s,
+
             "ossm_control"_s + on_entry<_> / drawControl,
             "ossm_control"_s + event<right_button_pressed> = "ossm_pattern_menu"_s,
             "ossm_control"_s + event<middle_button_pressed> = "ossm_stop"_s,

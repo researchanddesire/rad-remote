@@ -6,7 +6,7 @@
 #include "pages/controller.h"
 #include "pages/menus.h"
 #include "services/encoder.h"
-
+#include "pages/search.h"
 namespace actions
 {
 
@@ -63,6 +63,23 @@ namespace actions
     {
         clearScreen(s);
         xTaskCreatePinnedToCore(drawPatternMenuTask, "drawPatternMenuTask", 15 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+    };
+
+    auto drawSearch = [](sender &s)
+    {
+        clearScreen(s);
+        xTaskCreatePinnedToCore(drawSearchTask, "drawSearchTask", 15 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+    };
+
+    auto startTask = [](auto task, const char *taskName,
+                        TaskHandle_t handle, uint8_t size = 10,
+                        uint8_t core = 1)
+    {
+        return [task, taskName, handle, size, core]() mutable
+        {
+            xTaskCreatePinnedToCore(task, taskName, size * configMINIMAL_STACK_SIZE,
+                                    nullptr, 1, &handle, core);
+        };
     };
 
     auto drawActiveMenu = [](const MenuItem *menu, int count)

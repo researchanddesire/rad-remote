@@ -8,8 +8,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
-#include <esp_now.h>
-#include <WiFi.h>
+#include <NimBLEDevice.h>
 #include <esp_sleep.h>
 #include "pins.h"
 #include "constants.h"
@@ -94,7 +93,7 @@ void setup()
     initEncoderService();
     initBuzzer();
     initVibrator();
-    initESPNow();
+    initBLE();
     initStateMachine();
     updateBatteryStatus();
     updateIMUReadings();
