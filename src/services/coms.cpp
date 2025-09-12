@@ -28,7 +28,6 @@ class ClientCallbacks : public NimBLEClientCallbacks
     void onConnect(NimBLEClient *pClient) override
     {
         ESP_LOGI(TAG, "Connected");
-        if (p)
     }
 
     void onDisconnect(NimBLEClient *pClient, int reason) override
@@ -468,10 +467,10 @@ void initBLE()
     xTaskCreatePinnedToCore(
         [](void *pvParameter)
         {
-            vTaskDelay(5000);
+            vTaskDelay(1000);
             while (true)
             {
-                vTaskDelay(1000);
+                vTaskDelay(100);
 
                 if (doConnect)
                 {
