@@ -17,7 +17,7 @@ static const char *TAG = "COMS";
 
 static const NimBLEAdvertisedDevice *advDevice;
 static bool doConnect = false;
-static uint32_t scanTimeMs = 1000; /** scan time in milliseconds, 0 = scan forever */
+static uint32_t scanTimeMs = 0; /** scan time in milliseconds, 0 = scan forever */
 
 static std::queue<String> commandQueue;
 
@@ -25,7 +25,11 @@ static std::queue<String> commandQueue;
  **                       Remove as you see fit for your needs                        */
 class ClientCallbacks : public NimBLEClientCallbacks
 {
-    void onConnect(NimBLEClient *pClient) override { ESP_LOGI(TAG, "Connected"); }
+    void onConnect(NimBLEClient *pClient) override
+    {
+        ESP_LOGI(TAG, "Connected");
+        if (p)
+    }
 
     void onDisconnect(NimBLEClient *pClient, int reason) override
     {
@@ -69,7 +73,8 @@ class ScanCallbacks : public NimBLEScanCallbacks
 {
     void onResult(const NimBLEAdvertisedDevice *advertisedDevice) override
     {
-        ESP_LOGI(TAG, "Advertised Device found: %s", advertisedDevice->toString().c_str());
+        vTaskDelay(1); // Say hello to the watchdog <3
+        ESP_LOGV(TAG, "Advertised Device found: %s", advertisedDevice->toString().c_str());
         if (advertisedDevice->isAdvertisingService(NimBLEUUID(OSSM_SERVICE_UUID)) ||
             advertisedDevice->getName() == OSSM_DEVICE_NAME)
         {
@@ -86,9 +91,8 @@ class ScanCallbacks : public NimBLEScanCallbacks
     /** Callback to process the results of the completed scan or restart it */
     void onScanEnd(const NimBLEScanResults &results, int reason) override
     {
-        ESP_LOGI(TAG, "Scan Ended, reason: %d, device count: %d; Restarting scan", reason, results.getCount());
-        vTaskDelay(2000);
-        NimBLEDevice::getScan()->start(scanTimeMs, false, true);
+        ESP_LOGI(TAG, "Scan Ended, reason: %d, device count: %d", reason, results.getCount());
+        return;
     }
 } scanCallbacks;
 
@@ -108,11 +112,22 @@ void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData,
 /** Handles the provisioning of clients and connects / interfaces with the server */
 bool connectToServer()
 {
+    if (advDevice == nullptr)
+    {
+        ESP_LOGE(TAG, "connectToServer called with null advDevice");
+        return false;
+    }
+
     NimBLEClient *pClient = nullptr;
 
     /** Check if we have a client we should reuse first **/
     if (NimBLEDevice::getCreatedClientCount())
     {
+        ESP_LOGD(TAG, "Existing clients detected: %u", NimBLEDevice::getCreatedClientCount());
+        if (advDevice)
+        {
+            ESP_LOGD(TAG, "Attempting reuse with peer: %s (RSSI during adv: %d)", advDevice->getAddress().toString().c_str(), advDevice->getRSSI());
+        }
         /**
          *  Special case when we already know this device, we send false as the
          *  second argument in connect() to prevent refreshing the service database.
@@ -121,6 +136,7 @@ bool connectToServer()
         pClient = NimBLEDevice::getClientByPeerAddress(advDevice->getAddress());
         if (pClient)
         {
+            ESP_LOGD(TAG, "Found existing client for peer: %s; attempting fast reconnect (no svc refresh)", advDevice->getAddress().toString().c_str());
             if (!pClient->connect(advDevice, false))
             {
                 ESP_LOGE(TAG, "Reconnect failed");
@@ -134,7 +150,16 @@ bool connectToServer()
              *  We don't already have a client that knows this device,
              *  check for a client that is disconnected that we can use.
              */
+            ESP_LOGD(TAG, "No existing client for peer; searching for disconnected client slot");
             pClient = NimBLEDevice::getDisconnectedClient();
+            if (pClient)
+            {
+                ESP_LOGD(TAG, "Reusing a disconnected client instance");
+            }
+            else
+            {
+                ESP_LOGD(TAG, "No disconnected clients available; will create a new client");
+            }
         }
     }
 
@@ -159,10 +184,13 @@ bool connectToServer()
          *  Min interval: 12 * 1.25ms = 15, Max interval: 12 * 1.25ms = 15, 0 latency, 150 * 10ms = 1500ms timeout
          */
         pClient->setConnectionParams(12, 12, 0, 150);
+        ESP_LOGD(TAG, "Connection params set: min_itvl=12, max_itvl=12, latency=0, timeout=1500ms");
 
         /** Set how long we are willing to wait for the connection to complete (milliseconds), default is 30000. */
         pClient->setConnectTimeout(5 * 1000);
+        ESP_LOGD(TAG, "Connect timeout set: %dms", 5 * 1000);
 
+        ESP_LOGI(TAG, "Connecting to peer (new client): %s", advDevice->getAddress().toString().c_str());
         if (!pClient->connect(advDevice))
         {
             /** Created a client but failed to connect, don't need to keep it as it has no data */
@@ -170,15 +198,18 @@ bool connectToServer()
             ESP_LOGE(TAG, "Failed to connect, deleted client");
             return false;
         }
+        ESP_LOGD(TAG, "Initial connect (new client) succeeded");
     }
 
     if (!pClient->isConnected())
     {
+        ESP_LOGW(TAG, "Client instance exists but not connected; attempting normal connect");
         if (!pClient->connect(advDevice))
         {
             ESP_LOGE(TAG, "Failed to connect");
             return false;
         }
+        ESP_LOGD(TAG, "Connect after existence check succeeded");
     }
 
     ESP_LOGI(TAG, "Connected to: %s RSSI: %d", pClient->getPeerAddress().toString().c_str(), pClient->getRssi());
@@ -189,26 +220,31 @@ bool connectToServer()
     NimBLERemoteDescriptor *pDsc = nullptr;
 
     pSvc = pClient->getService("DEAD");
+    ESP_LOGD(TAG, "Lookup service 'DEAD' -> %s", pSvc ? "FOUND" : "NOT FOUND");
     if (pSvc)
     {
         pChr = pSvc->getCharacteristic("BEEF");
+        ESP_LOGD(TAG, "Lookup char 'BEEF' in 'DEAD' -> %s", pChr ? "FOUND" : "NOT FOUND");
     }
 
     if (pChr)
     {
         if (pChr->canRead())
         {
+            ESP_LOGD(TAG, "Reading 'BEEF'");
             ESP_LOGI(TAG, "%s Value: %s", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
         }
 
         if (pChr->canWrite())
         {
+            ESP_LOGD(TAG, "Writing 'Tasty' to 'BEEF'");
             if (pChr->writeValue("Tasty"))
             {
                 ESP_LOGI(TAG, "Wrote new value to: %s", pChr->getUUID().toString().c_str());
             }
             else
             {
+                ESP_LOGE(TAG, "Write to 'BEEF' failed; disconnecting");
                 pClient->disconnect();
                 return false;
             }
@@ -221,19 +257,31 @@ bool connectToServer()
 
         if (pChr->canNotify())
         {
+            ESP_LOGD(TAG, "Subscribing to 'BEEF' notifications");
             if (!pChr->subscribe(true, notifyCB))
             {
+                ESP_LOGE(TAG, "Subscribe to 'BEEF' notifications failed; disconnecting");
                 pClient->disconnect();
                 return false;
+            }
+            else
+            {
+                ESP_LOGD(TAG, "Subscribed to 'BEEF' notifications");
             }
         }
         else if (pChr->canIndicate())
         {
             /** Send false as first argument to subscribe to indications instead of notifications */
+            ESP_LOGD(TAG, "Subscribing to 'BEEF' indications");
             if (!pChr->subscribe(false, notifyCB))
             {
+                ESP_LOGE(TAG, "Subscribe to 'BEEF' indications failed; disconnecting");
                 pClient->disconnect();
                 return false;
+            }
+            else
+            {
+                ESP_LOGD(TAG, "Subscribed to 'BEEF' indications");
             }
         }
     }
@@ -243,17 +291,21 @@ bool connectToServer()
     }
 
     pSvc = pClient->getService(OSSM_SERVICE_UUID);
+    ESP_LOGD(TAG, "Lookup service OSSM (%s) -> %s", String(OSSM_SERVICE_UUID).c_str(), pSvc ? "FOUND" : "NOT FOUND");
     if (pSvc)
     {
         pChr = pSvc->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
+        ESP_LOGD(TAG, "Lookup char OSSM (%s) -> %s", String(OSSM_CHARACTERISTIC_UUID).c_str(), pChr ? "FOUND" : "NOT FOUND");
         if (pChr)
         {
             if (pChr->canRead())
             {
+                ESP_LOGD(TAG, "Reading OSSM characteristic before writes");
                 ESP_LOGI(TAG, "%s Value: %s", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
             }
 
             pDsc = pChr->getDescriptor(NimBLEUUID("C01D"));
+            ESP_LOGD(TAG, "Lookup descriptor C01D -> %s", pDsc ? "FOUND" : "NOT FOUND");
             if (pDsc)
             {
                 ESP_LOGI(TAG, "Descriptor: %s  Value: %s", pDsc->getUUID().toString().c_str(), pDsc->readValue().c_str());
@@ -261,12 +313,14 @@ bool connectToServer()
 
             if (pChr->canWrite())
             {
+                ESP_LOGD(TAG, "Writing 'go:strokeEngine' to OSSM characteristic");
                 if (pChr->writeValue("go:strokeEngine"))
                 {
                     ESP_LOGI(TAG, "Wrote new value to: %s", pChr->getUUID().toString().c_str());
                 }
                 else
                 {
+                    ESP_LOGE(TAG, "Write to OSSM characteristic failed; disconnecting");
                     pClient->disconnect();
                     return false;
                 }
@@ -281,19 +335,31 @@ bool connectToServer()
 
             if (pChr->canNotify())
             {
+                ESP_LOGD(TAG, "Subscribing to OSSM notifications");
                 if (!pChr->subscribe(true, notifyCB))
                 {
+                    ESP_LOGE(TAG, "Subscribe to OSSM notifications failed; disconnecting");
                     pClient->disconnect();
                     return false;
+                }
+                else
+                {
+                    ESP_LOGD(TAG, "Subscribed to OSSM notifications");
                 }
             }
             else if (pChr->canIndicate())
             {
                 /** Send false as first argument to subscribe to indications instead of notifications */
+                ESP_LOGD(TAG, "Subscribing to OSSM indications");
                 if (!pChr->subscribe(false, notifyCB))
                 {
+                    ESP_LOGE(TAG, "Subscribe to OSSM indications failed; disconnecting");
                     pClient->disconnect();
                     return false;
+                }
+                else
+                {
+                    ESP_LOGD(TAG, "Subscribed to OSSM indications");
                 }
             }
         }
@@ -386,14 +452,14 @@ void initBLE()
     pScan->setScanCallbacks(&scanCallbacks, false);
 
     /** Set scan interval (how often) and window (how long) in milliseconds */
-    pScan->setInterval(100);
-    pScan->setWindow(100);
+    pScan->setInterval(1000);
+    pScan->setWindow(1000);
 
     /**
      * Active scan will gather scan response data from advertisers
      *  but will use more energy from both devices
      */
-    pScan->setActiveScan(true);
+    pScan->setActiveScan(false);
 
     /** Start scanning for advertisers */
     pScan->start(scanTimeMs);
@@ -402,9 +468,10 @@ void initBLE()
     xTaskCreatePinnedToCore(
         [](void *pvParameter)
         {
+            vTaskDelay(5000);
             while (true)
             {
-                vTaskDelay(10);
+                vTaskDelay(1000);
 
                 if (doConnect)
                 {
@@ -422,8 +489,23 @@ void initBLE()
                 }
 
                 // if we're not connected continue.
-                if (!NimBLEDevice::getClientByPeerAddress(advDevice->getAddress())->isConnected())
+                const NimBLEAdvertisedDevice *currentAdv = advDevice;
+                if (currentAdv == nullptr)
                 {
+                    ESP_LOGV(TAG, "No advertised device available yet");
+                    continue;
+                }
+
+                NimBLEClient *client = NimBLEDevice::getClientByPeerAddress(currentAdv->getAddress());
+                if (client == nullptr)
+                {
+                    ESP_LOGV(TAG, "No client instance for peer: %s", currentAdv->getAddress().toString().c_str());
+                    continue;
+                }
+
+                if (!client->isConnected())
+                {
+                    ESP_LOGV(TAG, "Client exists but not connected to: %s", currentAdv->getAddress().toString().c_str());
                     continue;
                 }
 
@@ -473,18 +555,40 @@ void initBLE()
                 String command = commandQueue.front();
                 commandQueue.pop();
                 ESP_LOGI(TAG, "Sending command: %s", command.c_str());
-                NimBLERemoteCharacteristic *pChr = NimBLEDevice::getClientByPeerAddress(advDevice->getAddress())->getService(OSSM_SERVICE_UUID)->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
-                if (pChr)
+                NimBLERemoteService *svc = client->getService(OSSM_SERVICE_UUID);
+                if (svc == nullptr)
                 {
-                    pChr->writeValue(command);
+                    ESP_LOGW(TAG, "OSSM service not found on peer; dropping command");
+                    continue;
+                }
+
+                NimBLERemoteCharacteristic *pChr = svc->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
+                if (pChr == nullptr)
+                {
+                    ESP_LOGW(TAG, "OSSM characteristic not found on peer; dropping command");
+                    continue;
+                }
+
+                if (!pChr->canWrite())
+                {
+                    ESP_LOGW(TAG, "OSSM characteristic not writable; dropping command");
+                    continue;
+                }
+
+                if (pChr->writeValue(command))
+                {
                     ESP_LOGI(TAG, "Command sent: %s", command.c_str());
+                }
+                else
+                {
+                    ESP_LOGE(TAG, "Failed to write command to OSSM characteristic");
                 }
             }
         },
         "BLE Task",
-        10000,
+        10 * configMINIMAL_STACK_SIZE,
         NULL,
         1,
         NULL,
-        0);
+        1);
 }
