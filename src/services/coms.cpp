@@ -13,6 +13,7 @@
 #include <esp_log.h>
 #include <queue>
 #include <regex>
+#include <devices/researchAndDesire/ossm/ossm_device.h>
 static const char *TAG = "COMS";
 
 static const NimBLEAdvertisedDevice *advDevice;
@@ -28,6 +29,15 @@ class ClientCallbacks : public NimBLEClientCallbacks
     void onConnect(NimBLEClient *pClient) override
     {
         ESP_LOGI(TAG, "Connected");
+        NimBLERemoteService *pSvc = pClient->getService(OSSM::serviceUUID.c_str());
+        if (pSvc)
+        {
+            NimBLERemoteCharacteristic *pChr = pSvc->getCharacteristic(OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT);
+            if (pChr)
+            {
+                pChr->writeValue("falses");
+            }
+        }
     }
 
     void onDisconnect(NimBLEClient *pClient, int reason) override
@@ -74,8 +84,8 @@ class ScanCallbacks : public NimBLEScanCallbacks
     {
         vTaskDelay(1); // Say hello to the watchdog <3
         ESP_LOGV(TAG, "Advertised Device found: %s", advertisedDevice->toString().c_str());
-        if (advertisedDevice->isAdvertisingService(NimBLEUUID(OSSM_SERVICE_UUID)) ||
-            advertisedDevice->getName() == OSSM_DEVICE_NAME)
+        if (advertisedDevice->isAdvertisingService(NimBLEUUID(OSSM::serviceUUID.c_str())) ||
+            advertisedDevice->getName() == OSSM::deviceName.c_str())
         {
             ESP_LOGI(TAG, "Found Our Service or Device Name");
             /** stop scan before connecting */
@@ -218,149 +228,25 @@ bool connectToServer()
     NimBLERemoteCharacteristic *pChr = nullptr;
     NimBLERemoteDescriptor *pDsc = nullptr;
 
-    pSvc = pClient->getService("DEAD");
-    ESP_LOGD(TAG, "Lookup service 'DEAD' -> %s", pSvc ? "FOUND" : "NOT FOUND");
+    OSSM::serviceUUID;
+
+    pSvc = pClient->getService(OSSM::serviceUUID.c_str());
+    ESP_LOGD(TAG, "Lookup service OSSM (%s) -> %s", OSSM::serviceUUID.c_str(), pSvc ? "FOUND" : "NOT FOUND");
     if (pSvc)
     {
-        pChr = pSvc->getCharacteristic("BEEF");
-        ESP_LOGD(TAG, "Lookup char 'BEEF' in 'DEAD' -> %s", pChr ? "FOUND" : "NOT FOUND");
-    }
-
-    if (pChr)
-    {
-        if (pChr->canRead())
+        pChr = pSvc->getCharacteristic(OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT);
+        ESP_LOGD(TAG, "Lookup char OSSM (%s) -> %s", String(OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT).c_str(), pChr ? "FOUND" : "NOT FOUND");
+        if (pChr && pChr->canWrite())
         {
-            ESP_LOGD(TAG, "Reading 'BEEF'");
-            ESP_LOGI(TAG, "%s Value: %s", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
+            pChr->writeValue("false");
         }
 
-        if (pChr->canWrite())
-        {
-            ESP_LOGD(TAG, "Writing 'Tasty' to 'BEEF'");
-            if (pChr->writeValue("Tasty"))
-            {
-                ESP_LOGI(TAG, "Wrote new value to: %s", pChr->getUUID().toString().c_str());
-            }
-            else
-            {
-                ESP_LOGE(TAG, "Write to 'BEEF' failed; disconnecting");
-                pClient->disconnect();
-                return false;
-            }
-
-            if (pChr->canRead())
-            {
-                ESP_LOGI(TAG, "The value of: %s is now: %s", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
-            }
-        }
-
-        if (pChr->canNotify())
-        {
-            ESP_LOGD(TAG, "Subscribing to 'BEEF' notifications");
-            if (!pChr->subscribe(true, notifyCB))
-            {
-                ESP_LOGE(TAG, "Subscribe to 'BEEF' notifications failed; disconnecting");
-                pClient->disconnect();
-                return false;
-            }
-            else
-            {
-                ESP_LOGD(TAG, "Subscribed to 'BEEF' notifications");
-            }
-        }
-        else if (pChr->canIndicate())
-        {
-            /** Send false as first argument to subscribe to indications instead of notifications */
-            ESP_LOGD(TAG, "Subscribing to 'BEEF' indications");
-            if (!pChr->subscribe(false, notifyCB))
-            {
-                ESP_LOGE(TAG, "Subscribe to 'BEEF' indications failed; disconnecting");
-                pClient->disconnect();
-                return false;
-            }
-            else
-            {
-                ESP_LOGD(TAG, "Subscribed to 'BEEF' indications");
-            }
-        }
-    }
-    else
-    {
-        ESP_LOGW(TAG, "DEAD service not found.");
-    }
-
-    pSvc = pClient->getService(OSSM_SERVICE_UUID);
-    ESP_LOGD(TAG, "Lookup service OSSM (%s) -> %s", String(OSSM_SERVICE_UUID).c_str(), pSvc ? "FOUND" : "NOT FOUND");
-    if (pSvc)
-    {
         pChr = pSvc->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
         ESP_LOGD(TAG, "Lookup char OSSM (%s) -> %s", String(OSSM_CHARACTERISTIC_UUID).c_str(), pChr ? "FOUND" : "NOT FOUND");
-        if (pChr)
+        if (pChr && pChr->canWrite())
         {
-            if (pChr->canRead())
-            {
-                ESP_LOGD(TAG, "Reading OSSM characteristic before writes");
-                ESP_LOGI(TAG, "%s Value: %s", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
-            }
-
-            pDsc = pChr->getDescriptor(NimBLEUUID("C01D"));
-            ESP_LOGD(TAG, "Lookup descriptor C01D -> %s", pDsc ? "FOUND" : "NOT FOUND");
-            if (pDsc)
-            {
-                ESP_LOGI(TAG, "Descriptor: %s  Value: %s", pDsc->getUUID().toString().c_str(), pDsc->readValue().c_str());
-            }
-
-            if (pChr->canWrite())
-            {
-                ESP_LOGD(TAG, "Writing 'go:strokeEngine' to OSSM characteristic");
-                if (pChr->writeValue("go:strokeEngine"))
-                {
-                    ESP_LOGI(TAG, "Wrote new value to: %s", pChr->getUUID().toString().c_str());
-                }
-                else
-                {
-                    ESP_LOGE(TAG, "Write to OSSM characteristic failed; disconnecting");
-                    pClient->disconnect();
-                    return false;
-                }
-
-                if (pChr->canRead())
-                {
-                    ESP_LOGI(TAG, "The value of: %s is now: %s",
-                             pChr->getUUID().toString().c_str(),
-                             pChr->readValue().c_str());
-                }
-            }
-
-            if (pChr->canNotify())
-            {
-                ESP_LOGD(TAG, "Subscribing to OSSM notifications");
-                if (!pChr->subscribe(true, notifyCB))
-                {
-                    ESP_LOGE(TAG, "Subscribe to OSSM notifications failed; disconnecting");
-                    pClient->disconnect();
-                    return false;
-                }
-                else
-                {
-                    ESP_LOGD(TAG, "Subscribed to OSSM notifications");
-                }
-            }
-            else if (pChr->canIndicate())
-            {
-                /** Send false as first argument to subscribe to indications instead of notifications */
-                ESP_LOGD(TAG, "Subscribing to OSSM indications");
-                if (!pChr->subscribe(false, notifyCB))
-                {
-                    ESP_LOGE(TAG, "Subscribe to OSSM indications failed; disconnecting");
-                    pClient->disconnect();
-                    return false;
-                }
-                else
-                {
-                    ESP_LOGD(TAG, "Subscribed to OSSM indications");
-                }
-            }
+            pChr->writeValue("go:strokeEngine");
+            pChr->writeValue("go:strokeEngine");
         }
     }
     else
