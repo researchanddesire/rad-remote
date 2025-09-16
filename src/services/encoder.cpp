@@ -1,8 +1,8 @@
 #include "encoder.h"
 
 // Initialize the global service instances
-AiEsp32RotaryEncoder leftEncoder(pins::LEFT_ENCODER_A, pins::LEFT_ENCODER_B, -1, -1);
-AiEsp32RotaryEncoder rightEncoder(pins::RIGHT_ENCODER_A, pins::RIGHT_ENCODER_B, -1, -1);
+AiEsp32RotaryEncoder leftEncoder(pins::LEFT_ENCODER_A, pins::LEFT_ENCODER_B, -1, -1, 4);
+AiEsp32RotaryEncoder rightEncoder(pins::RIGHT_ENCODER_A, pins::RIGHT_ENCODER_B, -1, -1, 4);
 
 void IRAM_ATTR readLeftEncoder()
 {

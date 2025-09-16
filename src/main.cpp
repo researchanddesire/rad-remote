@@ -80,6 +80,13 @@ void setup()
 {
     Serial.begin(115200);
 
+    pinMode(pins::BTN_L_SHOULDER, INPUT_PULLUP);
+    pinMode(pins::BTN_R_SHOULDER, INPUT_PULLUP);
+    pinMode(pins::BTN_UNDER_L, INPUT_PULLUP);
+    pinMode(pins::BTN_UNDER_C, INPUT_PULLUP);
+    pinMode(pins::BTN_UNDER_R, INPUT_PULLUP);
+    pinMode(pins::VIBRATOR_PIN, OUTPUT);
+
     // Initialize I2C
     Wire.begin(pins::I2C_SDA, pins::I2C_SCL);
 
