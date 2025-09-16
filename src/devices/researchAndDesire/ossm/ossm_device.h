@@ -7,7 +7,7 @@
 class OSSM : public Device
 {
 public:
-    OSSM();
+    explicit OSSM(const NimBLEAdvertisedDevice *advertisedDevice) : Device(advertisedDevice) {}
 };
 
 #endif // OSSM_DEVICE_H

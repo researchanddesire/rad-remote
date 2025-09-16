@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <string>
 
+#include <NimBLEUUID.h>
 #include <Arduino.h>
 #include "device.hpp"
 #include "researchAndDesire/ossm/ossm_device.h"
@@ -11,22 +12,27 @@
 #include "serviceUUIDs.h"
 
 // Factory function type for creating device instances
-typedef Device *(*DeviceFactory)();
+typedef Device *(*DeviceFactory)(const NimBLEAdvertisedDevice *advertisedDevice);
 
-// Map style accessors
-static const std::unordered_map<String, DeviceFactory> registry = {
-
+// Map between uppercase service UUIDs and device factories
+static const std::unordered_map<std::string, DeviceFactory> registry = {
     // clang-format off
-    {OSSM_SERVICE_ID, []() -> Device * { return new OSSM(); }},
-    {DOMI_SERVICE_ID, []() -> Device * { return new Domi2(); }}
+    {OSSM_SERVICE_ID, [](const NimBLEAdvertisedDevice *advertisedDevice) -> Device * { return new OSSM(advertisedDevice); }},
+    {DOMI_SERVICE_ID, [](const NimBLEAdvertisedDevice *advertisedDevice) -> Device * { return new Domi2(advertisedDevice); }}
     // clang-format on
 };
 
-inline const DeviceFactory *getDeviceFactory(const String &serviceId)
+inline const DeviceFactory *getDeviceFactory(const NimBLEUUID &serviceUUID)
 {
-    auto it = registry.find(serviceId);
+    // Convert NimBLEUUID to Uppercase std::string for lookup
+    std::string uuidStr = serviceUUID.toString().c_str();
+    std::transform(uuidStr.begin(), uuidStr.end(), uuidStr.begin(), ::toupper);
+
+    auto it = registry.find(uuidStr);
+
     if (it == registry.end())
         return nullptr;
+
     return &it->second;
 }
 

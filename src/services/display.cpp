@@ -1,7 +1,7 @@
 #include "display.h"
 
 // Screen setup
-Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, pins::TFT_CS, pins::TFT_A0, pins::TFT_RST);
+Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, pins::TFT_CS, pins::TFT_DC, pins::TFT_RST);
 
 // Create the display mutex
 SemaphoreHandle_t displayMutex = xSemaphoreCreateMutex();
@@ -9,9 +9,9 @@ SemaphoreHandle_t displayMutex = xSemaphoreCreateMutex();
 bool initDisplay()
 {
     // Initialize screen
-    pinMode(pins::TFT_BACKLIGHT, OUTPUT);
-    digitalWrite(pins::TFT_BACKLIGHT, HIGH);
-    SPI.begin(pins::TFT_SCK, -1, pins::TFT_SDA, -1);
+    pinMode(pins::TFT_BL, OUTPUT);
+    digitalWrite(pins::TFT_BL, HIGH);
+    SPI.begin(pins::TFT_SCLK, -1, pins::TFT_MOSI, -1);
     tft.init(240, 320); // Initialize with screen dimensions
     tft.setRotation(1); // Landscape mode
     tft.fillScreen(ST77XX_BLACK);

@@ -13,14 +13,16 @@
 #include <esp_log.h>
 #include <queue>
 #include <regex>
-#include <devices/researchAndDesire/ossm/ossm_device.h>
-static const char *TAG = "COMS";
+
+#define TAG "COMS"
 
 static const NimBLEAdvertisedDevice *advDevice;
 static bool doConnect = false;
 static uint32_t scanTimeMs = 0; /** scan time in milliseconds, 0 = scan forever */
 
 static std::queue<String> commandQueue;
+
+Device *device;
 
 /**  None of these are required as they will be handled by the library with defaults. **
  **                       Remove as you see fit for your needs                        */
@@ -29,15 +31,6 @@ class ClientCallbacks : public NimBLEClientCallbacks
     void onConnect(NimBLEClient *pClient) override
     {
         ESP_LOGI(TAG, "Connected");
-        NimBLERemoteService *pSvc = pClient->getService(OSSM::serviceUUID.c_str());
-        if (pSvc)
-        {
-            NimBLERemoteCharacteristic *pChr = pSvc->getCharacteristic(OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT);
-            if (pChr)
-            {
-                pChr->writeValue("falses");
-            }
-        }
     }
 
     void onDisconnect(NimBLEClient *pClient, int reason) override
@@ -82,25 +75,38 @@ class ScanCallbacks : public NimBLEScanCallbacks
 {
     void onResult(const NimBLEAdvertisedDevice *advertisedDevice) override
     {
-        vTaskDelay(1); // Say hello to the watchdog <3
-        ESP_LOGV(TAG, "Advertised Device found: %s", advertisedDevice->toString().c_str());
-        if (advertisedDevice->isAdvertisingService(NimBLEUUID(OSSM::serviceUUID.c_str())) ||
-            advertisedDevice->getName() == OSSM::deviceName.c_str())
+        // get all service UUIDs
+        const DeviceFactory *factory = nullptr;
+        auto countOfServiceUUIDs = advertisedDevice->getServiceUUIDCount();
+        for (int i = 0; i < countOfServiceUUIDs; i++)
         {
-            ESP_LOGI(TAG, "Found Our Service or Device Name");
-            /** stop scan before connecting */
-            NimBLEDevice::getScan()->stop();
-            /** Save the device reference in a global for the client to use*/
-            advDevice = advertisedDevice;
-            /** Ready to connect now */
-            doConnect = true;
-        }
-    }
+            vTaskDelay(1);
+            auto serviceUUID = advertisedDevice->getServiceUUID(i);
 
-    /** Callback to process the results of the completed scan or restart it */
-    void onScanEnd(const NimBLEScanResults &results, int reason) override
-    {
-        ESP_LOGI(TAG, "Scan Ended, reason: %d, device count: %d", reason, results.getCount());
+            auto name = advertisedDevice->getName();
+
+            // check if the service UUID is in the registry
+            factory = getDeviceFactory(serviceUUID);
+
+            if (factory != nullptr)
+            {
+                break;
+            }
+        }
+
+        if (!factory)
+        {
+            return;
+        }
+
+        NimBLEDevice::getScan()->stop();
+
+        /** stop scan before connecting */
+        /** Save the device reference in a global for the client to use*/
+        advDevice = advertisedDevice;
+
+        device = (*factory)(advertisedDevice);
+
         return;
     }
 } scanCallbacks;
@@ -127,134 +133,6 @@ bool connectToServer()
         return false;
     }
 
-    NimBLEClient *pClient = nullptr;
-
-    /** Check if we have a client we should reuse first **/
-    if (NimBLEDevice::getCreatedClientCount())
-    {
-        ESP_LOGD(TAG, "Existing clients detected: %u", NimBLEDevice::getCreatedClientCount());
-        if (advDevice)
-        {
-            ESP_LOGD(TAG, "Attempting reuse with peer: %s (RSSI during adv: %d)", advDevice->getAddress().toString().c_str(), advDevice->getRSSI());
-        }
-        /**
-         *  Special case when we already know this device, we send false as the
-         *  second argument in connect() to prevent refreshing the service database.
-         *  This saves considerable time and power.
-         */
-        pClient = NimBLEDevice::getClientByPeerAddress(advDevice->getAddress());
-        if (pClient)
-        {
-            ESP_LOGD(TAG, "Found existing client for peer: %s; attempting fast reconnect (no svc refresh)", advDevice->getAddress().toString().c_str());
-            if (!pClient->connect(advDevice, false))
-            {
-                ESP_LOGE(TAG, "Reconnect failed");
-                return false;
-            }
-            ESP_LOGI(TAG, "Reconnected client");
-        }
-        else
-        {
-            /**
-             *  We don't already have a client that knows this device,
-             *  check for a client that is disconnected that we can use.
-             */
-            ESP_LOGD(TAG, "No existing client for peer; searching for disconnected client slot");
-            pClient = NimBLEDevice::getDisconnectedClient();
-            if (pClient)
-            {
-                ESP_LOGD(TAG, "Reusing a disconnected client instance");
-            }
-            else
-            {
-                ESP_LOGD(TAG, "No disconnected clients available; will create a new client");
-            }
-        }
-    }
-
-    /** No client to reuse? Create a new one. */
-    if (!pClient)
-    {
-        if (NimBLEDevice::getCreatedClientCount() >= NIMBLE_MAX_CONNECTIONS)
-        {
-            ESP_LOGE(TAG, "Max clients reached - no more connections available");
-            return false;
-        }
-
-        pClient = NimBLEDevice::createClient();
-
-        ESP_LOGI(TAG, "New client created");
-
-        pClient->setClientCallbacks(&clientCallbacks, false);
-        /**
-         *  Set initial connection parameters:
-         *  These settings are safe for 3 clients to connect reliably, can go faster if you have less
-         *  connections. Timeout should be a multiple of the interval, minimum is 100ms.
-         *  Min interval: 12 * 1.25ms = 15, Max interval: 12 * 1.25ms = 15, 0 latency, 150 * 10ms = 1500ms timeout
-         */
-        pClient->setConnectionParams(12, 12, 0, 150);
-        ESP_LOGD(TAG, "Connection params set: min_itvl=12, max_itvl=12, latency=0, timeout=1500ms");
-
-        /** Set how long we are willing to wait for the connection to complete (milliseconds), default is 30000. */
-        pClient->setConnectTimeout(5 * 1000);
-        ESP_LOGD(TAG, "Connect timeout set: %dms", 5 * 1000);
-
-        ESP_LOGI(TAG, "Connecting to peer (new client): %s", advDevice->getAddress().toString().c_str());
-        if (!pClient->connect(advDevice))
-        {
-            /** Created a client but failed to connect, don't need to keep it as it has no data */
-            NimBLEDevice::deleteClient(pClient);
-            ESP_LOGE(TAG, "Failed to connect, deleted client");
-            return false;
-        }
-        ESP_LOGD(TAG, "Initial connect (new client) succeeded");
-    }
-
-    if (!pClient->isConnected())
-    {
-        ESP_LOGW(TAG, "Client instance exists but not connected; attempting normal connect");
-        if (!pClient->connect(advDevice))
-        {
-            ESP_LOGE(TAG, "Failed to connect");
-            return false;
-        }
-        ESP_LOGD(TAG, "Connect after existence check succeeded");
-    }
-
-    ESP_LOGI(TAG, "Connected to: %s RSSI: %d", pClient->getPeerAddress().toString().c_str(), pClient->getRssi());
-
-    /** Now we can read/write/subscribe the characteristics of the services we are interested in */
-    NimBLERemoteService *pSvc = nullptr;
-    NimBLERemoteCharacteristic *pChr = nullptr;
-    NimBLERemoteDescriptor *pDsc = nullptr;
-
-    OSSM::serviceUUID;
-
-    pSvc = pClient->getService(OSSM::serviceUUID.c_str());
-    ESP_LOGD(TAG, "Lookup service OSSM (%s) -> %s", OSSM::serviceUUID.c_str(), pSvc ? "FOUND" : "NOT FOUND");
-    if (pSvc)
-    {
-        pChr = pSvc->getCharacteristic(OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT);
-        ESP_LOGD(TAG, "Lookup char OSSM (%s) -> %s", String(OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT).c_str(), pChr ? "FOUND" : "NOT FOUND");
-        if (pChr && pChr->canWrite())
-        {
-            pChr->writeValue("false");
-        }
-
-        pChr = pSvc->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
-        ESP_LOGD(TAG, "Lookup char OSSM (%s) -> %s", String(OSSM_CHARACTERISTIC_UUID).c_str(), pChr ? "FOUND" : "NOT FOUND");
-        if (pChr && pChr->canWrite())
-        {
-            pChr->writeValue("go:strokeEngine");
-            pChr->writeValue("go:strokeEngine");
-        }
-    }
-    else
-    {
-        ESP_LOGW(TAG, "BAAD service not found.");
-    }
-
-    ESP_LOGI(TAG, "Done with this device!");
     return true;
 }
 
@@ -350,130 +228,130 @@ void initBLE()
     pScan->start(scanTimeMs);
     ESP_LOGI(TAG, "Scanning for peripherals");
 
-    xTaskCreatePinnedToCore(
-        [](void *pvParameter)
-        {
-            vTaskDelay(1000);
-            while (true)
-            {
-                vTaskDelay(100);
+    // xTaskCreatePinnedToCore(
+    //     [](void *pvParameter)
+    //     {
+    //         vTaskDelay(1000);
+    //         while (true)
+    //         {
+    //             vTaskDelay(100);
 
-                if (doConnect)
-                {
-                    doConnect = false;
-                    /** Found a device we want to connect to, do it now */
-                    if (connectToServer())
-                    {
-                        ESP_LOGI(TAG, "Success! we should now be getting notifications, scanning for more!");
-                    }
-                    else
-                    {
-                        ESP_LOGE(TAG, "Failed to connect, starting scan");
-                        NimBLEDevice::getScan()->start(scanTimeMs, false, true);
-                    }
-                }
+    //             if (doConnect)
+    //             {
+    //                 doConnect = false;
+    //                 /** Found a device we want to connect to, do it now */
+    //                 if (connectToServer())
+    //                 {
+    //                     ESP_LOGI(TAG, "Success! we should now be getting notifications, scanning for more!");
+    //                 }
+    //                 else
+    //                 {
+    //                     ESP_LOGE(TAG, "Failed to connect, starting scan");
+    //                     NimBLEDevice::getScan()->start(scanTimeMs, false, true);
+    //                 }
+    //             }
 
-                // if we're not connected continue.
-                const NimBLEAdvertisedDevice *currentAdv = advDevice;
-                if (currentAdv == nullptr)
-                {
-                    ESP_LOGV(TAG, "No advertised device available yet");
-                    continue;
-                }
+    //             // if we're not connected continue.
+    //             const NimBLEAdvertisedDevice *currentAdv = advDevice;
+    //             if (currentAdv == nullptr)
+    //             {
+    //                 ESP_LOGV(TAG, "No advertised device available yet");
+    //                 continue;
+    //             }
 
-                NimBLEClient *client = NimBLEDevice::getClientByPeerAddress(currentAdv->getAddress());
-                if (client == nullptr)
-                {
-                    ESP_LOGV(TAG, "No client instance for peer: %s", currentAdv->getAddress().toString().c_str());
-                    continue;
-                }
+    //             NimBLEClient *client = NimBLEDevice::getClientByPeerAddress(currentAdv->getAddress());
+    //             if (client == nullptr)
+    //             {
+    //                 ESP_LOGV(TAG, "No client instance for peer: %s", currentAdv->getAddress().toString().c_str());
+    //                 continue;
+    //             }
 
-                if (!client->isConnected())
-                {
-                    ESP_LOGV(TAG, "Client exists but not connected to: %s", currentAdv->getAddress().toString().c_str());
-                    continue;
-                }
+    //             if (!client->isConnected())
+    //             {
+    //                 ESP_LOGV(TAG, "Client exists but not connected to: %s", currentAdv->getAddress().toString().c_str());
+    //                 continue;
+    //             }
 
-                // first check for changes in lastSettings
-                if (lastSettings.speed != settings.speed)
-                {
-                    sendCommand("set:speed:" + String(settings.speed, 0));
-                    lastSettings.speed = settings.speed;
-                    ESP_LOGI(TAG, "Speed changed, sending command: set:speed:%d", settings.speed);
-                }
+    //             // first check for changes in lastSettings
+    //             if (lastSettings.speed != settings.speed)
+    //             {
+    //                 sendCommand("set:speed:" + String(settings.speed, 0));
+    //                 lastSettings.speed = settings.speed;
+    //                 ESP_LOGI(TAG, "Speed changed, sending command: set:speed:%d", settings.speed);
+    //             }
 
-                if (lastSettings.stroke != settings.stroke)
-                {
-                    sendCommand("set:stroke:" + String(settings.stroke, 0));
-                    lastSettings.stroke = settings.stroke;
-                    ESP_LOGI(TAG, "Stroke changed, sending command: set:stroke:%d", settings.stroke);
-                }
+    //             if (lastSettings.stroke != settings.stroke)
+    //             {
+    //                 sendCommand("set:stroke:" + String(settings.stroke, 0));
+    //                 lastSettings.stroke = settings.stroke;
+    //                 ESP_LOGI(TAG, "Stroke changed, sending command: set:stroke:%d", settings.stroke);
+    //             }
 
-                if (lastSettings.sensation != settings.sensation)
-                {
-                    sendCommand("set:sensation:" + String(settings.sensation, 0));
-                    lastSettings.sensation = settings.sensation;
-                    ESP_LOGI(TAG, "Sensation changed, sending command: set:sensation:%d", settings.sensation);
-                }
+    //             if (lastSettings.sensation != settings.sensation)
+    //             {
+    //                 sendCommand("set:sensation:" + String(settings.sensation, 0));
+    //                 lastSettings.sensation = settings.sensation;
+    //                 ESP_LOGI(TAG, "Sensation changed, sending command: set:sensation:%d", settings.sensation);
+    //             }
 
-                if (lastSettings.depth != settings.depth)
-                {
-                    sendCommand("set:depth:" + String(settings.depth, 0));
-                    lastSettings.depth = settings.depth;
-                    ESP_LOGI(TAG, "Depth changed, sending command: set:depth:%d", settings.depth);
-                }
+    //             if (lastSettings.depth != settings.depth)
+    //             {
+    //                 sendCommand("set:depth:" + String(settings.depth, 0));
+    //                 lastSettings.depth = settings.depth;
+    //                 ESP_LOGI(TAG, "Depth changed, sending command: set:depth:%d", settings.depth);
+    //             }
 
-                if (lastSettings.pattern != settings.pattern)
-                {
-                    sendCommand("set:pattern:" + String(static_cast<uint8_t>(settings.pattern), 0));
-                    lastSettings.pattern = settings.pattern;
-                    ESP_LOGI(TAG, "Pattern changed, sending command: set:pattern:%d", static_cast<uint8_t>(settings.pattern));
-                }
+    //             if (lastSettings.pattern != settings.pattern)
+    //             {
+    //                 sendCommand("set:pattern:" + String(static_cast<uint8_t>(settings.pattern), 0));
+    //                 lastSettings.pattern = settings.pattern;
+    //                 ESP_LOGI(TAG, "Pattern changed, sending command: set:pattern:%d", static_cast<uint8_t>(settings.pattern));
+    //             }
 
-                // if there's nothing in the queue, continue.
-                if (commandQueue.empty())
-                {
-                    continue;
-                }
+    //             // if there's nothing in the queue, continue.
+    //             if (commandQueue.empty())
+    //             {
+    //                 continue;
+    //             }
 
-                // if there's something in the queue, send it.
-                String command = commandQueue.front();
-                commandQueue.pop();
-                ESP_LOGI(TAG, "Sending command: %s", command.c_str());
-                NimBLERemoteService *svc = client->getService(OSSM_SERVICE_UUID);
-                if (svc == nullptr)
-                {
-                    ESP_LOGW(TAG, "OSSM service not found on peer; dropping command");
-                    continue;
-                }
+    //             // if there's something in the queue, send it.
+    //             String command = commandQueue.front();
+    //             commandQueue.pop();
+    //             ESP_LOGI(TAG, "Sending command: %s", command.c_str());
+    //             NimBLERemoteService *svc = client->getService(OSSM_SERVICE_UUID);
+    //             if (svc == nullptr)
+    //             {
+    //                 ESP_LOGW(TAG, "OSSM service not found on peer; dropping command");
+    //                 continue;
+    //             }
 
-                NimBLERemoteCharacteristic *pChr = svc->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
-                if (pChr == nullptr)
-                {
-                    ESP_LOGW(TAG, "OSSM characteristic not found on peer; dropping command");
-                    continue;
-                }
+    //             NimBLERemoteCharacteristic *pChr = svc->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
+    //             if (pChr == nullptr)
+    //             {
+    //                 ESP_LOGW(TAG, "OSSM characteristic not found on peer; dropping command");
+    //                 continue;
+    //             }
 
-                if (!pChr->canWrite())
-                {
-                    ESP_LOGW(TAG, "OSSM characteristic not writable; dropping command");
-                    continue;
-                }
+    //             if (!pChr->canWrite())
+    //             {
+    //                 ESP_LOGW(TAG, "OSSM characteristic not writable; dropping command");
+    //                 continue;
+    //             }
 
-                if (pChr->writeValue(command))
-                {
-                    ESP_LOGI(TAG, "Command sent: %s", command.c_str());
-                }
-                else
-                {
-                    ESP_LOGE(TAG, "Failed to write command to OSSM characteristic");
-                }
-            }
-        },
-        "BLE Task",
-        10 * configMINIMAL_STACK_SIZE,
-        NULL,
-        1,
-        NULL,
-        1);
+    //             if (pChr->writeValue(command))
+    //             {
+    //                 ESP_LOGI(TAG, "Command sent: %s", command.c_str());
+    //             }
+    //             else
+    //             {
+    //                 ESP_LOGE(TAG, "Failed to write command to OSSM characteristic");
+    //             }
+    //         }
+    //     },
+    //     "BLE Task",
+    //     10 * configMINIMAL_STACK_SIZE,
+    //     NULL,
+    //     1,
+    //     NULL,
+    //     1);
 }
