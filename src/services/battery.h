@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 #include <Adafruit_MAX1704X.h>
-#include <Wire.h>
 
 // MAX17048 I2C address and registers
 #define MAX17048_ADDR 0x36

@@ -8,6 +8,8 @@ class Domi2 : public Device
 {
 public:
     explicit Domi2(const NimBLEAdvertisedDevice *advertisedDevice) : Device(advertisedDevice) {}
+
+    NimBLEUUID getServiceUUID() override { return NimBLEUUID(DOMI_SERVICE_ID); }
 };
 
 #endif // DOMI_DEVICE_H

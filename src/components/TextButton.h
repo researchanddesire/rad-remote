@@ -1,11 +1,11 @@
-#pragma once
+#ifndef TEXTBUTTON_H
+#define TEXTBUTTON_H
 
 #include "DisplayButton.h"
 #include "pins.h"
 #include <Adafruit_MCP23X17.h>
 #include <Adafruit_ST77xx.h>
 #include "services/display.h"
-#include "services/mcp.h"
 
 class TextButton : public DisplayButton
 {
@@ -22,9 +22,9 @@ public:
 
     bool shouldDraw() override
     {
-        bool currentState = mcp.digitalRead(buttonPin) == LOW;
+        bool currentState = digitalRead(buttonPin) == LOW;
         bool shouldRedraw = currentState != lastButtonState;
-        lastButtonState = mcp.digitalRead(buttonPin) == LOW;
+        lastButtonState = digitalRead(buttonPin) == LOW;
         return true;
     }
 
@@ -69,3 +69,4 @@ public:
 
 // Initialize static member
 bool TextButton::lastButtonState = false;
+#endif

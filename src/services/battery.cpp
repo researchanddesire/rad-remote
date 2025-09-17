@@ -1,6 +1,6 @@
 #include "battery.h"
 #include "esp_log.h"
-#include "CircularBuffer.h"
+#include "CircularBuffer.hpp"
 
 static const char *TAG = "Battery";
 
@@ -12,7 +12,6 @@ Adafruit_MAX17048 batteryService;
 CircularBuffer<float, 10> voltageBuffer;
 uint8_t voltBatteryPercent = 0;
 float voltBatteryVoltage = 0.0;
-unsigned long lastBatteryCheck = 0;
 
 uint8_t getBatteryPercent()
 {
@@ -66,16 +65,13 @@ bool isCharging()
 
 void updateBatteryStatus()
 {
-    if (millis() - lastBatteryCheck >= 1000)
-    { // Check every second
-        lastBatteryCheck = millis();
-        // Single sensor read per field per tick
-        voltBatteryPercent = (uint8_t)batteryService.cellPercent();
 
-        voltBatteryVoltage = batteryService.cellVoltage();
-        voltageBuffer.push(voltBatteryVoltage);
+    // Single sensor read per field per tick
+    voltBatteryPercent = (uint8_t)batteryService.cellPercent();
 
-        ESP_LOGV(TAG, "Battery Update - Percent: %d%%, Voltage: %.2fV, Charge Rate: %.2f%%/hr",
-                 voltBatteryPercent, voltBatteryVoltage, lastChargeRate);
-    }
+    voltBatteryVoltage = batteryService.cellVoltage();
+    voltageBuffer.push(voltBatteryVoltage);
+
+    ESP_LOGV(TAG, "Battery Update - Percent: %d%%, Voltage: %.2fV, Charge Rate: %.2f%%/hr",
+             voltBatteryPercent, voltBatteryVoltage, lastChargeRate);
 }

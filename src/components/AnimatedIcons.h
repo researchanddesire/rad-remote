@@ -224,6 +224,7 @@ public:
         int numConnections = NimBLEDevice::getConnectedClients().size();
         if (numConnections > 0)
         {
+            color = Colors::green;
             return researchAndDesireBluetoothSignal;
         }
 

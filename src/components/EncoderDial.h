@@ -5,7 +5,6 @@
 #include <Adafruit_MCP23X17.h>
 #include <Adafruit_ST77xx.h>
 #include "services/display.h"
-#include "services/mcp.h"
 #include <map>
 #include "utils/vibrator.h"
 #include "utils/buzzer.h"
@@ -178,7 +177,8 @@ public:
             canvas->print(percentStr);
         }
 
-        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
+        {
             tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
             xSemaphoreGive(displayMutex);
         }

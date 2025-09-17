@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <NimBLEDevice.h>
+#include "devices/serviceUUIDs.h"
+#include "state/remote.h"
 
 #define TAG "DEVICE"
 #define OSSM_CHARACTERISTIC_UUID "522B443A-4F53-534D-0002-420BADBABE69"
@@ -50,6 +52,8 @@ public:
     virtual void pullValue() {}
     virtual void pushValue() {}
 
+    virtual NimBLEUUID getServiceUUID() = 0;
+
 protected:
     TaskHandle_t connectionTaskHandle;
     static void connectionTask(void *pvParameter)
@@ -84,9 +88,10 @@ protected:
                     ESP_LOGD(TAG, "Found existing client for peer: %s; attempting fast reconnect (no svc refresh)", advDevice->getAddress().toString().c_str());
                     if (!pClient->connect(advDevice, false))
                     {
-                        ESP_LOGE(TAG, "Reconnect failed");
+                        ESP_LOGE(TAG, "Reconnect failed, deleting client and trying again.");
+                        NimBLEDevice::deleteClient(pClient);
                         connected = false;
-                        break;
+                        continue;
                     }
                     ESP_LOGI(TAG, "Reconnected client");
                 }
@@ -116,6 +121,8 @@ protected:
                 {
                     ESP_LOGE(TAG, "Max clients reached - no more connections available");
                     connected = false;
+
+                    // TODO: Schedule for deleting and throw error.
                     break;
                 }
 
@@ -168,7 +175,7 @@ protected:
             NimBLERemoteCharacteristic *pChr = nullptr;
             NimBLERemoteDescriptor *pDsc = nullptr;
 
-            // pSvc = pClient->getService(device->serviceUUID.c_str());
+            pSvc = pClient->getService(device->getServiceUUID());
             // ESP_LOGD(TAG, "Lookup service OSSM (%s) -> %s", device->serviceUUID.c_str(), pSvc ? "FOUND" : "NOT FOUND");
             if (pSvc)
             {
@@ -193,6 +200,9 @@ protected:
             }
 
             ESP_LOGI(TAG, "Done with this device!");
+            stateMachine->process_event(connected_event());
+
+            break;
         }
         vTaskDelete(NULL);
     }

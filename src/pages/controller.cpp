@@ -68,8 +68,8 @@ void drawControllerTask(void *pvParameters)
             rightDial.setParameter(settings.sensation);
         }
 
-        currentLeftShoulderState = mcp.digitalRead(pins::LEFT_SHOULDER_BTN);
-        currentRightShoulderState = mcp.digitalRead(pins::RIGHT_SHOULDER_BTN);
+        currentLeftShoulderState = digitalRead(pins::LEFT_SHOULDER_BTN);
+        currentRightShoulderState = digitalRead(pins::RIGHT_SHOULDER_BTN);
 
         // Check for falling edge (button press) on right shoulder
         if (currentRightShoulderState == LOW && lastRightShoulderState == HIGH)

@@ -17,7 +17,7 @@ struct ossm_remote_state
             *"init"_s + event<done> = "device_search"_s,
 
             "device_search"_s + on_entry<_> / (drawPage(deviceSearchPage)),
-            "device_search"_s + event<right_button_pressed> = "device_search"_s,
+            "device_search"_s + event<connected_event> = "ossm_control"_s,
             "device_search"_s + event<left_button_pressed> = "main_menu"_s,
 
             "main_menu"_s + on_entry<_> / drawActiveMenu(mainMenu, numMainMenu),

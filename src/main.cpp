@@ -13,7 +13,6 @@
 #include "pins.h"
 #include "constants.h"
 #include "services/display.h"
-#include "services/mcp.h"
 #include "services/leds.h"
 #include "services/battery.h"
 #include "services/imu.h"
@@ -26,57 +25,6 @@
 #include "components/AnimatedIcons.h"
 #include <OneButton.h>
 
-void scanI2CDevices()
-{
-    ESP_LOGD("I2C", "Scanning I2C bus...");
-    byte error, address;
-    int deviceCount = 0;
-
-    for (address = 1; address < 127; address++)
-    {
-        Wire.beginTransmission(address);
-        error = Wire.endTransmission();
-
-        if (error == 0)
-        {
-            ESP_LOGD("I2C", "Device found at address 0x%02X", address);
-            deviceCount++;
-
-            // Print known device names
-            switch (address)
-            {
-            case 0x20:
-                ESP_LOGD("I2C", "  -> MCP23017 (GPIO Expander)");
-                break;
-            case 0x36:
-                ESP_LOGD("I2C", "  -> MAX17048 (Battery Monitor)");
-                break;
-            case 0x55:
-                ESP_LOGD("I2C", "  -> BQ27220 (Battery Fuel Gauge)");
-                break;
-            case 0x6A:
-                ESP_LOGD("I2C", "  -> LSM6DS3 (Accelerometer)");
-                break;
-            case 0x6B:
-                ESP_LOGD("I2C", "  -> LSM6DS3 (Accelerometer - Alternate Address)");
-                break;
-            default:
-                ESP_LOGD("I2C", "  -> Unknown device");
-                break;
-            }
-        }
-    }
-
-    if (deviceCount == 0)
-    {
-        ESP_LOGD("I2C", "No I2C devices found!");
-    }
-    else
-    {
-        ESP_LOGD("I2C", "Found %d I2C device(s)", deviceCount);
-    }
-}
-
 OneButton leftShoulderBtn;
 OneButton rightShoulderBtn;
 OneButton underLeftBtn;
@@ -87,7 +35,6 @@ void setup()
 {
     Serial.begin(115200);
 
-    pinMode(pins::VIBRATOR_PIN, OUTPUT);
 
     // init buttons
 
@@ -108,22 +55,18 @@ void setup()
                               { stateMachine->process_event(right_button_pressed()); });
 
     // Initialize I2C
-    Wire.begin(pins::I2C_SDA, pins::I2C_SCL);
-
-    // Scan for I2C devices
-    scanI2CDevices();
-
-    initBattery(500);
-    initIMUService();
+    // Wire.begin(pins::I2C_SDA, pins::I2C_SCL);
+    // Wire.setClock(400000);
+    initBattery(800);
+    // initIMUService();
     initDisplay();
-    initMCP();
     initEncoderService();
     initBuzzer();
     initVibrator();
     initBLE();
     initStateMachine();
     updateBatteryStatus();
-    updateIMUReadings();
+    // updateIMUReadings();
 
     setupAnimatedIcons();
 

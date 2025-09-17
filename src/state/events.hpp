@@ -47,3 +47,7 @@ struct middle_button_pressed : public base_event
 struct done : public base_event
 {
 };
+
+struct connected_event : public base_event
+{
+};

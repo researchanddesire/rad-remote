@@ -38,36 +38,6 @@ class ClientCallbacks : public NimBLEClientCallbacks
         ESP_LOGI(TAG, "%s Disconnected, reason = %d - Starting scan", pClient->getPeerAddress().toString().c_str(), reason);
         NimBLEDevice::getScan()->start(scanTimeMs, false, true);
     }
-
-    /********************* Security handled here *********************/
-    void onPassKeyEntry(NimBLEConnInfo &connInfo) override
-    {
-        ESP_LOGI(TAG, "Server Passkey Entry");
-        /**
-         * This should prompt the user to enter the passkey displayed
-         * on the peer device.
-         */
-        NimBLEDevice::injectPassKey(connInfo, 123456);
-    }
-
-    void onConfirmPasskey(NimBLEConnInfo &connInfo, uint32_t pass_key) override
-    {
-        ESP_LOGI(TAG, "The passkey YES/NO number: %" PRIu32, pass_key);
-        /** Inject false if passkeys don't match. */
-        NimBLEDevice::injectConfirmPasskey(connInfo, true);
-    }
-
-    /** Pairing process complete, we can check the results in connInfo */
-    void onAuthenticationComplete(NimBLEConnInfo &connInfo) override
-    {
-        if (!connInfo.isEncrypted())
-        {
-            ESP_LOGE(TAG, "Encrypt connection failed - disconnecting");
-            /** Find the client with the connection handle provided in connInfo */
-            NimBLEDevice::getClientByHandle(connInfo.getConnHandle())->disconnect();
-            return;
-        }
-    }
 } clientCallbacks;
 
 /** Define a class to handle the callbacks when scan events are received */
@@ -104,7 +74,6 @@ class ScanCallbacks : public NimBLEScanCallbacks
         /** stop scan before connecting */
         /** Save the device reference in a global for the client to use*/
         advDevice = advertisedDevice;
-
         device = (*factory)(advertisedDevice);
 
         return;
@@ -188,27 +157,10 @@ void initBLE()
     ESP_LOGI(TAG, "Starting NimBLE Client");
 
     /** Initialize NimBLE and set the device name */
-    NimBLEDevice::init("NimBLE-Client");
+    NimBLEDevice::init("OSSM-REMOTE");
 
-    /**
-     * Set the IO capabilities of the device, each option will trigger a different pairing method.
-     *  BLE_HS_IO_KEYBOARD_ONLY   - Passkey pairing
-     *  BLE_HS_IO_DISPLAY_YESNO   - Numeric comparison pairing
-     *  BLE_HS_IO_NO_INPUT_OUTPUT - DEFAULT setting - just works pairing
-     */
-    // NimBLEDevice::setSecurityIOCap(BLE_HS_IO_KEYBOARD_ONLY); // use passkey
-    // NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_YESNO); //use numeric comparison
-
-    /**
-     * 2 different ways to set security - both calls achieve the same result.
-     *  no bonding, no man in the middle protection, BLE secure connections.
-     *  These are the default values, only shown here for demonstration.
-     */
-    // NimBLEDevice::setSecurityAuth(false, false, true);
-    // NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND | BLE_SM_PAIR_AUTHREQ_MITM | BLE_SM_PAIR_AUTHREQ_SC);
-
-    /** Optional: set the transmit power */
-    NimBLEDevice::setPower(3); /** 3dbm */
+    /** Set the transmit power to maximum (9 dBm for ESP32) */
+    NimBLEDevice::setPower(9); /** 9dBm */
     NimBLEScan *pScan = NimBLEDevice::getScan();
 
     /** Set the callbacks to call when scan events occur, no duplicates */

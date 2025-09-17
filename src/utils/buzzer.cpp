@@ -42,19 +42,19 @@ void buzzerTask(void *parameter)
         if (i % 2 == 0)
         {
             // Even indices are beep durations
-            mcp.digitalWrite(pins::BUZZER, HIGH);
+            digitalWrite(pins::BUZZER, HIGH);
             vTaskDelay(pdMS_TO_TICKS(durations[i]));
         }
         else
         {
             // Odd indices are pause durations
-            mcp.digitalWrite(pins::BUZZER, LOW);
+            digitalWrite(pins::BUZZER, LOW);
             vTaskDelay(pdMS_TO_TICKS(durations[i]));
         }
     }
 
     // Ensure buzzer is off at the end
-    mcp.digitalWrite(pins::BUZZER, LOW);
+    digitalWrite(pins::BUZZER, LOW);
     ESP_LOGV("BUZZER", "Buzzer pattern complete");
 
     buzzerActive = false;
@@ -97,7 +97,7 @@ void stopBuzzer()
     {
         vTaskDelete(buzzerTaskHandle);
         buzzerTaskHandle = NULL;
-        mcp.digitalWrite(pins::BUZZER, LOW);
+        digitalWrite(pins::BUZZER, LOW);
         buzzerActive = false;
     }
 }

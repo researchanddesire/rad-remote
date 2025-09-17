@@ -3,7 +3,6 @@
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include "services/mcp.h"
 #include "pins.h"
 
 // Pattern types
