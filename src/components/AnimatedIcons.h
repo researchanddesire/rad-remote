@@ -18,6 +18,8 @@
 #include "services/lastInteraction.h"
 #include "pins.h"
 #include <services/battery.h>
+#include "services/coms.h"
+#include "esp_bt.h"
 
 class StateIcon
 {
@@ -111,7 +113,12 @@ public:
         }
     }
 
-    virtual bool shouldDraw() = 0;
+    virtual bool shouldDraw()
+    {
+
+        return millis() - lastDrawn > 1000;
+    }
+
     virtual const unsigned char *getFrame() = 0;
 };
 
@@ -125,8 +132,6 @@ public:
     {
         showStatusDot = true;
     }
-
-    bool shouldDraw() override { return millis() - lastDrawn > 1000; };
 
     const unsigned char *getFrame() override
     {
@@ -166,17 +171,17 @@ public:
         }
 
         color = Colors::white;
-        auto busVoltage = getBatteryVoltage();
+        auto batteryPercent = getBatteryPercent();
 
-        if (busVoltage > 3.9)
+        if (batteryPercent >= 80)
         {
             return bitmap_battery_full;
         }
-        else if (busVoltage > 3.65)
+        else if (batteryPercent >= 40)
         {
             return bitmap_battery_mid;
         }
-        else if (busVoltage > 3.4)
+        else if (batteryPercent >= 20)
         {
             return bitmap_battery_low;
         }
@@ -190,13 +195,50 @@ public:
     }
 };
 
+class BLEStateIcon : public StateIcon
+{
+public:
+    BLEStateIcon(int16_t x, int16_t y) : StateIcon(x, y)
+    {
+    }
+
+    const unsigned char *getFrame() override
+    {
+        bool bleEnabled = (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED);
+
+        if (!bleEnabled)
+        {
+            return researchAndDesireBluetoothOff;
+        }
+
+        color = Colors::white;
+
+        // Nimble isScanning?
+        bool isScanning = NimBLEDevice::getScan()->isScanning();
+        if (isScanning)
+        {
+            return researchAndDesireBluetoothConnect;
+        }
+
+        // how many connections do we have?
+        int numConnections = NimBLEDevice::getConnectedClients().size();
+        if (numConnections > 0)
+        {
+            return researchAndDesireBluetoothSignal;
+        }
+
+        return researchAndDesireBluetoothOn;
+    }
+};
+
 // Example usage:
 static void setupAnimatedIcons()
 {
     auto task = [](void *pvParameters)
     {
-        BatteryStateIcon batteryIcon(getIconX(0, 2), 3);
-        WifiStateIcon wifiIcon(getIconX(1, 2), 3);
+        BLEStateIcon bleIcon(getIconX(), 3);
+        WifiStateIcon wifiIcon(getIconX(), 3);
+        BatteryStateIcon batteryIcon(getIconX(), 3);
 
         while (true)
         {
@@ -209,11 +251,12 @@ static void setupAnimatedIcons()
 
             wifiIcon.draw(&tft);
             batteryIcon.draw(&tft);
+            bleIcon.draw(&tft);
             vTaskDelay(100 / portTICK_PERIOD_MS);
         }
     };
 
-    xTaskCreatePinnedToCore(task, "draw_battery", 4 * configMINIMAL_STACK_SIZE,
+    xTaskCreatePinnedToCore(task, "draw_icons", 4 * configMINIMAL_STACK_SIZE,
                             nullptr, tskIDLE_PRIORITY, nullptr, 1);
 }
 

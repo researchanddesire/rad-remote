@@ -27,13 +27,4 @@ void drawSearchTask(void *pvParameters)
 
 void searchForDevicesTask(void *pvParameters)
 {
-
-    // auto isInCorrectState = []()
-    // {
-    //     return stateMachine->is("ossm_search"_s);
-    // };
-
-    // while (isInCorrectState())
-    // {
-    // }
 }

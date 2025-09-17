@@ -23,10 +23,10 @@ public:
     String *characteristics;
     int characteristicsCount;
     JsonObject settings;
-    DynamicJsonDocument settingsDoc;
+    JsonDocument settingsDoc;
 
     // Constructor with settings document size parameter
-    explicit Device(const NimBLEAdvertisedDevice *advertisedDevice, int settingsDocSize = 1024) : settingsDoc(settingsDocSize), advertisedDevice(advertisedDevice)
+    explicit Device(const NimBLEAdvertisedDevice *advertisedDevice, int settingsDocSize = 1024) : settingsDoc(), advertisedDevice(advertisedDevice)
     {
         startConnectionTask();
     }

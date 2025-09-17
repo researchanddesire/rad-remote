@@ -24,6 +24,7 @@
 #include "state/remote.h"
 #include "esp_log.h"
 #include "components/AnimatedIcons.h"
+#include <OneButton.h>
 
 void scanI2CDevices()
 {
@@ -76,16 +77,35 @@ void scanI2CDevices()
     }
 }
 
+OneButton leftShoulderBtn;
+OneButton rightShoulderBtn;
+OneButton underLeftBtn;
+OneButton underCenterBtn;
+OneButton underRightBtn;
+
 void setup()
 {
     Serial.begin(115200);
 
-    pinMode(pins::BTN_L_SHOULDER, INPUT_PULLUP);
-    pinMode(pins::BTN_R_SHOULDER, INPUT_PULLUP);
-    pinMode(pins::BTN_UNDER_L, INPUT_PULLUP);
-    pinMode(pins::BTN_UNDER_C, INPUT_PULLUP);
-    pinMode(pins::BTN_UNDER_R, INPUT_PULLUP);
     pinMode(pins::VIBRATOR_PIN, OUTPUT);
+
+    // init buttons
+
+    leftShoulderBtn = OneButton(pins::BTN_L_SHOULDER, true, true);
+    leftShoulderBtn.attachClick([]()
+                                { stateMachine->process_event(left_button_pressed()); });
+    rightShoulderBtn = OneButton(pins::BTN_R_SHOULDER, true, true);
+    rightShoulderBtn.attachClick([]()
+                                 { stateMachine->process_event(right_button_pressed()); });
+    underLeftBtn = OneButton(pins::BTN_UNDER_L, true, true);
+    underLeftBtn.attachClick([]()
+                             { stateMachine->process_event(left_button_pressed()); });
+    underCenterBtn = OneButton(pins::BTN_UNDER_C, true, true);
+    underCenterBtn.attachClick([]()
+                               { stateMachine->process_event(middle_button_pressed()); });
+    underRightBtn = OneButton(pins::BTN_UNDER_R, true, true);
+    underRightBtn.attachClick([]()
+                              { stateMachine->process_event(right_button_pressed()); });
 
     // Initialize I2C
     Wire.begin(pins::I2C_SDA, pins::I2C_SCL);
@@ -106,6 +126,25 @@ void setup()
     updateIMUReadings();
 
     setupAnimatedIcons();
+
+    xTaskCreatePinnedToCore(
+        [](void *pvParameters)
+        {
+            while (true)
+            {
+                vTaskDelay(10);
+                leftShoulderBtn.tick();
+                rightShoulderBtn.tick();
+                underLeftBtn.tick();
+                underCenterBtn.tick();
+                underRightBtn.tick();
+            }
+        },
+        "buttonTask",
+        4 * configMINIMAL_STACK_SIZE,
+        NULL,
+        configMAX_PRIORITIES - 1,
+        NULL, 0);
 }
 
 void loop()

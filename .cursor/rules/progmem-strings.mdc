@@ -7,33 +7,41 @@ description: PROGMEM string optimization for ESP32/Arduino
 
 When using constant value strings in ESP32/Arduino projects, prefer storing them in PROGMEM to conserve RAM.
 
+## Default Location
+
+- Store UI and other persistent display strings centrally in `src/constants/Strings.h` as `static const char name[] PROGMEM = "...";`
+- Prefer adding new app-visible strings to `Strings.h` rather than scattering them across modules
+- Module-specific command/config strings may live near their modules but should still be `PROGMEM`
+
 ## String Storage Rules
 
 ### 1. Language and UI Strings
 
--   Store all language strings in PROGMEM using individual `const char name[] PROGMEM = "text";` declarations
--   Use `const char*` pointers in structs instead of `String` objects
--   Reference: [LanguageStruct.h](mdc:src/structs/LanguageStruct.h), [en-us.h](mdc:src/constants/copy/en-us.h)
+- Store all language strings in PROGMEM using individual `const char name[] PROGMEM = "text";` declarations
+- Use `const char*` pointers in structs instead of `String` objects
+- Centralize general UI strings in [Strings.h](mdc:src/constants/Strings.h)
+- Reference: [LanguageStruct.h](mdc:src/structs/LanguageStruct.h), [en-us.h](mdc:src/constants/copy/en-us.h)
 
 ### 2. Hardcoded Display Strings
 
--   **DO NOT use F() style functions unless SPECIFICALLY requested**
--   Store persistent strings as `const char name[] PROGMEM = "text";`
--   Use `const char*` pointers for string references
--   Examples: [OSSM.cpp](mdc:src/ossm/OSSM.cpp), [OSSM.Update.cpp](mdc:src/ossm/OSSM.Update.cpp)
+- **DO NOT use F() style functions unless SPECIFICALLY requested**
+- Store persistent strings as `const char name[] PROGMEM = "text";`
+- Use `const char*` pointers for string references
+- Prefer declaring display text in [Strings.h](mdc:src/constants/Strings.h) and include it where needed
+- Examples: [OSSM.cpp](mdc:src/ossm/OSSM.cpp), [OSSM.Update.cpp](mdc:src/ossm/OSSM.Update.cpp)
 
 ### 3. Command and Configuration Strings
 
--   Store command prefixes and configuration strings in PROGMEM
--   Use `FPSTR()` macro when converting PROGMEM strings for String operations
--   Reference: [commands.hpp](mdc:src/command/commands.hpp)
+- Store command prefixes and configuration strings in PROGMEM
+- Use `FPSTR()` macro when converting PROGMEM strings for String operations
+- Reference: [commands.hpp](mdc:src/command/commands.hpp)
 
 ### 4. String Parameter Passing
 
--   **Always pass Arduino Strings by reference when appropriate** to avoid unnecessary copying
--   Use `const String&` for read-only string parameters
--   Use `String&` for string parameters that need modification
--   Avoid passing `String` by value unless absolutely necessary
+- **Always pass Arduino Strings by reference when appropriate** to avoid unnecessary copying
+- Use `const String&` for read-only string parameters
+- Use `String&` for string parameters that need modification
+- Avoid passing `String` by value unless absolutely necessary
 
 ## Implementation Patterns
 
@@ -42,6 +50,15 @@ When using constant value strings in ESP32/Arduino projects, prefer storing them
 ```cpp
 // Individual string declarations
 static const char myString[] PROGMEM = "Hello World";
+
+// Centralized UI strings (preferred)
+// In src/constants/Strings.h
+static const char DEVICE_SEARCH_TITLE[] PROGMEM = "Device Search";
+static const char DEVICE_SEARCH_DESCRIPTION[] PROGMEM = "Search for devices";
+
+// Usage in a module
+#include "src/constants/Strings.h"
+display.drawUTF8(0, 0, DEVICE_SEARCH_TITLE);
 
 // Struct with const char* pointers
 struct MyStruct {
@@ -90,15 +107,16 @@ String constantString = "Never changes";  // Should be PROGMEM
 
 ## Memory Benefits
 
--   **Before**: Strings stored in RAM as `String` objects (high overhead)
--   **After**: Strings stored in flash memory (PROGMEM), freeing significant RAM
--   **Impact**: Critical for ESP32 with limited RAM resources
--   **Reference Passing**: Avoids unnecessary String copying, reducing memory fragmentation
+- **Before**: Strings stored in RAM as `String` objects (high overhead)
+- **After**: Strings stored in flash memory (PROGMEM), freeing significant RAM
+- **Impact**: Critical for ESP32 with limited RAM resources
+- **Reference Passing**: Avoids unnecessary String copying, reducing memory fragmentation
 
 ## File References
 
--   Language system: [LanguageStruct.h](mdc:src/structs/LanguageStruct.h)
--   English strings: [en-us.h](mdc:src/constants/copy/en-us.h)
--   French strings: [fr.h](mdc:src/constants/copy/fr.h)
--   Menu system: [Menu.h](mdc:src/constants/Menu.h)
--   Command system: [commands.hpp](mdc:src/command/commands.hpp)
+- Centralized UI strings: [Strings.h](mdc:src/constants/Strings.h)
+- Language system: [LanguageStruct.h](mdc:src/structs/LanguageStruct.h)
+- English strings: [en-us.h](mdc:src/constants/copy/en-us.h)
+- French strings: [fr.h](mdc:src/constants/copy/fr.h)
+- Menu system: [Menu.h](mdc:src/constants/Menu.h)
+- Command system: [commands.hpp](mdc:src/command/commands.hpp)

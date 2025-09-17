@@ -11,7 +11,6 @@ extern SettingPercents settings;
 // these are the last communicated settings to the OSSM.
 extern SettingPercents lastSettings;
 
-extern sender s;
 extern ESP32RecursiveMutex mutex;
 extern StateLogger stateLogger;
 

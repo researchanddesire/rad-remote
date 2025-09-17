@@ -1,7 +1,6 @@
 #include "events.hpp"
 #include "actions.hpp"
 #include "guards.hpp"
-#include "dependencies.hpp"
 #include "boost/sml.hpp"
 #include "pages/controller.h"
 
@@ -15,7 +14,11 @@ struct ossm_remote_state
         using namespace actions;
 
         return make_transition_table(
-            *"init"_s + event<done> = "main_menu"_s,
+            *"init"_s + event<done> = "device_search"_s,
+
+            "device_search"_s + on_entry<_> / (drawPage(deviceSearchPage)),
+            "device_search"_s + event<right_button_pressed> = "device_search"_s,
+            "device_search"_s + event<left_button_pressed> = "main_menu"_s,
 
             "main_menu"_s + on_entry<_> / drawActiveMenu(mainMenu, numMainMenu),
             "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::OSSM_CONTROLLER)] = "ossm_control"_s,

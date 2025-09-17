@@ -1,0 +1,73 @@
+---
+globs: src/**/*.cpp,src/**/*.h
+description: Canvas-first TFT rendering to prevent flicker and improve performance
+---
+
+# Canvas-First TFT Rendering
+
+Always render to an off-screen canvas first, then push the canvas to the TFT. This minimizes flicker and significantly improves performance.
+
+Applies to any code that draws to the screen (`tft`) such as components and pages. See existing examples in [`TextButton.h`](mdc:src/components/TextButton.h) and display service headers in [`display.h`](mdc:src/services/display.h).
+
+## Rule
+
+- **Do not draw directly to `tft`**, except for a single push operation to update the screen (or region).
+- **Draw everything to a `GFXcanvas16` first**, then push the canvas buffer to `tft`.
+- **Protect pushes with `displayMutex`** to avoid tearing when multiple tasks update the display.
+
+## Minimal Pattern
+
+```cpp
+// Declare canvas pointer near usage scope
+GFXcanvas16* canvas = nullptr;
+
+// Create canvas sized to the region you want to update
+canvas = new GFXcanvas16(width, height);
+if (canvas == nullptr) {
+    // Handle allocation failure (optional logging)
+    return;
+}
+
+// Draw your UI onto the canvas using Adafruit_GFX API
+canvas->fillScreen(ST77XX_BLACK);
+// ... other drawing calls on canvas (not on tft) ...
+
+// Push once to the TFT (thread-safe)
+if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
+    xSemaphoreGive(displayMutex);
+}
+
+// Clean up when done (or reuse if size is stable)
+delete canvas;
+canvas = nullptr;
+```
+
+## Do
+
+- Draw shapes, text, and images using `canvas->...` methods (same API surface as `tft` from Adafruit_GFX).
+- Center text by measuring on the canvas (e.g., `getTextBounds`) before pushing.
+- Batch all updates to an off-screen buffer and perform a single `drawRGBBitmap` push per region.
+
+## Don't
+
+- Do not call `tft.fillRect`, `tft.drawRoundRect`, `tft.print`, etc., directly for UI updates.
+- Do not push multiple small regions in tight loops if a single larger region will do.
+- Do not write to `tft` without holding `displayMutex`.
+
+## Performance Tips
+
+- Reuse a canvas if the widget region’s size is constant to avoid repeated allocations.
+- Prefer the smallest region necessary for updates; you don’t have to redraw the whole screen.
+- For frequent updates, consider a persistent `GFXcanvas16*` member in the component, allocated on first use and freed in destructor.
+- Keep text measurement and layout on the canvas side to match pushed pixels exactly (avoid post-push corrections).
+
+## References
+
+- Button example with canvas centering: [`TextButton.h`](mdc:src/components/TextButton.h)
+- Display service and mutex: [`display.h`](mdc:src/services/display.h)
+- Colors and sizes: [`Colors.h`](mdc:src/constants/Colors.h), [`Sizes.h`](mdc:src/constants/Sizes.h)
+
+## Rationale
+
+Rendering off-screen eliminates visible partial draws and reduces flickering, especially during complex UI updates. The pattern above ensures smooth updates by composing frames in memory and performing a single, atomic screen transfer.

@@ -1,25 +1,18 @@
 #pragma once
 
 #include <Arduino.h>
+#include <Adafruit_GFX.h>
 #include "events.hpp"
-#include "dependencies.hpp"
 #include "pages/controller.h"
 #include "pages/menus.h"
 #include "services/encoder.h"
 #include "pages/search.h"
+#include "components/TextPages.h"
+
 namespace actions
 {
 
-    auto send_fin = [](sender &s)
-    { s.send(fin{}); };
-
-    template <typename T>
-    auto send_ack = [](const T &event, sender &s)
-    {
-        s.send(event);
-    };
-
-    auto clearScreen = [](sender &s)
+    auto clearScreen = []()
     {
         // small delay to ensure tasks are finished
         if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
@@ -29,10 +22,53 @@ namespace actions
         }
     };
 
-    auto drawControl = [](sender &s)
+    auto drawPage = [](const TextPage &page)
+    {
+        // TODO: Include icon.
+        return [page]()
+        {
+            clearScreen();
+            TextPage *params = new TextPage{page};
+            xTaskCreatePinnedToCore([](void *pvParameters)
+                                    {
+                                    TextPage *params = static_cast<TextPage *>(pvParameters);
+                                    String localTitle = params ? params->title : String("");
+                                    String localDescription = params ? params->description : String("");
+                                    delete params;
+
+                                    int16_t width = Display::WIDTH;
+                                    int16_t height = Display::PageHeight;
+                                    GFXcanvas16 *canvas = new GFXcanvas16(width, height);
+                                    if (canvas == nullptr)
+                                    {
+                                        vTaskDelete(NULL);
+                                        return;
+                                    }
+
+                                    canvas->fillScreen(Colors::black);
+                                    canvas->setTextSize(2);
+                                    canvas->setTextColor(Colors::white);
+                                    canvas->setCursor(0, 0);
+                                    canvas->println(localTitle);
+                                    canvas->println(localDescription);
+
+                                    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(100)) == pdTRUE)
+                                    {
+                                        tft.drawRGBBitmap(0, Display::PageY, canvas->getBuffer(), width, height);
+                                        xSemaphoreGive(displayMutex);
+                                    }
+
+                                    delete canvas;
+                                    canvas = nullptr;
+                                    vTaskDelete(NULL); },
+                                    "drawPageTask", 5 * configMINIMAL_STACK_SIZE, params, 5, NULL, 1);
+        };
+    };
+
+    auto drawControl = []()
     {
         delay(100);
-        clearScreen(s);
+        clearScreen();
 
         rightEncoder.setBoundaries(0, 100, false);
         rightEncoder.setAcceleration(0);
@@ -42,32 +78,25 @@ namespace actions
         leftEncoder.setAcceleration(0);
         leftEncoder.setEncoderValue(100);
 
-        // settings.speed = 0;
-        // settings.stroke = 0;
-        // settings.sensation = 0;
-        // settings.depth = 0;
-        // settings.pattern = StrokePatterns::SimpleStroke;
-        // settings.speedKnob = 0;
-
         xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
     };
 
-    auto drawStop = [](sender &s)
+    auto drawStop = []()
     {
         delay(100);
-        clearScreen(s);
+        clearScreen();
         xTaskCreatePinnedToCore(drawStopTask, "drawStopTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
     };
 
-    auto drawPatternMenu = [](sender &s)
+    auto drawPatternMenu = []()
     {
-        clearScreen(s);
+        clearScreen();
         xTaskCreatePinnedToCore(drawPatternMenuTask, "drawPatternMenuTask", 15 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
     };
 
-    auto drawSearch = [](sender &s)
+    auto drawSearch = []()
     {
-        clearScreen(s);
+        clearScreen();
         xTaskCreatePinnedToCore(drawSearchTask, "drawSearchTask", 15 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
     };
 
@@ -84,7 +113,7 @@ namespace actions
 
     auto drawActiveMenu = [](const MenuItem *menu, int count)
     {
-        return [menu, count](sender &s)
+        return [menu, count]()
         {
             activeMenu = menu;
             activeMenuCount = count;
@@ -93,7 +122,7 @@ namespace actions
             rightEncoder.setAcceleration(0);
             rightEncoder.setEncoderValue(-1);
 
-            clearScreen(s);
+            clearScreen();
 
             if (menuTaskHandle != nullptr)
             {
@@ -104,7 +133,7 @@ namespace actions
         };
     };
 
-    auto espRestart = [](sender &s)
+    auto espRestart = []()
     {
         esp_restart();
     };
