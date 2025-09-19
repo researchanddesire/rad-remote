@@ -1,13 +1,13 @@
 #ifndef TEXTBUTTON_H
 #define TEXTBUTTON_H
 
-#include "DisplayButton.h"
+#include "DisplayObject.h"
 #include "pins.h"
 #include <Adafruit_MCP23X17.h>
 #include <Adafruit_ST77xx.h>
 #include "services/display.h"
 
-class TextButton : public DisplayButton
+class TextButton : public DisplayObject
 {
 private:
     static bool lastButtonState;
@@ -16,7 +16,7 @@ private:
 
 public:
     TextButton(const String &text, uint8_t pin, int16_t x, int16_t y, int16_t width = 60, int16_t height = 25)
-        : DisplayButton(x, y, width, height), buttonText(text), buttonPin(pin)
+        : DisplayObject(x, y, width, height), buttonText(text), buttonPin(pin)
     {
     }
 

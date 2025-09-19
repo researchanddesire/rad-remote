@@ -1,6 +1,7 @@
-#pragma once
+#ifndef ENCODERDIAL_H
+#define ENCODERDIAL_H
 
-#include "DisplayButton.h"
+#include "DisplayObject.h"
 #include "pins.h"
 #include <Adafruit_MCP23X17.h>
 #include <Adafruit_ST77xx.h>
@@ -10,7 +11,7 @@
 #include "utils/buzzer.h"
 #include "esp_log.h"
 
-class EncoderDial : public DisplayButton
+class EncoderDial : public DisplayObject
 {
 private:
     static bool lastButtonState;
@@ -44,7 +45,7 @@ private:
 
 public:
     EncoderDial(const std::map<String, int> &initialParams, const String &action, bool isLeft, int16_t x, int16_t y, int16_t width = 90, int16_t height = 90)
-        : DisplayButton(x, y, width, height),
+        : DisplayObject(x, y, width, height),
           parameters(initialParams),
           action(action),
           isLeft(isLeft),
@@ -207,3 +208,5 @@ public:
 
 // Initialize static member
 bool EncoderDial::lastButtonState = false;
+
+#endif

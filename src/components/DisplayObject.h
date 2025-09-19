@@ -1,8 +1,9 @@
-#pragma once
+#ifndef DISPLAYOBJECT_H
+#define DISPLAYOBJECT_H
 
 #include <Adafruit_GFX.h>
 
-class DisplayButton
+class DisplayObject
 {
 protected:
     int16_t x, y;
@@ -14,13 +15,13 @@ private:
     bool isFirstDraw = true;
 
 public:
-    DisplayButton(int16_t x, int16_t y, int16_t width, int16_t height)
+    DisplayObject(int16_t x, int16_t y, int16_t width, int16_t height)
         : x(x), y(y), width(width), height(height)
     {
         canvas = new GFXcanvas16(width, height);
     }
 
-    virtual ~DisplayButton()
+    virtual ~DisplayObject()
     {
         if (canvas != nullptr)
         {
@@ -55,3 +56,5 @@ public:
     int16_t getHeight() const { return height; }
     GFXcanvas16 *getCanvas() const { return canvas; }
 };
+
+#endif

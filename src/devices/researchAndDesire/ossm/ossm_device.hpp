@@ -70,6 +70,12 @@ public:
     void drawControls() override
     {
         ESP_LOGI(TAG, "Drawing controls for OSSM");
+        // small delay to ensure tasks are finished
+        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
+        {
+            tft.fillScreen(Colors::black);
+            xSemaphoreGive(displayMutex);
+        }
     }
 
 private:

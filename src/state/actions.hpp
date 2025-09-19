@@ -8,6 +8,7 @@
 #include "services/encoder.h"
 #include "pages/search.h"
 #include "components/TextPages.h"
+#include <devices/device.h>
 
 namespace actions
 {
@@ -86,7 +87,7 @@ namespace actions
         //     return;
         // }
 
-        // device->drawControls();
+        device->drawControls();
     };
 
     auto drawStop = []()
