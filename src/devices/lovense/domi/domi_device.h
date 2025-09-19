@@ -10,6 +10,7 @@ public:
     explicit Domi2(const NimBLEAdvertisedDevice *advertisedDevice) : Device(advertisedDevice) {}
 
     NimBLEUUID getServiceUUID() override { return NimBLEUUID(DOMI_SERVICE_ID); }
+    const char *getName() override { return "Domi 2"; }
 };
 
 #endif // DOMI_DEVICE_H

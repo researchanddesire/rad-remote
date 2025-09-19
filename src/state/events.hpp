@@ -51,3 +51,11 @@ struct done : public base_event
 struct connected_event : public base_event
 {
 };
+
+struct conncted_error_event : public base_event
+{
+};
+
+struct disconnected_event : public base_event
+{
+};

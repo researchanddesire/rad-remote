@@ -24,22 +24,6 @@ static std::queue<String> commandQueue;
 
 Device *device;
 
-/**  None of these are required as they will be handled by the library with defaults. **
- **                       Remove as you see fit for your needs                        */
-class ClientCallbacks : public NimBLEClientCallbacks
-{
-    void onConnect(NimBLEClient *pClient) override
-    {
-        ESP_LOGI(TAG, "Connected");
-    }
-
-    void onDisconnect(NimBLEClient *pClient, int reason) override
-    {
-        ESP_LOGI(TAG, "%s Disconnected, reason = %d - Starting scan", pClient->getPeerAddress().toString().c_str(), reason);
-        NimBLEDevice::getScan()->start(scanTimeMs, false, true);
-    }
-} clientCallbacks;
-
 /** Define a class to handle the callbacks when scan events are received */
 class ScanCallbacks : public NimBLEScanCallbacks
 {
