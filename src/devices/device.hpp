@@ -226,6 +226,8 @@ protected:
     void onDisconnect(NimBLEClient *pClient, int reason) override
     {
         ESP_LOGD(TAG, "Disconnected from %s", getName());
+        // restart the nimble scan
+        NimBLEDevice::getScan()->start(0);
         stateMachine->process_event(disconnected_event());
         onDisconnect();
     }

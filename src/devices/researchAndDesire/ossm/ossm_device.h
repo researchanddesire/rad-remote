@@ -49,6 +49,7 @@ public:
                         this->settings.depth = state["depth"].as<float>(); 
                         this->settings.pattern = static_cast<StrokePatterns>(state["pattern"].as<int>()); });
 
+        // And then we pull the patterns from the device
         readJson<JsonArray>("patterns", [this](const JsonArray &patterns)
                             {
                                 // clear the patterns vector
@@ -59,11 +60,14 @@ public:
                                     this->patterns.push_back(Pattern{v["name"].as<std::string>(), v["idx"].as<int>()});
                                 } });
 
+        // finally, we set inital preferences and go to stroke engine mode
         send("speedKnobLimit", "false");
         send("command", "go:strokeEngine");
+        // TODO: A bug on AJ's dev unit require
         send("command", "go:strokeEngine");
     }
 
+    // Helper functions.
     bool setSpeed(int speed)
     {
         return send("command", std::string("set:speed:") + std::to_string(speed));
