@@ -8,6 +8,7 @@
 #include "devices/serviceUUIDs.h"
 #include "state/remote.h"
 #include <unordered_map>
+#include <functional>
 
 #define TAG "DEVICE"
 #define OSSM_CHARACTERISTIC_UUID "522B443A-4F53-534D-0002-420BADBABE69"
@@ -18,9 +19,11 @@
 struct DeviceCharacteristics
 {
     NimBLEUUID uuid;
-    String key;
-    String value;
     NimBLERemoteCharacteristic *pCharacteristic = nullptr;
+
+    // Function pointers for custom encode/decode
+    std::function<std::string(const std::string &)> encode = nullptr;
+    std::function<std::string(const std::string &)> decode = nullptr;
 };
 
 class Device : public NimBLEClientCallbacks
@@ -211,29 +214,6 @@ protected:
             // run the user defined "on connect" method.
             device->onConnect();
 
-            // // ESP_LOGD(TAG, "Lookup service OSSM (%s) -> %s", device->serviceUUID.c_str(), pSvc ? "FOUND" : "NOT FOUND");
-            // if (pSvc)
-            // {
-            //     pChr = pSvc->getCharacteristic(OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT);
-            //     ESP_LOGD(TAG, "Lookup char OSSM (%s) -> %s", String(OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT).c_str(), pChr ? "FOUND" : "NOT FOUND");
-            //     if (pChr && pChr->canWrite())
-            //     {
-            //         pChr->writeValue("false");
-            //     }
-
-            //     pChr = pSvc->getCharacteristic(OSSM_CHARACTERISTIC_UUID);
-            //     ESP_LOGD(TAG, "Lookup char OSSM (%s) -> %s", String(OSSM_CHARACTERISTIC_UUID).c_str(), pChr ? "FOUND" : "NOT FOUND");
-            //     if (pChr && pChr->canWrite())
-            //     {
-            //         pChr->writeValue("go:strokeEngine");
-            //         pChr->writeValue("go:strokeEngine");
-            //     }
-            // }
-            // else
-            // {
-            //     ESP_LOGW(TAG, "BAAD service not found.");
-            // }
-
             ESP_LOGI(TAG, "Done with this device!");
 
             break;
@@ -254,30 +234,71 @@ protected:
         onDisconnect();
     }
 
-    void send(const std::string &command, const std::string &value)
+    bool send(const std::string &command, const std::string &value)
     {
         auto it = characteristics.find(command);
         if (it == characteristics.end())
         {
             ESP_LOGW(TAG, "Characteristic '%s' not found for device '%s'", command.c_str(), getName());
-            return;
+            return false;
         }
 
         auto *pChr = it->second.pCharacteristic;
         if (!pChr)
         {
             ESP_LOGW(TAG, "Characteristic '%s' exists but pCharacteristic is nullptr for device '%s'", command.c_str(), getName());
-            return;
+            return false;
         }
 
         if (!pChr->canWrite())
         {
             ESP_LOGW(TAG, "Characteristic '%s' for device '%s' is not writable", command.c_str(), getName());
-            return;
+            return false;
         }
 
         ESP_LOGI(TAG, "Writing value '%s' to characteristic '%s' on device '%s'", value.c_str(), command.c_str(), getName());
-        pChr->writeValue(value);
+        std::string encodedValue = value;
+        if (it->second.encode)
+        {
+            encodedValue = it->second.encode(value);
+        }
+        return pChr->writeValue(encodedValue);
+    }
+
+    template <typename T = std::string>
+    T readChar(const std::string &command)
+    {
+        auto it = characteristics.find(command);
+        if (it == characteristics.end())
+        {
+            ESP_LOGW(TAG, "Characteristic '%s' not found for device '%s'", command.c_str(), getName());
+            return NimBLEAttValue(); // Return default constructed value
+        }
+
+        auto *pChr = it->second.pCharacteristic;
+        if (!pChr)
+        {
+            ESP_LOGW(TAG, "Characteristic '%s' exists but pCharacteristic is nullptr for device '%s'", command.c_str(), getName());
+            return NimBLEAttValue(); // Return default constructed value
+        }
+
+        if (!pChr->canRead())
+        {
+            ESP_LOGW(TAG, "Characteristic '%s' for device '%s' is not readable", command.c_str(), getName());
+            return NimBLEAttValue(); // Return default constructed value
+        }
+
+        ESP_LOGD(TAG, "Reading value from characteristic '%s' on device '%s'", command.c_str(), getName());
+        NimBLEAttValue rawValue = pChr->readValue();
+
+        ESP_LOGI(TAG, "Read value from characteristic '%s' on device '%s': %s", command.c_str(), getName(), rawValue.c_str());
+
+        std::string decodedValue = rawValue.c_str();
+        if (it->second.decode)
+        {
+            decodedValue = it->second.decode(rawValue.c_str());
+        }
+        return decodedValue;
     }
 
 private:
