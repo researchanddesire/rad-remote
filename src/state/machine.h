@@ -32,15 +32,17 @@ struct ossm_remote_state
 
             "device_draw_control"_s + on_entry<_> / drawControl,
             "device_draw_control"_s + event<right_button_pressed> = "device_menu"_s,
-            "device_draw_control"_s + event<middle_button_pressed> = "ossm_stop"_s,
             "device_draw_control"_s + event<left_button_pressed> = "main_menu"_s,
+            "device_draw_control"_s + event<middle_button_pressed> = "device_stop"_s,
 
-            "ossm_stop"_s + on_entry<_> / drawStop,
-
-            "device_menu"_s + on_entry<_> / drawPatternMenu,
+            "device_menu"_s + on_entry<_> / drawDeviceMenu,
+            // Go back and do not process selection.
             "device_menu"_s + event<left_button_pressed> = "device_draw_control"_s,
-            "device_menu"_s + event<right_button_pressed> = "device_draw_control"_s,
-            "device_menu"_s + event<middle_button_pressed> = "ossm_stop"_s,
+            // accept selection.
+            "device_menu"_s + event<right_button_pressed> / onDeviceMenuItemSelected = "device_draw_control"_s,
+            "device_menu"_s + event<middle_button_pressed> = "device_stop"_s,
+
+            "device_stop"_s + on_entry<_> / drawStop,
 
             "restart"_s + on_entry<_> / espRestart,
             "restart"_s = X);

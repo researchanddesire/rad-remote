@@ -2,6 +2,7 @@
 #include "services/display.h"
 #include <services/encoder.h>
 #include <state/remote.h>
+#include "displayUtils.h"
 
 TaskHandle_t menuTaskHandle = NULL;
 
@@ -10,35 +11,10 @@ int activeMenuCount = numMainMenu;
 int currentOption = 0;
 
 static const int scrollWidth = 6;
-static const int scrollHeight = Display::HEIGHT - Display::StatusbarHeight;
-static GFXcanvas16 *scrollCanvas = nullptr;
 
 using namespace sml;
 
-static void drawScrollBar(int currentOption, int numOptions)
-{
-    scrollCanvas = new GFXcanvas16(scrollWidth, scrollHeight);
-    float scrollPercent = (float)currentOption / (numOptions);
-    int scrollPosition = scrollPercent * (scrollHeight - 20);
-
-    scrollCanvas->fillScreen(Colors::black);
-    scrollCanvas->drawFastVLine(scrollWidth / 2, Display::Padding::P0,
-                                scrollHeight - Display::Padding::P1,
-                                Colors::bgGray900);
-    scrollCanvas->fillRoundRect(0, scrollPosition, scrollWidth, 20, 3,
-                                Colors::white);
-
-    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
-    {
-        tft.drawRGBBitmap(
-            Display::WIDTH - scrollWidth, Display::StatusbarHeight,
-            scrollCanvas->getBuffer(), scrollWidth, scrollHeight);
-        xSemaphoreGive(displayMutex);
-    }
-
-    delete scrollCanvas;
-    scrollCanvas = nullptr;
-}
+// drawScrollBar moved to displayUtils.{h,cpp}
 
 static const int menuWidth = Display::WIDTH - scrollWidth - Display::Padding::P1 * 2;
 static const int menuItemHeight = Display::Icons::Small + Display::Padding::P2;
@@ -46,7 +22,7 @@ static GFXcanvas16 menuItemCanvas(menuWidth, menuItemHeight);
 
 static void drawMenuItem(int index, const MenuItem &option, bool selected = false)
 {
-    auto text = option.name.c_str();
+    auto text = option.name;
     auto bitmap = option.bitmap;
     auto color = option.color > 0 ? option.color : Colors::white;
     auto unfocusedColor = option.unfocusedColor > 0 ? option.unfocusedColor : Colors::bgGray600;
@@ -78,7 +54,7 @@ static void drawMenuItem(int index, const MenuItem &option, bool selected = fals
 
     padding += Display::Icons::Small + Display::Padding::P2;
     menuItemCanvas.setCursor(padding, textOffset + menuItemHeight / 2);
-    menuItemCanvas.print(text);
+    menuItemCanvas.print(text.c_str());
 
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
@@ -89,7 +65,7 @@ static void drawMenuItem(int index, const MenuItem &option, bool selected = fals
     }
 }
 
-void drawMenu()
+void drawMenuFrame()
 {
     int rawCurrentOption = currentOption;
     int numOptions = activeMenuCount;
@@ -135,38 +111,39 @@ void drawMenu()
 void drawMenuTask(void *pvParameters)
 {
     int lastEncoderValue = -1;
-    std::string lastState = "";
-    String lastStateName = "";
 
     auto isInCorrectState = []()
     {
-        return stateMachine->is("main_menu"_s) || stateMachine->is("settings_menu"_s);
+        return stateMachine->is("main_menu"_s) || stateMachine->is("settings_menu"_s) || stateMachine->is("device_menu"_s);
     };
 
     while (isInCorrectState())
     {
         vTaskDelay(100 / portTICK_PERIOD_MS);
 
-        String stateName = "";
-        stateMachine->visit_current_states(
-            [&](auto state)
-            { stateName = state.c_str(); });
-
         currentOption = rightEncoder.readEncoder();
 
-        if (lastEncoderValue == currentOption && stateName == lastStateName)
+        if (lastEncoderValue == currentOption)
         {
             continue;
         }
         else
         {
             lastEncoderValue = currentOption;
-            lastStateName = stateName;
-            drawMenu();
+            drawMenuFrame();
         }
     }
 
     menuTaskHandle = nullptr;
 
     vTaskDelete(NULL);
+}
+
+void drawMenu()
+{
+    rightEncoder.setBoundaries(0, activeMenuCount - 1, true);
+    rightEncoder.setAcceleration(0);
+    rightEncoder.setEncoderValue(currentOption % activeMenuCount);
+
+    xTaskCreatePinnedToCore(drawMenuTask, "drawMenuTask", 5 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
 }

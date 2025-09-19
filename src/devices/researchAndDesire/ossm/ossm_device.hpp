@@ -11,12 +11,6 @@
 #define OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT "522B443A-4F53-534D-0010-420BADBABE69"
 #define OSSM_CHARACTERISTIC_UUID_PATTERNS "522b443a-4f53-534d-2000-420badbabe69"
 
-struct Pattern
-{
-    std::string name;
-    int idx;
-};
-
 class OSSM : public Device
 {
 public:
@@ -36,7 +30,6 @@ public:
     NimBLEUUID getServiceUUID() override { return NimBLEUUID(OSSM_SERVICE_ID); }
 
     SettingPercents settings;
-    std::vector<Pattern> patterns;
 
     void onConnect() override
     {
@@ -53,17 +46,57 @@ public:
         readJson<JsonArray>("patterns", [this](const JsonArray &patterns)
                             {
                                 // clear the patterns vector
-                                this->patterns.clear();
+                                this->menu.clear();
+
                                 for (JsonVariant v : patterns)
                                 {
-                                    ESP_LOGI(TAG, "Pattern: %s, %d", v["name"].as<String>().c_str(), v["idx"].as<int>());
-                                    this->patterns.push_back(Pattern{v["name"].as<std::string>(), v["idx"].as<int>()});
+
+                                    auto icon = researchAndDesireWaves;
+                                    std::string name = v["name"].as<const char*>();
+                                    std::string lowerName = name;
+                                    std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
+
+                                    if (lowerName.find("simple") != std::string::npos)
+                                    {
+                                        icon = researchAndDesireWaves;
+                                    }
+                                    else if (lowerName.find("teasing") != std::string::npos)
+                                    {
+                                        icon = researchAndDesireHeart;
+                                    }
+                                    else if (lowerName.find("robo") != std::string::npos)
+                                    {
+                                        icon = researchAndDesireTerminal;
+                                    }
+                                    else if (lowerName.find("stop") != std::string::npos)
+                                    {
+                                        icon = researchAndDesireHourglass03;
+                                    }
+                                    else if (lowerName.find("insist") != std::string::npos)
+                                    {
+                                        icon = researchAndDesireItalic02;
+                                    }
+                                    else if (lowerName.find("deeper") != std::string::npos)
+                                    {
+                                        icon = researchAndDesireArrowsRight;
+                                    }
+                                    else if (lowerName.find("half") != std::string::npos)
+                                    {
+                                        icon = researchAndDesireFaceWink;
+                                    }
+
+                                    ESP_LOGI(TAG, "Pattern: %s, %d", name.c_str(), v["idx"].as<int>());
+                                    this->menu.push_back(MenuItem{
+                                        MenuItemE::DEVICE_MENU_ITEM,
+                                        name,
+                                        icon,
+                                        .metaIndex = v["idx"].as<int>()});
                                 } });
 
         // finally, we set inital preferences and go to stroke engine mode
         send("speedKnobLimit", "false");
         send("command", "go:strokeEngine");
-        // TODO: A bug on AJ's dev unit require
+        // TODO: A bug on AJ's dev unit requires two "go:strokeEngine" commands.
         send("command", "go:strokeEngine");
     }
 
@@ -74,8 +107,26 @@ public:
         if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
         {
             tft.fillScreen(Colors::black);
+            tft.setTextSize(1);
+            tft.setTextColor(Colors::white);
+            tft.setCursor(0, Display::PageY);
+            tft.println("OSSM CONTROLS");
             xSemaphoreGive(displayMutex);
         }
+    }
+
+    void drawDeviceMenu() override
+    {
+
+        activeMenu = menu.data();
+        activeMenuCount = menu.size();
+
+        drawMenu();
+    }
+
+    void onDeviceMenuItemSelected(int index) override
+    {
+        setPattern(index);
     }
 
 private:
@@ -106,13 +157,13 @@ private:
 
     bool setPattern(int pattern)
     {
-        // Ensure pattern is a valid index in the patterns vector
-        if (pattern < 0 || pattern >= static_cast<int>(patterns.size()))
+        if (menu.empty())
         {
-            ESP_LOGW(TAG, "Pattern index %d out of range", pattern);
+            ESP_LOGW(TAG, "setPattern called but menu is empty");
             return false;
         }
-        int patternIdx = patterns[pattern].idx;
+        pattern = pattern % menu.size();
+        int patternIdx = menu[pattern].metaIndex;
         return send("command", std::string("set:pattern:") + std::to_string(patternIdx));
     }
 };

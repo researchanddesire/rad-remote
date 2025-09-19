@@ -8,6 +8,7 @@
 #include "devices/serviceUUIDs.h"
 #include <unordered_map>
 #include <functional>
+#include <structs/Menus.h>
 
 #define TAG "DEVICE"
 
@@ -33,6 +34,8 @@ public:
     NimBLEClient *pClient;
     NimBLERemoteService *pService;
 
+    std::vector<MenuItem> menu;
+
     std::unordered_map<std::string, DeviceCharacteristics> characteristics;
 
     // Constructor with settings document size parameter
@@ -49,12 +52,13 @@ public:
     virtual void onExit() {}
     virtual void onConnect() {}
     virtual void onDisconnect() {}
+    virtual void onDeviceMenuItemSelected(int index) {}
 
     virtual void onRightEncoderChange() {}
     virtual void onLeftEncoderChange() {}
 
     virtual void drawControls() {}
-    virtual void drawMenu() {}
+    virtual void drawDeviceMenu() {}
 
     virtual void pullValue() {}
     virtual void pushValue() {}

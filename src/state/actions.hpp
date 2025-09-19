@@ -9,6 +9,7 @@
 #include "pages/search.h"
 #include "components/TextPages.h"
 #include <devices/device.h>
+#include <pages/displayUtils.h>
 
 namespace actions
 {
@@ -87,6 +88,9 @@ namespace actions
         //     return;
         // }
 
+        vTaskDelay(pdMS_TO_TICKS(10));
+        clearPage();
+        vTaskDelay(pdMS_TO_TICKS(10));
         device->drawControls();
     };
 
@@ -97,16 +101,23 @@ namespace actions
         xTaskCreatePinnedToCore(drawStopTask, "drawStopTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
     };
 
-    auto drawPatternMenu = []()
+    auto drawDeviceMenu = []()
     {
-        clearScreen();
-        xTaskCreatePinnedToCore(drawPatternMenuTask, "drawPatternMenuTask", 15 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+        vTaskDelay(pdMS_TO_TICKS(10));
+        clearPage();
+        vTaskDelay(pdMS_TO_TICKS(10));
+        device->drawDeviceMenu();
     };
 
     auto drawSearch = []()
     {
         clearScreen();
         xTaskCreatePinnedToCore(drawSearchTask, "drawSearchTask", 15 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+    };
+
+    auto onDeviceMenuItemSelected = []()
+    {
+        device->onDeviceMenuItemSelected(currentOption);
     };
 
     auto startTask = [](auto task, const char *taskName,
@@ -138,7 +149,7 @@ namespace actions
                 // then the menu task is already running, so we don't need to create it again.
                 return;
             }
-            xTaskCreatePinnedToCore(drawMenuTask, "drawMenuTask", 5 * configMINIMAL_STACK_SIZE, NULL, 5, &menuTaskHandle, 1);
+            drawMenu();
         };
     };
 

@@ -101,6 +101,7 @@ void Device::connectionTask(void *pvParameter)
             ESP_LOGD(TAG, "Connect timeout set: %dms", 5 * 1000);
 
             ESP_LOGI(TAG, "Connecting to peer (new client): %s", advDevice->getAddress().toString().c_str());
+            vTaskDelay(1000);
             if (!pClient->connect(advDevice))
             {
                 /** Created a client but failed to connect, don't need to keep it as it has no data */
