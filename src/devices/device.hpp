@@ -313,9 +313,8 @@ protected:
         return doc[key].as<T>();
     }
 
-    // Optimized method for reading multiple JSON values in one call
-    // Returns true if successful, false if JSON parsing failed
-    bool readJsonValues(const std::string &command, std::function<void(const JsonObject &)> callback)
+    template <typename T = JsonObject>
+    bool readJson(const std::string &command, std::function<void(const T &)> callback)
     {
         auto value = readString(command);
         JsonDocument doc;
@@ -327,7 +326,7 @@ protected:
             return false;
         }
 
-        callback(doc.as<JsonObject>());
+        callback(doc.as<T>());
         return true;
     }
 
