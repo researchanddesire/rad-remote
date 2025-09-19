@@ -47,26 +47,27 @@ void drawControllerTask(void *pvParameters)
 
     while (isInCorrectState())
     {
+        
 
-        settings.speed = 100 - leftEncoder.readEncoder();
+        // settings.speed = 100 - leftEncoder.readEncoder();
 
-        leftDial.setParameter(settings.speed);
+        // leftDial.setParameter(settings.speed);
 
-        if (rightDial.getFocusedIndex() == 2)
-        {
-            settings.stroke = 100 - rightEncoder.readEncoder();
-            rightDial.setParameter(settings.stroke);
-        }
-        else if (rightDial.getFocusedIndex() == 0)
-        {
-            settings.depth = 100 - rightEncoder.readEncoder();
-            rightDial.setParameter(settings.depth);
-        }
-        else if (rightDial.getFocusedIndex() == 1)
-        {
-            settings.sensation = 100 - rightEncoder.readEncoder();
-            rightDial.setParameter(settings.sensation);
-        }
+        // if (rightDial.getFocusedIndex() == 2)
+        // {
+        //     settings.stroke = 100 - rightEncoder.readEncoder();
+        //     rightDial.setParameter(settings.stroke);
+        // }
+        // else if (rightDial.getFocusedIndex() == 0)
+        // {
+        //     settings.depth = 100 - rightEncoder.readEncoder();
+        //     rightDial.setParameter(settings.depth);
+        // }
+        // else if (rightDial.getFocusedIndex() == 1)
+        // {
+        //     settings.sensation = 100 - rightEncoder.readEncoder();
+        //     rightDial.setParameter(settings.sensation);
+        // }
 
         currentLeftShoulderState = digitalRead(pins::LEFT_SHOULDER_BTN);
         currentRightShoulderState = digitalRead(pins::RIGHT_SHOULDER_BTN);

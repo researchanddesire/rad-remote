@@ -1,20 +1,8 @@
 #include "remote.h"
 
-SettingPercents settings = {
-    .speed = 0,
-    .stroke = 0,
-    .sensation = 0,
-    .depth = 0,
-    .pattern = StrokePatterns::SimpleStroke,
-    .speedKnob = 0};
+SettingPercents settings = {};
 
-SettingPercents lastSettings = {
-    .speed = 0,
-    .stroke = 0,
-    .sensation = 0,
-    .depth = 0,
-    .pattern = StrokePatterns::SimpleStroke,
-    .speedKnob = 0};
+SettingPercents lastSettings = {};
 
 StateLogger stateLogger;
 // Static pointer to hold the state machine instance

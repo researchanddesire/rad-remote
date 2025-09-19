@@ -23,7 +23,6 @@ struct DeviceCharacteristics
 
     // Function pointers for custom encode/decode
     std::function<std::string(const std::string &)> encode = nullptr;
-    std::function<std::string(const std::string &)> decode = nullptr;
 };
 
 class Device : public NimBLEClientCallbacks
@@ -33,13 +32,10 @@ public:
     NimBLEClient *pClient;
     NimBLERemoteService *pService;
 
-    JsonObject settings;
-    JsonDocument settingsDoc;
-
     std::unordered_map<std::string, DeviceCharacteristics> characteristics;
 
     // Constructor with settings document size parameter
-    explicit Device(const NimBLEAdvertisedDevice *advertisedDevice) : settingsDoc(), advertisedDevice(advertisedDevice)
+    explicit Device(const NimBLEAdvertisedDevice *advertisedDevice) : advertisedDevice(advertisedDevice)
     {
         startConnectionTask();
     }
@@ -265,40 +261,80 @@ protected:
         return pChr->writeValue(encodedValue);
     }
 
-    template <typename T = std::string>
-    T readChar(const std::string &command)
+    std::string readString(const std::string &command)
     {
         auto it = characteristics.find(command);
         if (it == characteristics.end())
         {
             ESP_LOGW(TAG, "Characteristic '%s' not found for device '%s'", command.c_str(), getName());
-            return NimBLEAttValue(); // Return default constructed value
+            return std::string(); // Return default constructed value
         }
 
         auto *pChr = it->second.pCharacteristic;
         if (!pChr)
         {
             ESP_LOGW(TAG, "Characteristic '%s' exists but pCharacteristic is nullptr for device '%s'", command.c_str(), getName());
-            return NimBLEAttValue(); // Return default constructed value
+            return std::string(); // Return default constructed value
         }
 
         if (!pChr->canRead())
         {
             ESP_LOGW(TAG, "Characteristic '%s' for device '%s' is not readable", command.c_str(), getName());
-            return NimBLEAttValue(); // Return default constructed value
+            return std::string(); // Return default constructed value
         }
 
         ESP_LOGD(TAG, "Reading value from characteristic '%s' on device '%s'", command.c_str(), getName());
         NimBLEAttValue rawValue = pChr->readValue();
 
         ESP_LOGI(TAG, "Read value from characteristic '%s' on device '%s': %s", command.c_str(), getName(), rawValue.c_str());
+        return rawValue.c_str();
+    }
 
-        std::string decodedValue = rawValue.c_str();
-        if (it->second.decode)
+    // Helper method to safely read JSON values
+    template <typename T>
+    T readJsonValue(const std::string &command, const char *key, T defaultValue)
+    {
+        auto value = readString(command);
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, value.c_str());
+
+        if (error)
         {
-            decodedValue = it->second.decode(rawValue.c_str());
+            ESP_LOGE("DEVICE", "JSON parse failed: %s", error.c_str());
+            return defaultValue;
         }
-        return decodedValue;
+
+        if (!doc.containsKey(key))
+        {
+            ESP_LOGW("DEVICE", "JSON key '%s' not found", key);
+            return defaultValue;
+        }
+
+        return doc[key].as<T>();
+    }
+
+    // Optimized method for reading multiple JSON values in one call
+    // Returns true if successful, false if JSON parsing failed
+    bool readJsonValues(const std::string &command, std::function<void(const JsonObject &)> callback)
+    {
+        auto value = readString(command);
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, value.c_str());
+
+        if (error)
+        {
+            ESP_LOGE("DEVICE", "JSON parse failed: %s", error.c_str());
+            return false;
+        }
+
+        callback(doc.as<JsonObject>());
+        return true;
+    }
+
+    // Legacy method - now returns a copy of the JSON as string for safety
+    std::string readJsonString(const std::string &command)
+    {
+        return readString(command);
     }
 
 private:
