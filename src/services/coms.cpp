@@ -22,8 +22,6 @@ static uint32_t scanTimeMs = 0; /** scan time in milliseconds, 0 = scan forever 
 
 static std::queue<String> commandQueue;
 
-Device *device;
-
 /** Define a class to handle the callbacks when scan events are received */
 class ScanCallbacks : public NimBLEScanCallbacks
 {

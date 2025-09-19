@@ -8,11 +8,7 @@
 #include <structs/SettingPercents.h>
 #include "state/remote.h"
 #include <devices/registry.hpp>
-#include <devices/device.hpp>
-
-// OSSM BLE Service and Characteristic UUIDs
-
-extern Device *device;
+#include <devices/device.h>
 
 void sendCommand(const String &command);
 

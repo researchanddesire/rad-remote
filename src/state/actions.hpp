@@ -67,18 +67,26 @@ namespace actions
 
     auto drawControl = []()
     {
-        delay(100);
-        clearScreen();
+        // delay(100);
+        // clearScreen();
 
-        rightEncoder.setBoundaries(0, 100, false);
-        rightEncoder.setAcceleration(0);
-        rightEncoder.setEncoderValue(100);
+        // rightEncoder.setBoundaries(0, 100, false);
+        // rightEncoder.setAcceleration(0);
+        // rightEncoder.setEncoderValue(100);
 
-        leftEncoder.setBoundaries(0, 100, false);
-        leftEncoder.setAcceleration(0);
-        leftEncoder.setEncoderValue(100);
+        // leftEncoder.setBoundaries(0, 100, false);
+        // leftEncoder.setAcceleration(0);
+        // leftEncoder.setEncoderValue(100);
 
-        xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+        // xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+
+        // if (device == nullptr)
+        // {
+        //     ESP_LOGW(TAG, "Device is nullptr");
+        //     return;
+        // }
+
+        // device->drawControls();
     };
 
     auto drawStop = []()

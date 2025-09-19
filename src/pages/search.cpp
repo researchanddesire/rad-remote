@@ -6,7 +6,7 @@ void drawSearchTask(void *pvParameters)
 
     // auto isInCorrectState = []()
     // {
-    //     return stateMachine->is("ossm_search"_s);
+    //     return stateMachine->is("device_search"_s);
     // };
 
     // if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)

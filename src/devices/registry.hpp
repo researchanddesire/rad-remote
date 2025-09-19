@@ -6,8 +6,8 @@
 
 #include <NimBLEUUID.h>
 #include <Arduino.h>
-#include "device.hpp"
-#include "researchAndDesire/ossm/ossm_device.h"
+#include "device.h"
+#include "researchAndDesire/ossm/ossm_device.hpp"
 #include "lovense/domi/domi_device.h"
 #include "serviceUUIDs.h"
 

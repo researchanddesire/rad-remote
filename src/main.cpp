@@ -37,7 +37,6 @@ void setup()
 
 
     // init buttons
-
     leftShoulderBtn = OneButton(pins::BTN_L_SHOULDER, true, true);
     leftShoulderBtn.attachClick([]()
                                 { stateMachine->process_event(left_button_pressed()); });
@@ -54,9 +53,7 @@ void setup()
     underRightBtn.attachClick([]()
                               { stateMachine->process_event(right_button_pressed()); });
 
-    // Initialize I2C
-    // Wire.begin(pins::I2C_SDA, pins::I2C_SCL);
-    // Wire.setClock(400000);
+
     initBattery(800);
     // initIMUService();
     initDisplay();

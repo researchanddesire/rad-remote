@@ -3,10 +3,10 @@
 #ifndef OSSM_DEVICE_H
 #define OSSM_DEVICE_H
 
-#include "../../device.hpp"
+#include "../../device.h"
 #include <ArduinoJson.h>
 
-#define OSSM_CHARACTERISTIC_UUID "522B443A-4F53-534D-0002-420BADBABE69"
+#define OSSM_CHARACTERISTIC_UUID_COMMAND "522B443A-4F53-534D-0002-420BADBABE69"
 #define OSSM_CHARACTERISTIC_UUID_STATE "522b443a-4f53-534d-1000-420badbabe69"
 #define OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT "522B443A-4F53-534D-0010-420BADBABE69"
 #define OSSM_CHARACTERISTIC_UUID_PATTERNS "522b443a-4f53-534d-2000-420badbabe69"
@@ -25,7 +25,7 @@ public:
     {
 
         characteristics = {
-            {"command", {NimBLEUUID(OSSM_CHARACTERISTIC_UUID)}},
+            {"command", {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_COMMAND)}},
             {"speedKnobLimit", {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT)}},
             {"patterns", {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_PATTERNS)}},
             {"state", {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_STATE)}},
@@ -67,30 +67,47 @@ public:
         send("command", "go:strokeEngine");
     }
 
+    void drawControls() override
+    {
+        ESP_LOGI(TAG, "Drawing controls for OSSM");
+    }
+
+private:
     // Helper functions.
     bool setSpeed(int speed)
     {
+        speed = constrain(speed, 0, 100);
         return send("command", std::string("set:speed:") + std::to_string(speed));
     }
 
     bool setDepth(int depth)
     {
+        depth = constrain(depth, 0, 100);
         return send("command", std::string("set:depth:") + std::to_string(depth));
     }
 
     bool setStroke(int stroke)
     {
+        stroke = constrain(stroke, 0, 100);
         return send("command", std::string("set:stroke:") + std::to_string(stroke));
     }
 
     bool setSensation(int sensation)
     {
+        sensation = constrain(sensation, 0, 100);
         return send("command", std::string("set:sensation:") + std::to_string(sensation));
     }
 
     bool setPattern(int pattern)
     {
-        return send("command", std::string("set:pattern:") + std::to_string(pattern));
+        // Ensure pattern is a valid index in the patterns vector
+        if (pattern < 0 || pattern >= static_cast<int>(patterns.size()))
+        {
+            ESP_LOGW(TAG, "Pattern index %d out of range", pattern);
+            return false;
+        }
+        int patternIdx = patterns[pattern].idx;
+        return send("command", std::string("set:pattern:") + std::to_string(patternIdx));
     }
 };
 

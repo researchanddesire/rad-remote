@@ -1,7 +1,7 @@
 #ifndef DOMI_DEVICE_H
 #define DOMI_DEVICE_H
 
-#include "../../device.hpp"
+#include "../../device.h"
 #include <ArduinoJson.h>
 
 class Domi2 : public Device

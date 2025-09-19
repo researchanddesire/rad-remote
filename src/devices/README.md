@@ -17,7 +17,7 @@ Devices are discovered by their primary service UUID and instantiated via a fact
 
 - Registry map: `src/devices/registry.hpp`
 - Known service UUIDs: `src/devices/serviceUUIDs.h`
-- Device base class: `src/devices/device.hpp`
+- Device base class: `src/devices/device.h`
 
 ## How to Add a Device to the Registry
 
@@ -51,7 +51,7 @@ static const std::unordered_map<String, DeviceFactory> registry = {
 
 4. **Provide a concrete `Device` implementation**
 
-- Create a header/implementation pair for your device that derives from `Device` (see `src/devices/device.hpp`).  
+- Create a header/implementation pair for your device that derives from `Device` (see `src/devices/device.h`).
 - **Preferred file structure:**  
   Place your files in  
   `/src/devices/<brand_name>/<device_name>/<device>_device.h`  

@@ -42,12 +42,11 @@ void drawControllerTask(void *pvParameters)
 
     auto isInCorrectState = []()
     {
-        return stateMachine->is("ossm_control"_s);
+        return stateMachine->is("device_draw_control"_s);
     };
 
     while (isInCorrectState())
     {
-        
 
         // settings.speed = 100 - leftEncoder.readEncoder();
 
@@ -184,7 +183,7 @@ void drawPatternMenuTask(void *pvParameters)
 
     auto isInCorrectState = []()
     {
-        return stateMachine->is("ossm_pattern_menu"_s);
+        return stateMachine->is("device_menu"_s);
     };
 
     Image image(0, 0, 64, 64);
