@@ -14,6 +14,13 @@ void drawControllerTask(void *pvParameters)
 
     OSSM *ossm = static_cast<OSSM *>(pvParameters);
 
+    // wait until the device is connected
+    while (!ossm->isConnected)
+    {
+        // TODO: UI / UX here.
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+
     // Top bumpers
     TextButton topLeftBumper("<-", pins::BTN_L_SHOULDER, 0, 0);
     TextButton topRightBumper("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 60, 0);
@@ -26,15 +33,15 @@ void drawControllerTask(void *pvParameters)
 
     // Create a left encoder dial with Speed parameter
     std::map<String, int> leftParams = {
-        {"Speed", 0}};
+        {"Speed", ossm->settings.speed}};
 
     EncoderDial leftDial(leftParams, "", true, 0, DISPLAY_HEIGHT / 2 - 30);
 
     // Create a right encoder dial with all parameters
     std::map<String, int> rightParams = {
-        {"Stroke", 0},
-        {"Depth", 0},
-        {"Sens.", 0}};
+        {"Stroke", ossm->settings.stroke},
+        {"Depth", ossm->settings.depth},
+        {"Sens.", ossm->settings.sensation}};
 
     EncoderDial rightDial(rightParams, "", false, DISPLAY_WIDTH - 90, DISPLAY_HEIGHT / 2 - 30);
 

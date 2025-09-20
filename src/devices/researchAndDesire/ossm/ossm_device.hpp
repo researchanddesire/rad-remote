@@ -39,7 +39,9 @@ public:
                         this->settings.stroke = state["stroke"].as<float>();
                         this->settings.sensation = state["sensation"].as<float>();
                         this->settings.depth = state["depth"].as<float>(); 
-                        this->settings.pattern = static_cast<StrokePatterns>(state["pattern"].as<int>()); });
+                        this->settings.pattern = static_cast<StrokePatterns>(state["pattern"].as<int>()); 
+                    
+                    ESP_LOGI(TAG, "UPDATED SETTINGS: Speed: %d, Stroke: %d, Sensation: %d, Depth: %d, Pattern: %d", this->settings.speed, this->settings.stroke, this->settings.sensation, this->settings.depth, this->settings.pattern); });
 
         // And then we pull the patterns from the device
         readJson<JsonArray>("patterns", [this](const JsonArray &patterns)
@@ -97,6 +99,10 @@ public:
         send("command", "go:strokeEngine");
         // TODO: A bug on AJ's dev unit requires two "go:strokeEngine" commands.
         send("command", "go:strokeEngine");
+
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+
+        isConnected = true;
 
 // SPAM TEST
 #ifdef SPAM_OSSM_TEST

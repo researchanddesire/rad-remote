@@ -41,6 +41,8 @@ public:
     NimBLEClient *pClient;
     NimBLERemoteService *pService;
 
+    bool isConnected = false;
+
     std::vector<MenuItem> menu;
 
     std::unordered_map<std::string, DeviceCharacteristics> characteristics;
