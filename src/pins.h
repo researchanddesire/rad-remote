@@ -36,19 +36,14 @@ namespace pins
     constexpr uint8_t RIGHT_ENCODER_B = 41;
 
     // MCP23017 pin definitions (if still used)
-    constexpr uint8_t RIGHT_SHOULDER_BTN = 0;
     constexpr uint8_t BUZZER = 1;
     constexpr uint8_t GYRO_INT1 = 3;
     constexpr uint8_t GYRO_INT2 = 4;
-    constexpr uint8_t LEFT_SHOULDER_BTN = 5;
     constexpr uint8_t VIBRATOR = 6;
     constexpr uint8_t REGULATOR_EN = 7;
     constexpr uint8_t FUEL_GAUGE = 8;
     constexpr uint8_t EXT_IO3 = 9;
     constexpr uint8_t EXT_IO4 = 10;
-    constexpr uint8_t LEFT_BTN = 12;
-    constexpr uint8_t CENTER_BTN = 13;
-    constexpr uint8_t RIGHT_BTN = 14;
 
     // MCP23017 interrupt pin
     constexpr uint8_t MCP_INT_PIN = 16;

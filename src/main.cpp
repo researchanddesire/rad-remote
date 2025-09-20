@@ -35,14 +35,13 @@ void setup()
 {
     Serial.begin(115200);
 
-
     // init buttons
     leftShoulderBtn = OneButton(pins::BTN_L_SHOULDER, true, true);
     leftShoulderBtn.attachClick([]()
-                                { stateMachine->process_event(left_button_pressed()); });
+                                { stateMachine->process_event(left_shoulder_pressed()); });
     rightShoulderBtn = OneButton(pins::BTN_R_SHOULDER, true, true);
     rightShoulderBtn.attachClick([]()
-                                 { stateMachine->process_event(right_button_pressed()); });
+                                 { stateMachine->process_event(right_shoulder_pressed()); });
     underLeftBtn = OneButton(pins::BTN_UNDER_L, true, true);
     underLeftBtn.attachClick([]()
                              { stateMachine->process_event(left_button_pressed()); });
@@ -52,7 +51,6 @@ void setup()
     underRightBtn = OneButton(pins::BTN_UNDER_R, true, true);
     underRightBtn.attachClick([]()
                               { stateMachine->process_event(right_button_pressed()); });
-
 
     initBattery(800);
     // initIMUService();

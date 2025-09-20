@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef ENCODERDIAL_H
 #define ENCODERDIAL_H
 
@@ -14,7 +16,7 @@
 class EncoderDial : public DisplayObject
 {
 private:
-    static bool lastButtonState;
+    bool lastButtonState = false;
     std::map<String, int> parameters;
     const String action;
     const bool isLeft;
@@ -207,6 +209,4 @@ public:
 };
 
 // Initialize static member
-bool EncoderDial::lastButtonState = false;
-
 #endif

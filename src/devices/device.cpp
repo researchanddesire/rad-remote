@@ -243,3 +243,11 @@ std::string Device::readJsonString(const std::string &command)
 {
     return readString(command);
 }
+
+void Device::drawDeviceMenu()
+{
+    activeMenu = menu.data();
+    activeMenuCount = menu.size();
+
+    drawMenu();
+}

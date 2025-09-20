@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <functional>
 #include <structs/Menus.h>
+#include <components/DisplayObject.h>
 
 #define TAG "DEVICE"
 
@@ -27,6 +28,12 @@ struct DeviceCharacteristics
     std::function<std::string(const std::string &)> encode = nullptr;
 };
 
+struct DeviceDisplayObject
+{
+    std::string name;
+    DisplayObject *displayObject;
+};
+
 class Device : public NimBLEClientCallbacks
 {
 public:
@@ -37,6 +44,7 @@ public:
     std::vector<MenuItem> menu;
 
     std::unordered_map<std::string, DeviceCharacteristics> characteristics;
+    std::vector<DisplayObject *> displayObjects;
 
     // Constructor with settings document size parameter
     explicit Device(const NimBLEAdvertisedDevice *advertisedDevice);
@@ -58,7 +66,7 @@ public:
     virtual void onLeftEncoderChange() {}
 
     virtual void drawControls() {}
-    virtual void drawDeviceMenu() {}
+    virtual void drawDeviceMenu();
 
     virtual void pullValue() {}
     virtual void pushValue() {}

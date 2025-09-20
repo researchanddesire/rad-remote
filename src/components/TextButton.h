@@ -10,7 +10,7 @@
 class TextButton : public DisplayObject
 {
 private:
-    static bool lastButtonState;
+    bool lastButtonState = false;
     const String buttonText;
     const uint8_t buttonPin;
 
@@ -22,9 +22,9 @@ public:
 
     bool shouldDraw() override
     {
-        bool currentState = digitalRead(buttonPin) == LOW;
+        bool currentState = digitalRead(buttonPin);
         bool shouldRedraw = currentState != lastButtonState;
-        lastButtonState = digitalRead(buttonPin) == LOW;
+        lastButtonState = digitalRead(buttonPin);
         return true;
     }
 
@@ -67,6 +67,4 @@ public:
     }
 };
 
-// Initialize static member
-bool TextButton::lastButtonState = false;
 #endif

@@ -4,6 +4,7 @@
 #define OSSM_DEVICE_H
 
 #include "../../device.h"
+#include <components/EncoderDial.h>
 #include <ArduinoJson.h>
 
 #define OSSM_CHARACTERISTIC_UUID_COMMAND "522B443A-4F53-534D-0002-420BADBABE69"
@@ -28,8 +29,6 @@ public:
 
     const char *getName() override { return "OSSM"; }
     NimBLEUUID getServiceUUID() override { return NimBLEUUID(OSSM_SERVICE_ID); }
-
-    SettingPercents settings;
 
     void onConnect() override
     {
@@ -102,26 +101,10 @@ public:
 
     void drawControls() override
     {
-        ESP_LOGI(TAG, "Drawing controls for OSSM");
-        // small delay to ensure tasks are finished
-        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
+        for (auto displayObject : displayObjects)
         {
-            tft.fillScreen(Colors::black);
-            tft.setTextSize(1);
-            tft.setTextColor(Colors::white);
-            tft.setCursor(0, Display::PageY);
-            tft.println("OSSM CONTROLS");
-            xSemaphoreGive(displayMutex);
+            displayObject->tick();
         }
-    }
-
-    void drawDeviceMenu() override
-    {
-
-        activeMenu = menu.data();
-        activeMenuCount = menu.size();
-
-        drawMenu();
     }
 
     void onDeviceMenuItemSelected(int index) override
@@ -129,28 +112,47 @@ public:
         setPattern(index);
     }
 
-private:
     // Helper functions.
     bool setSpeed(int speed)
     {
+        if (speed == settings.speed)
+        {
+            return true;
+        }
+        settings.speed = speed;
         speed = constrain(speed, 0, 100);
         return send("command", std::string("set:speed:") + std::to_string(speed));
     }
 
     bool setDepth(int depth)
     {
+        if (depth == settings.depth)
+        {
+            return true;
+        }
+        settings.depth = depth;
         depth = constrain(depth, 0, 100);
         return send("command", std::string("set:depth:") + std::to_string(depth));
     }
 
     bool setStroke(int stroke)
     {
+        if (stroke == settings.stroke)
+        {
+            return true;
+        }
+        settings.stroke = stroke;
         stroke = constrain(stroke, 0, 100);
         return send("command", std::string("set:stroke:") + std::to_string(stroke));
     }
 
     bool setSensation(int sensation)
     {
+        if (sensation == settings.sensation)
+        {
+            return true;
+        }
+        settings.sensation = sensation;
         sensation = constrain(sensation, 0, 100);
         return send("command", std::string("set:sensation:") + std::to_string(sensation));
     }
@@ -162,10 +164,17 @@ private:
             ESP_LOGW(TAG, "setPattern called but menu is empty");
             return false;
         }
+        if (pattern == static_cast<int>(settings.pattern))
+        {
+            return true;
+        }
+        settings.pattern = static_cast<StrokePatterns>(pattern);
         pattern = pattern % menu.size();
         int patternIdx = menu[pattern].metaIndex;
         return send("command", std::string("set:pattern:") + std::to_string(patternIdx));
     }
+
+    SettingPercents settings;
 };
 
 #endif // OSSM_DEVICE_H

@@ -69,29 +69,10 @@ namespace actions
 
     auto drawControl = []()
     {
-        // delay(100);
-        // clearScreen();
-
-        // rightEncoder.setBoundaries(0, 100, false);
-        // rightEncoder.setAcceleration(0);
-        // rightEncoder.setEncoderValue(100);
-
-        // leftEncoder.setBoundaries(0, 100, false);
-        // leftEncoder.setAcceleration(0);
-        // leftEncoder.setEncoderValue(100);
-
-        // xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
-
-        // if (device == nullptr)
-        // {
-        //     ESP_LOGW(TAG, "Device is nullptr");
-        //     return;
-        // }
-
-        vTaskDelay(pdMS_TO_TICKS(10));
         clearPage();
-        vTaskDelay(pdMS_TO_TICKS(10));
-        device->drawControls();
+        // TODO: The intention is that the device manages its own controls.
+        // device->drawControls();
+        xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 10 * configMINIMAL_STACK_SIZE, device, 5, NULL, 1);
     };
 
     auto drawStop = []()
@@ -103,9 +84,7 @@ namespace actions
 
     auto drawDeviceMenu = []()
     {
-        vTaskDelay(pdMS_TO_TICKS(10));
         clearPage();
-        vTaskDelay(pdMS_TO_TICKS(10));
         device->drawDeviceMenu();
     };
 

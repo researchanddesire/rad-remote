@@ -6,20 +6,23 @@
 #include <state/remote.h>
 #include <services/encoder.h>
 #include <components/Image.h>
+#include <devices/researchAndDesire/ossm/ossm_device.hpp>
 
 using namespace sml;
 void drawControllerTask(void *pvParameters)
 {
 
+    OSSM *ossm = static_cast<OSSM *>(pvParameters);
+
     // Top bumpers
-    TextButton topLeftBumper("<-", pins::LEFT_SHOULDER_BTN, 0, 0);
-    TextButton topRightBumper("->", pins::RIGHT_SHOULDER_BTN, DISPLAY_WIDTH - 60, 0);
+    TextButton topLeftBumper("<-", pins::BTN_L_SHOULDER, 0, 0);
+    TextButton topRightBumper("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 60, 0);
 
     // Bottom bumpers
-    TextButton bottomLeftBumper("Home", pins::LEFT_BTN, 0, DISPLAY_HEIGHT - 25);
-    TextButton bottomRightBumper("Patterns", pins::RIGHT_BTN, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25);
+    TextButton bottomLeftBumper("Home", pins::BTN_UNDER_L, 0, DISPLAY_HEIGHT - 25);
+    TextButton bottomRightBumper("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25);
 
-    TextButton centerButton("STOP", pins::CENTER_BTN, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
+    TextButton centerButton("STOP", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
 
     // Create a left encoder dial with Speed parameter
     std::map<String, int> leftParams = {
@@ -48,28 +51,28 @@ void drawControllerTask(void *pvParameters)
     while (isInCorrectState())
     {
 
-        // settings.speed = 100 - leftEncoder.readEncoder();
+        ossm->setSpeed(100 - leftEncoder.readEncoder());
 
-        // leftDial.setParameter(settings.speed);
+        leftDial.setParameter(ossm->settings.speed);
 
-        // if (rightDial.getFocusedIndex() == 2)
-        // {
-        //     settings.stroke = 100 - rightEncoder.readEncoder();
-        //     rightDial.setParameter(settings.stroke);
-        // }
-        // else if (rightDial.getFocusedIndex() == 0)
-        // {
-        //     settings.depth = 100 - rightEncoder.readEncoder();
-        //     rightDial.setParameter(settings.depth);
-        // }
-        // else if (rightDial.getFocusedIndex() == 1)
-        // {
-        //     settings.sensation = 100 - rightEncoder.readEncoder();
-        //     rightDial.setParameter(settings.sensation);
-        // }
+        if (rightDial.getFocusedIndex() == 2)
+        {
+            ossm->setStroke(100 - rightEncoder.readEncoder());
+            rightDial.setParameter(ossm->settings.stroke);
+        }
+        else if (rightDial.getFocusedIndex() == 0)
+        {
+            ossm->setDepth(100 - rightEncoder.readEncoder());
+            rightDial.setParameter(ossm->settings.depth);
+        }
+        else if (rightDial.getFocusedIndex() == 1)
+        {
+            ossm->setSensation(100 - rightEncoder.readEncoder());
+            rightDial.setParameter(ossm->settings.sensation);
+        }
 
-        currentLeftShoulderState = digitalRead(pins::LEFT_SHOULDER_BTN);
-        currentRightShoulderState = digitalRead(pins::RIGHT_SHOULDER_BTN);
+        currentLeftShoulderState = digitalRead(pins::BTN_L_SHOULDER);
+        currentRightShoulderState = digitalRead(pins::BTN_R_SHOULDER);
 
         // Check for falling edge (button press) on right shoulder
         if (currentRightShoulderState == LOW && lastRightShoulderState == HIGH)
