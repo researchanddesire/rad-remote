@@ -46,11 +46,11 @@ void drawControllerTask(void *pvParameters)
     EncoderDial rightDial(rightParams, "", false, DISPLAY_WIDTH - 90, DISPLAY_HEIGHT / 2 - 30);
 
     leftEncoder.setBoundaries(0, 100);
-    leftEncoder.setAcceleration(10);
+    leftEncoder.setAcceleration(70);
     leftEncoder.setEncoderValue(ossm->settings.speed);
 
     rightEncoder.setBoundaries(0, 100);
-    rightEncoder.setAcceleration(10);
+    rightEncoder.setAcceleration(70);
     rightEncoder.setEncoderValue(ossm->settings.stroke);
 
     bool lastLeftShoulderState = HIGH;
