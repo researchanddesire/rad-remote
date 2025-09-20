@@ -38,6 +38,14 @@ void drawControllerTask(void *pvParameters)
 
     EncoderDial rightDial(rightParams, "", false, DISPLAY_WIDTH - 90, DISPLAY_HEIGHT / 2 - 30);
 
+    leftEncoder.setBoundaries(0, 100);
+    leftEncoder.setAcceleration(10);
+    leftEncoder.setEncoderValue(ossm->settings.speed);
+
+    rightEncoder.setBoundaries(0, 100);
+    rightEncoder.setAcceleration(10);
+    rightEncoder.setEncoderValue(ossm->settings.stroke);
+
     bool lastLeftShoulderState = HIGH;
     bool lastRightShoulderState = HIGH;
     bool currentLeftShoulderState = HIGH;
@@ -51,23 +59,23 @@ void drawControllerTask(void *pvParameters)
     while (isInCorrectState())
     {
 
-        ossm->setSpeed(100 - leftEncoder.readEncoder());
+        ossm->setSpeed(leftEncoder.readEncoder());
 
         leftDial.setParameter(ossm->settings.speed);
 
         if (rightDial.getFocusedIndex() == 2)
         {
-            ossm->setStroke(100 - rightEncoder.readEncoder());
+            ossm->setStroke(rightEncoder.readEncoder());
             rightDial.setParameter(ossm->settings.stroke);
         }
         else if (rightDial.getFocusedIndex() == 0)
         {
-            ossm->setDepth(100 - rightEncoder.readEncoder());
+            ossm->setDepth(rightEncoder.readEncoder());
             rightDial.setParameter(ossm->settings.depth);
         }
         else if (rightDial.getFocusedIndex() == 1)
         {
-            ossm->setSensation(100 - rightEncoder.readEncoder());
+            ossm->setSensation(rightEncoder.readEncoder());
             rightDial.setParameter(ossm->settings.sensation);
         }
 
@@ -79,7 +87,7 @@ void drawControllerTask(void *pvParameters)
         {
             // Increment focus
             int newParameter = rightDial.incrementFocus();
-            rightEncoder.setEncoderValue(100 - newParameter - 1);
+            rightEncoder.setEncoderValue(newParameter);
         }
 
         // Check for falling edge (button press) on left shoulder
@@ -87,7 +95,7 @@ void drawControllerTask(void *pvParameters)
         {
             // Decrement focus
             int newParameter = rightDial.decrementFocus();
-            rightEncoder.setEncoderValue(100 - newParameter - 1);
+            rightEncoder.setEncoderValue(newParameter);
         }
 
         // Store current states for next iteration
