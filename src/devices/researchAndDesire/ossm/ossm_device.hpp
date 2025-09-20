@@ -97,6 +97,27 @@ public:
         send("command", "go:strokeEngine");
         // TODO: A bug on AJ's dev unit requires two "go:strokeEngine" commands.
         send("command", "go:strokeEngine");
+
+// SPAM TEST
+#ifdef SPAM_OSSM_TEST
+        int i = 0;
+        bool goingUp = true;
+        while (true)
+        {
+            setSpeed(i);
+            leftEncoder.setEncoderValue(i);
+            i += goingUp ? 1 : -1;
+            if (i >= 100)
+            {
+                goingUp = false;
+            }
+            if (i <= 0)
+            {
+                goingUp = true;
+            }
+            vTaskDelay(50 / portTICK_PERIOD_MS);
+        }
+#endif
     }
 
     void drawControls() override
