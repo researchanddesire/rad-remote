@@ -36,7 +36,6 @@ public:
 
     void tick()
     {
-        ESP_LOGI("DISPLAYOBJECT", "Tick 0");
 
         isDirty |= shouldDraw();
         isDirty |= isFirstDraw;
@@ -45,10 +44,7 @@ public:
         {
             return;
         }
-
-        ESP_LOGI("DISPLAYOBJECT", "Tick 1");
         draw();
-        ESP_LOGI("DISPLAYOBJECT", "Tick 2");
 
         isFirstDraw = false;
         isDirty = false;

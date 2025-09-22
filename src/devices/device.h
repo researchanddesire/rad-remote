@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <functional>
 #include <memory>
+#include <utility>
 #include <structs/Menus.h>
 #include <components/DisplayObject.h>
 
@@ -69,7 +70,7 @@ public:
     virtual void onRightEncoderChange() {}
     virtual void onLeftEncoderChange() {}
 
-    virtual void drawControls() {}
+    virtual void drawControls(){}
     virtual void drawDeviceMenu();
 
     virtual void pullValue() {}
@@ -77,6 +78,16 @@ public:
 
     virtual NimBLEUUID getServiceUUID() = 0;
     virtual const char *getName() = 0;
+
+    // Display object helpers
+    template <typename TDisplayObject, typename... TArgs>
+    TDisplayObject *draw(TArgs &&...args)
+    {
+        auto uniquePtr = std::make_unique<TDisplayObject>(std::forward<TArgs>(args)...);
+        TDisplayObject *rawPtr = uniquePtr.get();
+        displayObjects.emplace_back(std::move(uniquePtr));
+        return rawPtr;
+    }
 
 protected:
     TaskHandle_t connectionTaskHandle;

@@ -18,6 +18,8 @@ class OSSM : public Device
 {
 public:
     SettingPercents settings;
+    int rightFocusedIndex = 0;
+    int leftFocusedIndex = 0;
 
     explicit OSSM(const NimBLEAdvertisedDevice *advertisedDevice)
         : Device(advertisedDevice)
@@ -36,32 +38,38 @@ public:
 
     void drawControls() override
     {
-        displayObjects.clear();
-        displayObjects.reserve(8);
+
+        leftEncoder.setBoundaries(0, 100);
+        leftEncoder.setAcceleration(50);
+        leftEncoder.setEncoderValue(settings.speed);
+
+        rightEncoder.setBoundaries(0, 100);
+        rightEncoder.setAcceleration(50);
+        rightEncoder.setEncoderValue(settings.stroke);
 
         // Top bumpers
-        displayObjects.emplace_back(std::make_unique<TextButton>("<-", pins::BTN_L_SHOULDER, 0, 0));
-        displayObjects.emplace_back(std::make_unique<TextButton>("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 60, 0));
+        draw<TextButton>("<-", pins::BTN_L_SHOULDER, 0, 0);
+        draw<TextButton>("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 60, 0);
 
         // Bottom bumpers
-        displayObjects.emplace_back(std::make_unique<TextButton>("Home", pins::BTN_UNDER_L, 0, DISPLAY_HEIGHT - 25));
-        displayObjects.emplace_back(std::make_unique<TextButton>("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25));
+        draw<TextButton>("Home", pins::BTN_UNDER_L, 0, DISPLAY_HEIGHT - 25);
+        draw<TextButton>("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25);
 
-        displayObjects.emplace_back(std::make_unique<TextButton>("STOP", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120));
+        draw<TextButton>("STOP", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
 
-        displayObjects.emplace_back(std::make_unique<LinearRailGraph>(&this->settings.stroke, &this->settings.depth, -1, Display::PageHeight - 40, Display::WIDTH));
+        draw<LinearRailGraph>(&this->settings.stroke, &this->settings.depth, -1, Display::PageHeight - 40, Display::WIDTH);
 
         // Create a left encoder dial with Speed parameter
         std::map<String, float *> leftParams = {
             {"Speed", &this->settings.speed}};
-        displayObjects.emplace_back(std::make_unique<EncoderDial>(leftParams, "", true, 0, Display::PageY + 10));
+        draw<EncoderDial>(leftEncoder, leftParams, true, this->leftFocusedIndex, 0, Display::PageY + 10);
 
         // Create a right encoder dial with all parameters
         std::map<String, float *> rightParams = {
             {"Stroke", &this->settings.stroke},
             {"Depth", &this->settings.depth},
             {"Sens.", &this->settings.sensation}};
-        displayObjects.emplace_back(std::make_unique<EncoderDial>(rightParams, "", false, DISPLAY_WIDTH - 90, Display::PageY + 10));
+        draw<EncoderDial>(rightEncoder, rightParams, false, this->rightFocusedIndex, DISPLAY_WIDTH - 90, Display::PageY + 10);
     }
 
     void onConnect() override
@@ -242,6 +250,61 @@ public:
         pattern = pattern % menu.size();
         int patternIdx = menu[pattern].metaIndex;
         return send("command", std::string("set:pattern:") + std::to_string(patternIdx));
+    }
+
+    void onLeftBumperClick() override
+    {
+        rightFocusedIndex = (rightFocusedIndex + 2) % 3; // Safe decrement and wrap: 0->2, 1->0, 2->1
+        if (rightFocusedIndex == 0)
+        {
+            rightEncoder.setEncoderValue(settings.depth);
+        }
+        else if (rightFocusedIndex == 1)
+        {
+            rightEncoder.setEncoderValue(settings.sensation);
+        }
+        else if (rightFocusedIndex == 2)
+        {
+            rightEncoder.setEncoderValue(settings.stroke);
+        }
+    }
+
+    void onRightBumperClick() override
+    {
+        rightFocusedIndex = (rightFocusedIndex + 1) % 3; // Safe increment and wrap: 2->0
+        if (rightFocusedIndex == 0)
+        {
+            rightEncoder.setEncoderValue(settings.depth);
+        }
+        else if (rightFocusedIndex == 1)
+        {
+            rightEncoder.setEncoderValue(settings.sensation);
+        }
+        else if (rightFocusedIndex == 2)
+        {
+            rightEncoder.setEncoderValue(settings.stroke);
+        }
+    }
+
+    void onRightEncoderChange() override
+    {
+        if (rightFocusedIndex == 0)
+        {
+            setDepth(rightEncoder.readEncoder());
+        }
+        else if (rightFocusedIndex == 1)
+        {
+            setSensation(rightEncoder.readEncoder());
+        }
+        else if (rightFocusedIndex == 2)
+        {
+            setStroke(rightEncoder.readEncoder());
+        }
+    }
+
+    void onLeftEncoderChange() override
+    {
+        setSpeed(leftEncoder.readEncoder());
     }
 };
 

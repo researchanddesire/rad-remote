@@ -22,11 +22,7 @@ public:
 
     bool shouldDraw() override
     {
-        ESP_LOGI("TEXTBUTTON", "Should draw");
         bool currentState = digitalRead(buttonPin) == LOW;
-        ESP_LOGI("TEXTBUTTON", "Current state: %d", currentState);
-        ESP_LOGI("TEXTBUTTON", "Last button state: %d", lastButtonState);
-        ESP_LOGI("TEXTBUTTON", "Current state != last button state: %d", currentState != lastButtonState);
         return currentState != lastButtonState;
     }
 

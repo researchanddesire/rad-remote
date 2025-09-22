@@ -2,7 +2,6 @@
 #include "controller.h"
 #include <components/TextButton.h>
 #include <constants.h>
-#include <components/EncoderDial.h>
 #include <state/remote.h>
 #include <services/encoder.h>
 #include <components/Image.h>
@@ -22,6 +21,9 @@ void drawControllerTask(void *pvParameters)
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
+    device->displayObjects.clear();
+    // give other tasks a chance to catch up.
+    vTaskDelay(100 / portTICK_PERIOD_MS);
     device->drawControls();
 
     // // Top bumpers
@@ -63,6 +65,11 @@ void drawControllerTask(void *pvParameters)
     bool currentLeftShoulderState = HIGH;
     bool currentRightShoulderState = HIGH;
 
+    int lastLeftEncoderValue = -1;
+    int lastRightEncoderValue = -1;
+    int currentLeftEncoderValue = -1;
+    int currentRightEncoderValue = -1;
+
     auto isInCorrectState = []()
     {
         return stateMachine->is("device_draw_control"_s);
@@ -71,54 +78,36 @@ void drawControllerTask(void *pvParameters)
     while (isInCorrectState())
     {
 
-        // ossm->setSpeed(leftEncoder.readEncoder());
+        currentLeftShoulderState = digitalRead(pins::BTN_L_SHOULDER);
+        currentRightShoulderState = digitalRead(pins::BTN_R_SHOULDER);
 
-        // if (rightDial.getFocusedIndex() == 2)
-        // {
-        //     ossm->setStroke(rightEncoder.readEncoder());
-        // }
-        // else if (rightDial.getFocusedIndex() == 0)
-        // {
-        //     ossm->setDepth(rightEncoder.readEncoder());
-        // }
-        // else if (rightDial.getFocusedIndex() == 1)
-        // {
-        //     ossm->setSensation(rightEncoder.readEncoder());
-        // }
+        if (currentLeftShoulderState == LOW && lastLeftShoulderState == HIGH)
+        {
+            device->onLeftBumperClick();
+        }
+        if (currentRightShoulderState == LOW && lastRightShoulderState == HIGH)
+        {
+            device->onRightBumperClick();
+        }
 
-        // currentLeftShoulderState = digitalRead(pins::BTN_L_SHOULDER);
-        // currentRightShoulderState = digitalRead(pins::BTN_R_SHOULDER);
+        // Encoders
+        currentLeftEncoderValue = leftEncoder.readEncoder();
+        currentRightEncoderValue = rightEncoder.readEncoder();
 
-        // // Check for falling edge (button press) on right shoulder
-        // if (currentRightShoulderState == LOW && lastRightShoulderState == HIGH)
-        // {
-        //     // Increment focus
-        //     int newParameter = rightDial.incrementFocus();
-        //     rightEncoder.setEncoderValue(newParameter);
-        // }
-
-        // // Check for falling edge (button press) on left shoulder
-        // if (currentLeftShoulderState == LOW && lastLeftShoulderState == HIGH)
-        // {
-        //     // Decrement focus
-        //     int newParameter = rightDial.decrementFocus();
-        //     rightEncoder.setEncoderValue(newParameter);
-        // }
+        if (currentLeftEncoderValue != lastLeftEncoderValue)
+        {
+            device->onLeftEncoderChange();
+            lastLeftEncoderValue = currentLeftEncoderValue;
+        }
+        if (currentRightEncoderValue != lastRightEncoderValue)
+        {
+            device->onRightEncoderChange();
+            lastRightEncoderValue = currentRightEncoderValue;
+        }
 
         // Store current states for next iteration
         lastLeftShoulderState = currentLeftShoulderState;
         lastRightShoulderState = currentRightShoulderState;
-
-        // topLeftBumper.tick();
-        // topRightBumper.tick();
-
-        // bottomLeftBumper.tick();
-        // bottomRightBumper.tick();
-        // centerButton.tick();
-
-        // leftDial.tick();
-        // rightDial.tick();
-        // linearRail.tick();
 
         for (auto &displayObject : device->displayObjects)
         {
@@ -130,6 +119,7 @@ void drawControllerTask(void *pvParameters)
     }
 
     // unique_ptr will clean up automatically when the device is destroyed or vector cleared
+    device->displayObjects.clear();
 
     vTaskDelete(NULL);
 }
