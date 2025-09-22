@@ -7,6 +7,7 @@
 #include <services/encoder.h>
 #include <components/Image.h>
 #include <devices/researchAndDesire/ossm/ossm_device.hpp>
+#include <components/LinearRailGraph.h>
 
 using namespace sml;
 void drawControllerTask(void *pvParameters)
@@ -31,6 +32,8 @@ void drawControllerTask(void *pvParameters)
 
     TextButton centerButton("STOP", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
 
+    LinearRailGraph linearRail(ossm);
+
     // Create a left encoder dial with Speed parameter
     std::map<String, int> leftParams = {
         {"Speed", ossm->settings.speed}};
@@ -46,11 +49,11 @@ void drawControllerTask(void *pvParameters)
     EncoderDial rightDial(rightParams, "", false, DISPLAY_WIDTH - 90, DISPLAY_HEIGHT / 2 - 30);
 
     leftEncoder.setBoundaries(0, 100);
-    leftEncoder.setAcceleration(10);
+    leftEncoder.setAcceleration(50);
     leftEncoder.setEncoderValue(ossm->settings.speed);
 
     rightEncoder.setBoundaries(0, 100);
-    rightEncoder.setAcceleration(10);
+    rightEncoder.setAcceleration(50);
     rightEncoder.setEncoderValue(ossm->settings.stroke);
 
     bool lastLeftShoulderState = HIGH;
@@ -118,6 +121,7 @@ void drawControllerTask(void *pvParameters)
 
         leftDial.tick();
         rightDial.tick();
+        linearRail.tick();
 
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }

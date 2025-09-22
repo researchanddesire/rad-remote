@@ -95,12 +95,14 @@ public:
                                 } });
 
         // finally, we set inital preferences and go to stroke engine mode
+        vTaskDelay(pdMS_TO_TICKS(100));
         send("speedKnobLimit", "false");
+        vTaskDelay(pdMS_TO_TICKS(100));
         send("command", "go:strokeEngine");
+        vTaskDelay(pdMS_TO_TICKS(100));
         // TODO: A bug on AJ's dev unit requires two "go:strokeEngine" commands.
         send("command", "go:strokeEngine");
-
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(100));
 
         isConnected = true;
 
@@ -151,6 +153,11 @@ public:
         return send("command", std::string("set:speed:") + std::to_string(speed));
     }
 
+    float getDepth()
+    {
+        return constrain(settings.depth, 0.0f, 100.0f);
+    }
+
     bool setDepth(int depth)
     {
         if (depth == settings.depth)
@@ -160,6 +167,11 @@ public:
         settings.depth = depth;
         depth = constrain(depth, 0, 100);
         return send("command", std::string("set:depth:") + std::to_string(depth));
+    }
+
+    float getStroke()
+    {
+        return constrain(settings.stroke, 0.0f, 100.0f);
     }
 
     bool setStroke(int stroke)
