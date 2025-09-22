@@ -62,14 +62,24 @@ public:
         // Create a left encoder dial with Speed parameter
         std::map<String, float *> leftParams = {
             {"Speed", &this->settings.speed}};
-        draw<EncoderDial>(leftEncoder, leftParams, true, this->leftFocusedIndex, 0, Display::PageY + 10);
+        draw<EncoderDial>(EncoderDial::Props{
+            .encoder = &leftEncoder,
+            .parameters = leftParams,
+            .focusedIndex = &this->leftFocusedIndex,
+            .x = 0,
+            .y = (int16_t)(Display::PageY + 10)});
 
         // Create a right encoder dial with all parameters
         std::map<String, float *> rightParams = {
             {"Stroke", &this->settings.stroke},
             {"Depth", &this->settings.depth},
             {"Sens.", &this->settings.sensation}};
-        draw<EncoderDial>(rightEncoder, rightParams, false, this->rightFocusedIndex, DISPLAY_WIDTH - 90, Display::PageY + 10);
+        draw<EncoderDial>(EncoderDial::Props{
+            .encoder = &rightEncoder,
+            .parameters = rightParams,
+            .focusedIndex = &this->rightFocusedIndex,
+            .x = (int16_t)(DISPLAY_WIDTH - 90),
+            .y = (int16_t)(Display::PageY + 10)});
     }
 
     void onConnect() override
@@ -286,25 +296,25 @@ public:
         }
     }
 
-    void onRightEncoderChange() override
+    void onRightEncoderChange(int value) override
     {
         if (rightFocusedIndex == 0)
         {
-            setDepth(rightEncoder.readEncoder());
+            setDepth(value);
         }
         else if (rightFocusedIndex == 1)
         {
-            setSensation(rightEncoder.readEncoder());
+            setSensation(value);
         }
         else if (rightFocusedIndex == 2)
         {
-            setStroke(rightEncoder.readEncoder());
+            setStroke(value);
         }
     }
 
-    void onLeftEncoderChange() override
+    void onLeftEncoderChange(int value) override
     {
-        setSpeed(leftEncoder.readEncoder());
+        setSpeed(value);
     }
 };
 

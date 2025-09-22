@@ -26,40 +26,6 @@ void drawControllerTask(void *pvParameters)
     vTaskDelay(100 / portTICK_PERIOD_MS);
     device->drawControls();
 
-    // // Top bumpers
-    // TextButton topLeftBumper("<-", pins::BTN_L_SHOULDER, 0, 0);
-    // TextButton topRightBumper("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 60, 0);
-
-    // // Bottom bumpers
-    // TextButton bottomLeftBumper("Home", pins::BTN_UNDER_L, 0, DISPLAY_HEIGHT - 25);
-    // TextButton bottomRightBumper("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25);
-
-    // TextButton centerButton("STOP", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
-
-    // LinearRailGraph linearRail(&ossm->settings.stroke, &ossm->settings.depth, -1, Display::PageHeight - 40, Display::WIDTH);
-
-    // // Create a left encoder dial with Speed parameter
-    // std::map<String, float *> leftParams = {
-    //     {"Speed", &ossm->settings.speed}};
-
-    // EncoderDial leftDial(leftParams, "", true, 0, Display::PageY + 10);
-
-    // // Create a right encoder dial with all parameters
-    // std::map<String, float *> rightParams = {
-    //     {"Stroke", &ossm->settings.stroke},
-    //     {"Depth", &ossm->settings.depth},
-    //     {"Sens.", &ossm->settings.sensation}};
-
-    // EncoderDial rightDial(rightParams, "", false, DISPLAY_WIDTH - 90, Display::PageY + 10);
-
-    // leftEncoder.setBoundaries(0, 100);
-    // leftEncoder.setAcceleration(50);
-    // leftEncoder.setEncoderValue(device->settings.speed);
-
-    // rightEncoder.setBoundaries(0, 100);
-    // rightEncoder.setAcceleration(50);
-    // rightEncoder.setEncoderValue(device->settings.stroke);
-
     bool lastLeftShoulderState = HIGH;
     bool lastRightShoulderState = HIGH;
     bool currentLeftShoulderState = HIGH;
@@ -96,12 +62,12 @@ void drawControllerTask(void *pvParameters)
 
         if (currentLeftEncoderValue != lastLeftEncoderValue)
         {
-            device->onLeftEncoderChange();
+            device->onLeftEncoderChange(currentLeftEncoderValue);
             lastLeftEncoderValue = currentLeftEncoderValue;
         }
         if (currentRightEncoderValue != lastRightEncoderValue)
         {
-            device->onRightEncoderChange();
+            device->onRightEncoderChange(currentRightEncoderValue);
             lastRightEncoderValue = currentRightEncoderValue;
         }
 

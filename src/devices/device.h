@@ -67,10 +67,10 @@ public:
     virtual void onDisconnect() {}
     virtual void onDeviceMenuItemSelected(int index) {}
 
-    virtual void onRightEncoderChange() {}
-    virtual void onLeftEncoderChange() {}
+    virtual void onRightEncoderChange(int value) {}
+    virtual void onLeftEncoderChange(int value) {}
 
-    virtual void drawControls(){}
+    virtual void drawControls() {}
     virtual void drawDeviceMenu();
 
     virtual void pullValue() {}

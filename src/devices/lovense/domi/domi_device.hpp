@@ -18,22 +18,42 @@ public:
             {"command", {NimBLEUUID(DOMI_CHARACTERISTIC_UUID_COMMAND)}},
             {"response", {NimBLEUUID(DOMI_CHARACTERISTIC_UUID_RESPONSE)}},
         };
-
     }
 
     NimBLEUUID getServiceUUID() override { return NimBLEUUID(DOMI_SERVICE_ID); }
     const char *getName() override { return "Domi 2"; }
 
+    float vibrateIntensity = 0;
+    int leftFocusedIndex = 0;
+
     void onConnect() override
     {
-        setVibrate(16);
+        setVibrate(0);
+        isConnected = true;
+    }
+
+    void drawControls() override
+    {
+        leftEncoder.setBoundaries(0, 16);
+        leftEncoder.setAcceleration(0);
+        leftEncoder.setEncoderValue(this->vibrateIntensity);
+
+        std::map<String, float *> leftParams = {
+            {"Vibrate", &this->vibrateIntensity}};
+        draw<EncoderDial>(EncoderDial::Props{
+            .encoder = &leftEncoder,
+            .parameters = leftParams,
+            .focusedIndex = &this->leftFocusedIndex,
+            .minValue = 0,
+            .maxValue = 16});
     }
 
     // helper functions
     bool setVibrate(int intensity)
     {
         intensity = constrain(intensity, 0, 16);
-        return send("command", "Vibrate:" + std::to_string(intensity) + ";");
+        String intensityStr = String(intensity);
+        return send("command", String("Vibrate:" + intensityStr + ";").c_str());
     }
 
     int getBatteryLevel()
@@ -51,6 +71,11 @@ public:
     bool powerOn()
     {
         return send("command", "PowerOn;");
+    }
+
+    void onLeftEncoderChange(int value) override
+    {
+        setVibrate(value);
     }
 };
 

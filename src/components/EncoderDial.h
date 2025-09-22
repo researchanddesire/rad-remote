@@ -23,10 +23,10 @@ class EncoderDial : public DisplayObject
 private:
     bool lastButtonState = false;
     std::map<String, float *> parameters;
-    const bool isLeft;
     const uint16_t color;
     std::vector<uint16_t> colors; // Optional per-parameter colors
-    const int maxValue = 100;
+    int minValue = 0;
+    int maxValue = 100;
     int *focusedIndex = nullptr;
     std::map<String, int> lastParameterValues;
     int lastFocusedIndex = -1;
@@ -55,15 +55,39 @@ private:
     AiEsp32RotaryEncoder &encoder;
 
 public:
-    EncoderDial(AiEsp32RotaryEncoder &encoder, const std::map<String, float *> &initialParams, bool isLeft, int &focusedIndexRef, int16_t x, int16_t y, int16_t width = 90, int16_t height = 90)
-        : DisplayObject(x, y, width, height),
-          parameters(initialParams),
-          isLeft(isLeft),
-          color(ST77XX_WHITE),
-          encoder(encoder)
+    struct Props
     {
+        AiEsp32RotaryEncoder *encoder = nullptr;
+        std::map<String, float *> parameters;
+        int *focusedIndex = nullptr;
+        int16_t x = -1;
+        int16_t y = -1;
+        int16_t width = 90;
+        int16_t height = 90;
+        int minValue = 0;
+        int maxValue = 100;
+    };
 
-        focusedIndex = &focusedIndexRef;
+    explicit EncoderDial(const Props &props)
+        : DisplayObject(props.x, props.y, props.width, props.height),
+          parameters(props.parameters),
+          color(ST77XX_WHITE),
+          encoder(*props.encoder)
+    {
+        focusedIndex = props.focusedIndex;
+
+        minValue = props.minValue;
+        maxValue = props.maxValue;
+
+        if (x == -1)
+        {
+            x = Display::WIDTH / 2 - width / 2;
+        }
+
+        if (y == -1)
+        {
+            y = Display::PageY + Display::PageHeight / 2 - height / 2;
+        }
     }
 
     void setParameters(const std::map<String, float *> &newParams)
@@ -86,7 +110,7 @@ public:
             std::advance(it, *focusedIndex);
             if (it != parameters.end() && it->second != nullptr)
             {
-                *(it->second) = constrain(currentValue, 0, 100);
+                *(it->second) = constrain(currentValue, minValue, maxValue);
             }
         }
 
@@ -137,9 +161,10 @@ public:
             int paramValue = 0;
             if (param.second != nullptr)
             {
-                paramValue = constrain((int)roundf(*(param.second)), 0, 100);
+                paramValue = constrain((int)roundf(*(param.second)), minValue, maxValue);
             }
-            int fillSteps = (paramValue * steps) / maxValue;
+            int range = maxValue - minValue;
+            int fillSteps = range > 0 ? (int)lround(((double)(paramValue - minValue) * steps) / (double)range) : steps;
             uint16_t arcColor = (arcIndex < (int)colors.size()) ? colors[arcIndex] : color;
             drawArc(currentRadius, centerX, centerY, fillSteps, steps, circleRadius, arcIndex == *focusedIndex, arcColor);
             arcIndex++;
@@ -167,7 +192,7 @@ public:
             int displayValue = 0;
             if (it->second != nullptr)
             {
-                displayValue = constrain((int)roundf(*(it->second)), 0, 100);
+                displayValue = constrain((int)roundf(*(it->second)), minValue, maxValue);
             }
             String percentStr = String(displayValue);
 
@@ -194,7 +219,7 @@ public:
             int value = 0;
             if (param.second != nullptr)
             {
-                value = constrain((int)roundf(*(param.second)), 0, 100);
+                value = constrain((int)roundf(*(param.second)), minValue, maxValue);
             }
             lastParameterValues[param.first] = value;
         }
