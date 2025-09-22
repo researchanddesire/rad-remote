@@ -5,6 +5,7 @@
 
 #include "DisplayObject.h"
 #include "pins.h"
+#include <Arduino.h>
 #include <Adafruit_MCP23X17.h>
 #include <Adafruit_ST77xx.h>
 #include "services/display.h"
@@ -17,7 +18,7 @@ class EncoderDial : public DisplayObject
 {
 private:
     bool lastButtonState = false;
-    std::map<String, int> parameters;
+    std::map<String, float *> parameters;
     const String action;
     const bool isLeft;
     const uint16_t color;
@@ -46,7 +47,7 @@ private:
     }
 
 public:
-    EncoderDial(const std::map<String, int> &initialParams, const String &action, bool isLeft, int16_t x, int16_t y, int16_t width = 90, int16_t height = 90)
+    EncoderDial(const std::map<String, float *> &initialParams, const String &action, bool isLeft, int16_t x, int16_t y, int16_t width = 90, int16_t height = 90)
         : DisplayObject(x, y, width, height),
           parameters(initialParams),
           action(action),
@@ -69,7 +70,7 @@ public:
         return focusedIndex;
     }
 
-    void setParameters(const std::map<String, int> &newParams)
+    void setParameters(const std::map<String, float *> &newParams)
     {
         if (newParams != parameters)
         {
@@ -85,16 +86,19 @@ public:
 
         auto it = parameters.begin();
         std::advance(it, focusedIndex);
-        if (it != parameters.end() && it->second != value)
+        if (it != parameters.end() && it->second != nullptr)
         {
+            int currentValue = (int)roundf(*(it->second));
+            int newValue = constrain(value, 0, 100);
+
             // Check if we're crossing 0% or 100% boundary
-            if ((it->second != 0 && value == 0) || (it->second != 100 && value == 100))
+            if ((currentValue != 0 && newValue == 0) || (currentValue != 100 && newValue == 100))
             {
                 playVibratorPattern(VibratorPattern::SINGLE_PULSE);
                 playBuzzerPattern(BuzzerPattern::SINGLE_BEEP);
             }
 
-            it->second = value;
+            *(it->second) = newValue;
             isDirty = true;
         }
     }
@@ -102,12 +106,21 @@ public:
     int getParameter() const
     {
         ESP_LOGI("EncoderDial", "Getting parameter");
+        if (parameters.empty())
+        {
+            return 0;
+        }
         int safeIndex = focusedIndex % parameters.size();
 
         auto it = parameters.begin();
         std::advance(it, safeIndex);
-        ESP_LOGI("EncoderDial", "Parameter: %d", it->second);
-        return it->second;
+        int value = 0;
+        if (it != parameters.end() && it->second != nullptr)
+        {
+            value = (int)roundf(*(it->second));
+        }
+        ESP_LOGI("EncoderDial", "Parameter: %d", value);
+        return value;
     }
 
     String getParameterName() const
@@ -124,11 +137,22 @@ public:
     [[deprecated("Use setParameter(int value) instead")]]
     void setParameter(const String &name, int value)
     {
-        if (parameters[name] != value)
+        auto it = parameters.find(name);
+        if (it == parameters.end() || it->second == nullptr)
+            return;
+
+        int currentValue = (int)roundf(*(it->second));
+        int newValue = constrain(value, 0, 100);
+        if (currentValue == newValue)
+            return;
+
+        if ((currentValue != 0 && newValue == 0) || (currentValue != 100 && newValue == 100))
         {
-            parameters[name] = value;
-            isDirty = true;
+            playVibratorPattern(VibratorPattern::SINGLE_PULSE);
+            playBuzzerPattern(BuzzerPattern::SINGLE_BEEP);
         }
+        *(it->second) = newValue;
+        isDirty = true;
     }
 
     bool shouldDraw() override
@@ -153,7 +177,12 @@ public:
         for (const auto &param : parameters)
         {
             int currentRadius = maxArcRadius - (arcIndex * arcSpacing);
-            int fillSteps = (param.second * steps) / maxValue;
+            int paramValue = 0;
+            if (param.second != nullptr)
+            {
+                paramValue = constrain((int)roundf(*(param.second)), 0, 100);
+            }
+            int fillSteps = (paramValue * steps) / maxValue;
             drawArc(currentRadius, centerX, centerY, fillSteps, steps, circleRadius, arcIndex == focusedIndex);
             arcIndex++;
         }
@@ -174,7 +203,12 @@ public:
             canvas->print(label);
 
             // Draw large percentage in center
-            String percentStr = String(it->second);
+            int displayValue = 0;
+            if (it->second != nullptr)
+            {
+                displayValue = constrain((int)roundf(*(it->second)), 0, 100);
+            }
+            String percentStr = String(displayValue);
             textWidth = percentStr.length() * 6; // Approximate width for 9pt font
             canvas->setCursor(centerX - textWidth / 2, centerY - 10);
             canvas->print(percentStr);

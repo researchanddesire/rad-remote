@@ -35,16 +35,16 @@ void drawControllerTask(void *pvParameters)
     LinearRailGraph linearRail(ossm);
 
     // Create a left encoder dial with Speed parameter
-    std::map<String, int> leftParams = {
-        {"Speed", ossm->settings.speed}};
+    std::map<String, float *> leftParams = {
+        {"Speed", &ossm->settings.speed}};
 
     EncoderDial leftDial(leftParams, "", true, 0, DISPLAY_HEIGHT / 2 - 30);
 
     // Create a right encoder dial with all parameters
-    std::map<String, int> rightParams = {
-        {"Stroke", ossm->settings.stroke},
-        {"Depth", ossm->settings.depth},
-        {"Sens.", ossm->settings.sensation}};
+    std::map<String, float *> rightParams = {
+        {"Stroke", &ossm->settings.stroke},
+        {"Depth", &ossm->settings.depth},
+        {"Sens.", &ossm->settings.sensation}};
 
     EncoderDial rightDial(rightParams, "", false, DISPLAY_WIDTH - 90, DISPLAY_HEIGHT / 2 - 30);
 
@@ -71,22 +71,17 @@ void drawControllerTask(void *pvParameters)
 
         ossm->setSpeed(leftEncoder.readEncoder());
 
-        leftDial.setParameter(ossm->settings.speed);
-
         if (rightDial.getFocusedIndex() == 2)
         {
             ossm->setStroke(rightEncoder.readEncoder());
-            rightDial.setParameter(ossm->settings.stroke);
         }
         else if (rightDial.getFocusedIndex() == 0)
         {
             ossm->setDepth(rightEncoder.readEncoder());
-            rightDial.setParameter(ossm->settings.depth);
         }
         else if (rightDial.getFocusedIndex() == 1)
         {
             ossm->setSensation(rightEncoder.readEncoder());
-            rightDial.setParameter(ossm->settings.sensation);
         }
 
         currentLeftShoulderState = digitalRead(pins::BTN_L_SHOULDER);

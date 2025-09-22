@@ -14,10 +14,9 @@
 
 class OSSM : public Device
 {
-private:
+public:
     SettingPercents settings;
 
-public:
     explicit OSSM(const NimBLEAdvertisedDevice *advertisedDevice)
         : Device(advertisedDevice)
     {
