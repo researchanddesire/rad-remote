@@ -79,6 +79,7 @@ namespace actions
     {
         delay(100);
         clearScreen();
+        device->onStop();
         xTaskCreatePinnedToCore(drawStopTask, "drawStopTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
     };
 

@@ -60,6 +60,7 @@ public:
     virtual void onRightButtonClick() {}
     virtual void onLeftButtonClick() {}
     virtual void onExit() {}
+    virtual void onStop() {}
     virtual void onConnect() {}
     virtual void onDisconnect() {}
     virtual void onDeviceMenuItemSelected(int index) {}

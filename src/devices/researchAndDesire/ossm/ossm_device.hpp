@@ -14,6 +14,9 @@
 
 class OSSM : public Device
 {
+private:
+    SettingPercents settings;
+
 public:
     explicit OSSM(const NimBLEAdvertisedDevice *advertisedDevice)
         : Device(advertisedDevice)
@@ -128,6 +131,11 @@ public:
 #endif
     }
 
+    void onStop() override
+    {
+        send("command", "go:idle");
+    }
+
     void drawControls() override
     {
         for (auto displayObject : displayObjects)
@@ -212,8 +220,6 @@ public:
         int patternIdx = menu[pattern].metaIndex;
         return send("command", std::string("set:pattern:") + std::to_string(patternIdx));
     }
-
-    SettingPercents settings;
 };
 
 #endif // OSSM_DEVICE_H
