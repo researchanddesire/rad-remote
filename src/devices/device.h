@@ -8,6 +8,7 @@
 #include "devices/serviceUUIDs.h"
 #include <unordered_map>
 #include <functional>
+#include <memory>
 #include <structs/Menus.h>
 #include <components/DisplayObject.h>
 
@@ -46,7 +47,7 @@ public:
     std::vector<MenuItem> menu;
 
     std::unordered_map<std::string, DeviceCharacteristics> characteristics;
-    std::vector<DisplayObject *> displayObjects;
+    std::vector<std::unique_ptr<DisplayObject>> displayObjects;
 
     // Constructor with settings document size parameter
     explicit Device(const NimBLEAdvertisedDevice *advertisedDevice);
@@ -87,13 +88,15 @@ protected:
 
     bool send(const std::string &command, const std::string &value);
 
-    std::string readString(const std::string &command);
+    std::string readString(const std::string &characteristicName);
+
+    int readInt(const std::string &characteristicName, int defaultValue);
 
     // Helper method to safely read JSON values
     template <typename T>
-    T readJsonValue(const std::string &command, const char *key, T defaultValue)
+    T readJsonValue(const std::string &characteristicName, const char *key, T defaultValue)
     {
-        auto value = readString(command);
+        auto value = readString(characteristicName);
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, value.c_str());
 

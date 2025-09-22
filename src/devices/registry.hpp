@@ -8,7 +8,7 @@
 #include <Arduino.h>
 #include "device.h"
 #include "researchAndDesire/ossm/ossm_device.hpp"
-#include "lovense/domi/domi_device.h"
+#include "lovense/domi/domi_device.hpp"
 #include "serviceUUIDs.h"
 
 // Factory function type for creating device instances

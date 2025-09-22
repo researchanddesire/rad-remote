@@ -13,48 +13,50 @@ using namespace sml;
 void drawControllerTask(void *pvParameters)
 {
 
-    OSSM *ossm = static_cast<OSSM *>(pvParameters);
+    Device *device = static_cast<Device *>(pvParameters);
 
     // wait until the device is connected
-    while (!ossm->isConnected)
+    while (!device->isConnected)
     {
         // TODO: UI / UX here.
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
-    // Top bumpers
-    TextButton topLeftBumper("<-", pins::BTN_L_SHOULDER, 0, 0);
-    TextButton topRightBumper("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 60, 0);
+    device->drawControls();
 
-    // Bottom bumpers
-    TextButton bottomLeftBumper("Home", pins::BTN_UNDER_L, 0, DISPLAY_HEIGHT - 25);
-    TextButton bottomRightBumper("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25);
+    // // Top bumpers
+    // TextButton topLeftBumper("<-", pins::BTN_L_SHOULDER, 0, 0);
+    // TextButton topRightBumper("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 60, 0);
 
-    TextButton centerButton("STOP", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
+    // // Bottom bumpers
+    // TextButton bottomLeftBumper("Home", pins::BTN_UNDER_L, 0, DISPLAY_HEIGHT - 25);
+    // TextButton bottomRightBumper("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25);
 
-    LinearRailGraph linearRail(ossm);
+    // TextButton centerButton("STOP", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
 
-    // Create a left encoder dial with Speed parameter
-    std::map<String, float *> leftParams = {
-        {"Speed", &ossm->settings.speed}};
+    // LinearRailGraph linearRail(&ossm->settings.stroke, &ossm->settings.depth, -1, Display::PageHeight - 40, Display::WIDTH);
 
-    EncoderDial leftDial(leftParams, "", true, 0, DISPLAY_HEIGHT / 2 - 30);
+    // // Create a left encoder dial with Speed parameter
+    // std::map<String, float *> leftParams = {
+    //     {"Speed", &ossm->settings.speed}};
 
-    // Create a right encoder dial with all parameters
-    std::map<String, float *> rightParams = {
-        {"Stroke", &ossm->settings.stroke},
-        {"Depth", &ossm->settings.depth},
-        {"Sens.", &ossm->settings.sensation}};
+    // EncoderDial leftDial(leftParams, "", true, 0, Display::PageY + 10);
 
-    EncoderDial rightDial(rightParams, "", false, DISPLAY_WIDTH - 90, DISPLAY_HEIGHT / 2 - 30);
+    // // Create a right encoder dial with all parameters
+    // std::map<String, float *> rightParams = {
+    //     {"Stroke", &ossm->settings.stroke},
+    //     {"Depth", &ossm->settings.depth},
+    //     {"Sens.", &ossm->settings.sensation}};
 
-    leftEncoder.setBoundaries(0, 100);
-    leftEncoder.setAcceleration(50);
-    leftEncoder.setEncoderValue(ossm->settings.speed);
+    // EncoderDial rightDial(rightParams, "", false, DISPLAY_WIDTH - 90, Display::PageY + 10);
 
-    rightEncoder.setBoundaries(0, 100);
-    rightEncoder.setAcceleration(50);
-    rightEncoder.setEncoderValue(ossm->settings.stroke);
+    // leftEncoder.setBoundaries(0, 100);
+    // leftEncoder.setAcceleration(50);
+    // leftEncoder.setEncoderValue(device->settings.speed);
+
+    // rightEncoder.setBoundaries(0, 100);
+    // rightEncoder.setAcceleration(50);
+    // rightEncoder.setEncoderValue(device->settings.stroke);
 
     bool lastLeftShoulderState = HIGH;
     bool lastRightShoulderState = HIGH;
@@ -69,66 +71,65 @@ void drawControllerTask(void *pvParameters)
     while (isInCorrectState())
     {
 
-        ossm->setSpeed(leftEncoder.readEncoder());
+        // ossm->setSpeed(leftEncoder.readEncoder());
 
-        if (rightDial.getFocusedIndex() == 2)
-        {
-            ossm->setStroke(rightEncoder.readEncoder());
-        }
-        else if (rightDial.getFocusedIndex() == 0)
-        {
-            ossm->setDepth(rightEncoder.readEncoder());
-        }
-        else if (rightDial.getFocusedIndex() == 1)
-        {
-            ossm->setSensation(rightEncoder.readEncoder());
-        }
+        // if (rightDial.getFocusedIndex() == 2)
+        // {
+        //     ossm->setStroke(rightEncoder.readEncoder());
+        // }
+        // else if (rightDial.getFocusedIndex() == 0)
+        // {
+        //     ossm->setDepth(rightEncoder.readEncoder());
+        // }
+        // else if (rightDial.getFocusedIndex() == 1)
+        // {
+        //     ossm->setSensation(rightEncoder.readEncoder());
+        // }
 
-        currentLeftShoulderState = digitalRead(pins::BTN_L_SHOULDER);
-        currentRightShoulderState = digitalRead(pins::BTN_R_SHOULDER);
+        // currentLeftShoulderState = digitalRead(pins::BTN_L_SHOULDER);
+        // currentRightShoulderState = digitalRead(pins::BTN_R_SHOULDER);
 
-        // Check for falling edge (button press) on right shoulder
-        if (currentRightShoulderState == LOW && lastRightShoulderState == HIGH)
-        {
-            // Increment focus
-            int newParameter = rightDial.incrementFocus();
-            rightEncoder.setEncoderValue(newParameter);
-        }
+        // // Check for falling edge (button press) on right shoulder
+        // if (currentRightShoulderState == LOW && lastRightShoulderState == HIGH)
+        // {
+        //     // Increment focus
+        //     int newParameter = rightDial.incrementFocus();
+        //     rightEncoder.setEncoderValue(newParameter);
+        // }
 
-        // Check for falling edge (button press) on left shoulder
-        if (currentLeftShoulderState == LOW && lastLeftShoulderState == HIGH)
-        {
-            // Decrement focus
-            int newParameter = rightDial.decrementFocus();
-            rightEncoder.setEncoderValue(newParameter);
-        }
+        // // Check for falling edge (button press) on left shoulder
+        // if (currentLeftShoulderState == LOW && lastLeftShoulderState == HIGH)
+        // {
+        //     // Decrement focus
+        //     int newParameter = rightDial.decrementFocus();
+        //     rightEncoder.setEncoderValue(newParameter);
+        // }
 
         // Store current states for next iteration
         lastLeftShoulderState = currentLeftShoulderState;
         lastRightShoulderState = currentRightShoulderState;
 
-        topLeftBumper.tick();
-        topRightBumper.tick();
+        // topLeftBumper.tick();
+        // topRightBumper.tick();
 
-        bottomLeftBumper.tick();
-        bottomRightBumper.tick();
-        centerButton.tick();
+        // bottomLeftBumper.tick();
+        // bottomRightBumper.tick();
+        // centerButton.tick();
 
-        leftDial.tick();
-        rightDial.tick();
-        linearRail.tick();
+        // leftDial.tick();
+        // rightDial.tick();
+        // linearRail.tick();
+
+        for (auto &displayObject : device->displayObjects)
+        {
+            displayObject->tick();
+            vTaskDelay(1 / portTICK_PERIOD_MS);
+        }
 
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }
 
-    // call destructor on encoder dial.
-    leftDial.~EncoderDial();
-    rightDial.~EncoderDial();
-    topLeftBumper.~TextButton();
-    topRightBumper.~TextButton();
-    bottomLeftBumper.~TextButton();
-    bottomRightBumper.~TextButton();
-    centerButton.~TextButton();
+    // unique_ptr will clean up automatically when the device is destroyed or vector cleared
 
     vTaskDelete(NULL);
 }

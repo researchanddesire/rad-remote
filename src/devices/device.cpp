@@ -101,8 +101,8 @@ void Device::connectionTask(void *pvParameter)
             ESP_LOGD(TAG, "Connect timeout set: %dms", 5 * 1000);
 
             ESP_LOGI(TAG, "Connecting to peer (new client): %s", advDevice->getAddress().toString().c_str());
-            vTaskDelay(1000);
-            if (!pClient->connect(advDevice))
+            vTaskDelay(11);
+            if (!pClient->connect(advDevice, true, false, false))
             {
                 /** Created a client but failed to connect, don't need to keep it as it has no data */
                 NimBLEDevice::deleteClient(pClient);
@@ -210,33 +210,46 @@ bool Device::send(const std::string &command, const std::string &value)
     return pChr->writeValue(encodedValue);
 }
 
-std::string Device::readString(const std::string &command)
+std::string Device::readString(const std::string &characteristicName)
 {
-    auto it = characteristics.find(command);
+    auto it = characteristics.find(characteristicName);
     if (it == characteristics.end())
     {
-        ESP_LOGW(TAG, "Characteristic '%s' not found for device '%s'", command.c_str(), getName());
+        ESP_LOGW(TAG, "Characteristic '%s' not found for device '%s'", characteristicName.c_str(), getName());
         return std::string();
     }
 
     auto *pChr = it->second.pCharacteristic;
     if (!pChr)
     {
-        ESP_LOGW(TAG, "Characteristic '%s' exists but pCharacteristic is nullptr for device '%s'", command.c_str(), getName());
+        ESP_LOGW(TAG, "Characteristic '%s' exists but pCharacteristic is nullptr for device '%s'", characteristicName.c_str(), getName());
         return std::string();
     }
 
     if (!pChr->canRead())
     {
-        ESP_LOGW(TAG, "Characteristic '%s' for device '%s' is not readable", command.c_str(), getName());
+        ESP_LOGW(TAG, "Characteristic '%s' for device '%s' is not readable", characteristicName.c_str(), getName());
         return std::string();
     }
 
-    ESP_LOGD(TAG, "Reading value from characteristic '%s' on device '%s'", command.c_str(), getName());
+    ESP_LOGD(TAG, "Reading value from characteristic '%s' on device '%s'", characteristicName.c_str(), getName());
     NimBLEAttValue rawValue = pChr->readValue();
 
-    ESP_LOGI(TAG, "Read value from characteristic '%s' on device '%s': %s", command.c_str(), getName(), rawValue.c_str());
+    ESP_LOGI(TAG, "Read value from characteristic '%s' on device '%s': %s", characteristicName.c_str(), getName(), rawValue.c_str());
     return rawValue.c_str();
+}
+
+int Device::readInt(const std::string &characteristicName, int defaultValue)
+{
+    auto value = readString(characteristicName);
+    char *endptr = nullptr;
+    long result = strtol(value.c_str(), &endptr, 10);
+    if (endptr == value.c_str() || *endptr != '\0')
+    {
+        // Parsing failed, fallback to defaultValue
+        return defaultValue;
+    }
+    return static_cast<int>(result);
 }
 
 std::string Device::readJsonString(const std::string &command)

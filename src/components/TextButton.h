@@ -22,18 +22,21 @@ public:
 
     bool shouldDraw() override
     {
-        bool currentState = digitalRead(buttonPin);
-        bool shouldRedraw = currentState != lastButtonState;
-        lastButtonState = digitalRead(buttonPin);
-        return true;
+        ESP_LOGI("TEXTBUTTON", "Should draw");
+        bool currentState = digitalRead(buttonPin) == LOW;
+        ESP_LOGI("TEXTBUTTON", "Current state: %d", currentState);
+        ESP_LOGI("TEXTBUTTON", "Last button state: %d", lastButtonState);
+        ESP_LOGI("TEXTBUTTON", "Current state != last button state: %d", currentState != lastButtonState);
+        return currentState != lastButtonState;
     }
 
     void draw() override
     {
+        bool currentState = digitalRead(buttonPin) == LOW;
         canvas->fillScreen(ST77XX_BLACK);
 
         // Draw button background
-        if (!lastButtonState)
+        if (!currentState)
         {
             canvas->drawRoundRect(0, 0, width, height, 5, 0x7BEF); // Dark grey color
             canvas->setTextColor(0x7BEF);                          // Dark grey color
@@ -64,6 +67,8 @@ public:
             tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
             xSemaphoreGive(displayMutex);
         }
+
+        lastButtonState = currentState;
     }
 };
 

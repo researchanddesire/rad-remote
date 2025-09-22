@@ -13,6 +13,9 @@
 #include "utils/vibrator.h"
 #include "utils/buzzer.h"
 #include "esp_log.h"
+// Adafruit GFX fonts
+#include <Fonts/FreeSansBold12pt7b.h>
+#include <vector>
 
 class EncoderDial : public DisplayObject
 {
@@ -22,10 +25,13 @@ private:
     const String action;
     const bool isLeft;
     const uint16_t color;
+    std::vector<uint16_t> colors; // Optional per-parameter colors
     const int maxValue = 100;
     int focusedIndex = 0; // Track which arc is focused
+    std::map<String, int> lastParameterValues;
+    int lastFocusedIndex = -1;
 
-    void drawArc(int arcRadius, int centerX, int centerY, int fillSteps, int steps, int circleRadius, bool isFocused)
+    void drawArc(int arcRadius, int centerX, int centerY, int fillSteps, int steps, int circleRadius, bool isFocused, uint16_t activeColor)
     {
         int startAngle = 0;
         int endAngle = 270;
@@ -37,7 +43,7 @@ private:
             int y = centerY + arcRadius * sin(angle + 3 * PI / 4);
             if (i < fillSteps || i == 0)
             {
-                canvas->fillCircle(x, y, circleRadius, isFocused ? ST77XX_WHITE : 0xAD55);
+                canvas->fillCircle(x, y, circleRadius, isFocused ? ST77XX_WHITE : activeColor);
             }
             else
             {
@@ -53,6 +59,18 @@ public:
           action(action),
           isLeft(isLeft),
           color(ST77XX_WHITE)
+    {
+    }
+
+    // Optional: supply per-parameter colors; if empty, default color is used
+    EncoderDial(const std::map<String, float *> &initialParams, const String &action, bool isLeft, const std::vector<uint16_t> &colors,
+                int16_t x, int16_t y, int16_t width = 90, int16_t height = 90)
+        : DisplayObject(x, y, width, height),
+          parameters(initialParams),
+          action(action),
+          isLeft(isLeft),
+          color(ST77XX_WHITE),
+          colors(colors)
     {
     }
 
@@ -77,6 +95,13 @@ public:
             parameters = newParams;
             isDirty = true;
         }
+    }
+
+    // Set or update per-parameter colors at runtime
+    void setColors(const std::vector<uint16_t> &newColors)
+    {
+        colors = newColors;
+        isDirty = true;
     }
 
     void setParameter(int value)
@@ -157,7 +182,31 @@ public:
 
     bool shouldDraw() override
     {
-        return true;
+        if (lastFocusedIndex != focusedIndex)
+        {
+            return true;
+        }
+
+        if (lastParameterValues.size() != parameters.size())
+        {
+            return true;
+        }
+
+        for (const auto &param : parameters)
+        {
+            int currentValue = 0;
+            if (param.second != nullptr)
+            {
+                currentValue = constrain((int)roundf(*(param.second)), 0, 100);
+            }
+            auto it = lastParameterValues.find(param.first);
+            if (it == lastParameterValues.end() || it->second != currentValue)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     void draw() override
@@ -183,12 +232,12 @@ public:
                 paramValue = constrain((int)roundf(*(param.second)), 0, 100);
             }
             int fillSteps = (paramValue * steps) / maxValue;
-            drawArc(currentRadius, centerX, centerY, fillSteps, steps, circleRadius, arcIndex == focusedIndex);
+            uint16_t arcColor = (arcIndex < (int)colors.size()) ? colors[arcIndex] : color;
+            drawArc(currentRadius, centerX, centerY, fillSteps, steps, circleRadius, arcIndex == focusedIndex, arcColor);
             arcIndex++;
         }
 
-        // Draw focused parameter label at bottom
-        canvas->setTextSize(1);
+        // Draw focused parameter label and value
         canvas->setTextColor(ST77XX_WHITE);
 
         // Find the focused parameter
@@ -196,22 +245,33 @@ public:
         std::advance(it, focusedIndex);
         if (it != parameters.end())
         {
-            // Draw parameter name at bottom
+            // Draw parameter name at bottom (classic font)
             String label = it->first;
-            int16_t textWidth = label.length() * 6; // 6 pixels per character at text size 1
-            canvas->setCursor(centerX - textWidth / 2, height - 10);
+            canvas->setFont(NULL);
+            int16_t x1, y1;
+            uint16_t w, h;
+            canvas->getTextBounds(label.c_str(), 0, 0, &x1, &y1, &w, &h);
+            int16_t labelCursorX = centerX - (x1 + (int16_t)(w / 2));
+            int16_t labelBaselineY = height - 10; // slight margin from bottom
+            canvas->setCursor(labelCursorX, labelBaselineY);
             canvas->print(label);
 
-            // Draw large percentage in center
             int displayValue = 0;
             if (it->second != nullptr)
             {
                 displayValue = constrain((int)roundf(*(it->second)), 0, 100);
             }
             String percentStr = String(displayValue);
-            textWidth = percentStr.length() * 6; // Approximate width for 9pt font
-            canvas->setCursor(centerX - textWidth / 2, centerY - 10);
+
+            canvas->setFont(&FreeSansBold12pt7b);
+            // Measure to center precisely with current font
+            canvas->getTextBounds(percentStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+            int16_t valueCursorX = centerX - (x1 + (int16_t)(w / 2));
+            int16_t valueBaselineY = centerY - (y1 + (int16_t)(h / 2));
+            canvas->setCursor(valueCursorX, valueBaselineY);
             canvas->print(percentStr);
+            // Restore default font
+            canvas->setFont(NULL);
         }
 
         if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
@@ -219,6 +279,18 @@ public:
             tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
             xSemaphoreGive(displayMutex);
         }
+
+        lastParameterValues.clear();
+        for (const auto &param : parameters)
+        {
+            int value = 0;
+            if (param.second != nullptr)
+            {
+                value = constrain((int)roundf(*(param.second)), 0, 100);
+            }
+            lastParameterValues[param.first] = value;
+        }
+        lastFocusedIndex = focusedIndex;
     }
 
     int incrementFocus()

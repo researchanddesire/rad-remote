@@ -4,6 +4,8 @@
 #define OSSM_DEVICE_H
 
 #include "../../device.h"
+#include <components/TextButton.h>
+#include <components/LinearRailGraph.h>
 #include <components/EncoderDial.h>
 #include <ArduinoJson.h>
 
@@ -31,6 +33,36 @@ public:
 
     const char *getName() override { return "OSSM"; }
     NimBLEUUID getServiceUUID() override { return NimBLEUUID(OSSM_SERVICE_ID); }
+
+    void drawControls() override
+    {
+        displayObjects.clear();
+        displayObjects.reserve(8);
+
+        // Top bumpers
+        displayObjects.emplace_back(std::make_unique<TextButton>("<-", pins::BTN_L_SHOULDER, 0, 0));
+        displayObjects.emplace_back(std::make_unique<TextButton>("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 60, 0));
+
+        // Bottom bumpers
+        displayObjects.emplace_back(std::make_unique<TextButton>("Home", pins::BTN_UNDER_L, 0, DISPLAY_HEIGHT - 25));
+        displayObjects.emplace_back(std::make_unique<TextButton>("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25));
+
+        displayObjects.emplace_back(std::make_unique<TextButton>("STOP", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120));
+
+        displayObjects.emplace_back(std::make_unique<LinearRailGraph>(&this->settings.stroke, &this->settings.depth, -1, Display::PageHeight - 40, Display::WIDTH));
+
+        // Create a left encoder dial with Speed parameter
+        std::map<String, float *> leftParams = {
+            {"Speed", &this->settings.speed}};
+        displayObjects.emplace_back(std::make_unique<EncoderDial>(leftParams, "", true, 0, Display::PageY + 10));
+
+        // Create a right encoder dial with all parameters
+        std::map<String, float *> rightParams = {
+            {"Stroke", &this->settings.stroke},
+            {"Depth", &this->settings.depth},
+            {"Sens.", &this->settings.sensation}};
+        displayObjects.emplace_back(std::make_unique<EncoderDial>(rightParams, "", false, DISPLAY_WIDTH - 90, Display::PageY + 10));
+    }
 
     void onConnect() override
     {
@@ -133,14 +165,6 @@ public:
     void onStop() override
     {
         send("command", "go:idle");
-    }
-
-    void drawControls() override
-    {
-        for (auto displayObject : displayObjects)
-        {
-            displayObject->tick();
-        }
     }
 
     void onDeviceMenuItemSelected(int index) override

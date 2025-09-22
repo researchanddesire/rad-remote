@@ -10,6 +10,7 @@ protected:
     int16_t width, height;
     GFXcanvas16 *canvas = nullptr;
     bool isDirty = false;
+    long lastDrawTime = 0;
 
 private:
     bool isFirstDraw = true;
@@ -30,12 +31,13 @@ public:
         }
     }
 
-    // Pure virtual functions that must be implemented by derived classes
-    virtual bool shouldDraw() = 0;
+    virtual bool shouldDraw() { return millis() - lastDrawTime > 500; }
     virtual void draw() = 0;
 
     void tick()
     {
+        ESP_LOGI("DISPLAYOBJECT", "Tick 0");
+
         isDirty |= shouldDraw();
         isDirty |= isFirstDraw;
 
@@ -44,7 +46,10 @@ public:
             return;
         }
 
+        ESP_LOGI("DISPLAYOBJECT", "Tick 1");
         draw();
+        ESP_LOGI("DISPLAYOBJECT", "Tick 2");
+
         isFirstDraw = false;
         isDirty = false;
     }
