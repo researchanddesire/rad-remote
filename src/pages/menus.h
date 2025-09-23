@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef MENUS_H
 #define MENUS_H
 
@@ -9,7 +11,7 @@
 #include <Fonts/FreeSans9pt7b.h>
 #include "services/display.h"
 
-extern const MenuItem *activeMenu;
+extern std::vector<MenuItem> *activeMenu;
 extern int activeMenuCount;
 extern int currentOption;
 

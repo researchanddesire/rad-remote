@@ -5,16 +5,15 @@
 #include "displayUtils.h"
 
 TaskHandle_t menuTaskHandle = NULL;
+static volatile bool menuTaskExitRequested = false;
 
-const MenuItem *activeMenu = mainMenu;
+std::vector<MenuItem> *activeMenu = &mainMenu;
 int activeMenuCount = numMainMenu;
 int currentOption = 0;
 
 static const int scrollWidth = 6;
 
 using namespace sml;
-
-// drawScrollBar moved to displayUtils.{h,cpp}
 
 static const int menuWidth = Display::WIDTH - scrollWidth - Display::Padding::P1 * 2;
 static const int menuItemHeight = Display::Icons::Small + Display::Padding::P2;
@@ -69,7 +68,7 @@ void drawMenuFrame()
 {
     int rawCurrentOption = currentOption;
     int numOptions = activeMenuCount;
-    const MenuItem *options = activeMenu;
+    const MenuItem *options = activeMenu->data();
 
     int currentOption = abs(rawCurrentOption % numOptions);
     if (rawCurrentOption < 0 && currentOption != 0)
@@ -117,9 +116,12 @@ void drawMenuTask(void *pvParameters)
         return stateMachine->is("main_menu"_s) || stateMachine->is("settings_menu"_s) || stateMachine->is("device_menu"_s);
     };
 
-    while (isInCorrectState())
+    // Ensure global handle is set for lifecycle coordination
+    menuTaskHandle = xTaskGetCurrentTaskHandle();
+
+    while (isInCorrectState() && !menuTaskExitRequested)
     {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(1);
 
         currentOption = rightEncoder.readEncoder();
 
@@ -134,8 +136,8 @@ void drawMenuTask(void *pvParameters)
         }
     }
 
-    menuTaskHandle = nullptr;
-
+    // Mark as finished before self-delete so creator can proceed safely
+    menuTaskHandle = NULL;
     vTaskDelete(NULL);
 }
 
@@ -145,5 +147,32 @@ void drawMenu()
     rightEncoder.setAcceleration(0);
     rightEncoder.setEncoderValue(currentOption % activeMenuCount);
 
-    xTaskCreatePinnedToCore(drawMenuTask, "drawMenuTask", 5 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+    // If an existing task is running, request cooperative exit and wait
+    if (menuTaskHandle != NULL)
+    {
+        menuTaskExitRequested = true;
+        // Wait (with timeout) for the task to cleanly exit and release any mutexes
+        const TickType_t waitStart = xTaskGetTickCount();
+        const TickType_t waitTimeout = pdMS_TO_TICKS(200);
+        while (menuTaskHandle != NULL && (xTaskGetTickCount() - waitStart) < waitTimeout)
+        {
+            vTaskDelay(1);
+        }
+        // If still not null after timeout, as a last resort suspend to avoid delete-while-holding-mutex
+        if (menuTaskHandle != NULL)
+        {
+            vTaskSuspend(menuTaskHandle);
+            vTaskDelete(menuTaskHandle);
+            menuTaskHandle = NULL;
+        }
+    }
+
+    // Reset exit flag before creating a new task
+    menuTaskExitRequested = false;
+
+    ESP_LOGD("MENU", "Drawing menu");
+
+    clearPage();
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+    xTaskCreatePinnedToCore(drawMenuTask, "drawMenuTask", 5 * configMINIMAL_STACK_SIZE, NULL, 5, &menuTaskHandle, 1);
 }

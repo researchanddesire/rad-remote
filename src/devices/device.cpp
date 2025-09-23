@@ -190,7 +190,7 @@ void Device::connectionTask(void *pvParameter)
 
 void Device::startConnectionTask()
 {
-    xTaskCreatePinnedToCore(Device::connectionTask, "connectionTask", 20 * configMINIMAL_STACK_SIZE, this, 1, &connectionTaskHandle, 0);
+    xTaskCreatePinnedToCore(Device::connectionTask, "connectionTask", 10 * configMINIMAL_STACK_SIZE, this, 1, &connectionTaskHandle, 0);
 }
 
 void Device::onConnect(NimBLEClient *pClient)
@@ -289,7 +289,7 @@ std::string Device::readJsonString(const std::string &command)
 
 void Device::drawDeviceMenu()
 {
-    activeMenu = menu.data();
+    activeMenu = &menu;
     activeMenuCount = menu.size();
 
     drawMenu();

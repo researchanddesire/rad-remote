@@ -45,7 +45,8 @@ public:
 
         rightEncoder.setBoundaries(0, 100);
         rightEncoder.setAcceleration(50);
-        rightEncoder.setEncoderValue(settings.stroke);
+
+        syncRightEncoder();
 
         // Top bumpers
         draw<TextButton>("<-", pins::BTN_L_SHOULDER, 0, 0);
@@ -269,9 +270,8 @@ public:
         return send("command", std::string("set:pattern:") + std::to_string(patternIdx));
     }
 
-    void onLeftBumperClick() override
+    void syncRightEncoder()
     {
-        rightFocusedIndex = (rightFocusedIndex + 2) % 3; // Safe decrement and wrap: 0->2, 1->0, 2->1
         if (rightFocusedIndex == 0)
         {
             rightEncoder.setEncoderValue(settings.depth);
@@ -284,23 +284,18 @@ public:
         {
             rightEncoder.setEncoderValue(settings.stroke);
         }
+    };
+
+    void onLeftBumperClick() override
+    {
+        rightFocusedIndex = (rightFocusedIndex + 2) % 3; // Safe decrement and wrap: 0->2, 1->0, 2->1
+        syncRightEncoder();
     }
 
     void onRightBumperClick() override
     {
         rightFocusedIndex = (rightFocusedIndex + 1) % 3; // Safe increment and wrap: 2->0
-        if (rightFocusedIndex == 0)
-        {
-            rightEncoder.setEncoderValue(settings.depth);
-        }
-        else if (rightFocusedIndex == 1)
-        {
-            rightEncoder.setEncoderValue(settings.sensation);
-        }
-        else if (rightFocusedIndex == 2)
-        {
-            rightEncoder.setEncoderValue(settings.stroke);
-        }
+        syncRightEncoder();
     }
 
     void onRightEncoderChange(int value) override

@@ -4,6 +4,7 @@
 #include "components/Icons.h"
 #include "constants/Strings.h"
 #include <Arduino.h>
+#include <vector>
 // numeric enum for every menu item ever.
 enum MenuItemE
 {
@@ -35,22 +36,22 @@ struct MenuItem
 
 // MainMenu
 
-static const MenuItem mainMenu[] = {
+static std::vector<MenuItem> mainMenu = {
     {MenuItemE::DEVICE_SEARCH, OSSM_CONTROLLER_NAME, researchAndDesireWaves},
-    {MenuItemE::SETTINGS, SETTINGS_NAME, bitmap_settings},
-    {MenuItemE::SLEEP, SLEEP_NAME, bitmap_sleep}};
+    {MenuItemE::SETTINGS, SETTINGS_NAME, bitmap_settings}};
 
-static const int numMainMenu = sizeof(mainMenu) / sizeof(mainMenu[0]);
+static const int numMainMenu = mainMenu.size();
 
 // SettingsMenu
-static const MenuItem settingsMenu[] = {
+
+static std::vector<MenuItem> settingsMenu = {
     {MenuItemE::BACK, GO_BACK_NAME, bitmap_back},
     {MenuItemE::WIFI_SETTINGS, WIFI_SETTINGS_NAME, bitmap_wifi},
-    {MenuItemE::PAIRING, PAIRING_NAME, bitmap_link},
+    // {MenuItemE::PAIRING, PAIRING_NAME, bitmap_link},
     {MenuItemE::UPDATE, UPDATE_NAME, bitmap_update},
     {MenuItemE::RESTART, RESTART_NAME, bitmap_restart},
 };
 
-static const int numSettingsMenu = sizeof(settingsMenu) / sizeof(settingsMenu[0]);
+static const int numSettingsMenu = settingsMenu.size();
 
 #endif

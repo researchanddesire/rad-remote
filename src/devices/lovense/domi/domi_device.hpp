@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 #include <components/TextButton.h>
 #include <components/LinearRailGraph.h>
+#include <constants/Sizes.h>
 
 #define DOMI_CHARACTERISTIC_UUID_COMMAND "57300002-0023-4BD4-BBD5-A6920E4C5653"
 #define DOMI_CHARACTERISTIC_UUID_RESPONSE "57300003-0023-4BD4-BBD5-A6920E4C5653"
@@ -46,6 +47,8 @@ public:
             .focusedIndex = &this->leftFocusedIndex,
             .minValue = 0,
             .maxValue = 16});
+
+        draw<TextButton>("STOP", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
     }
 
     // helper functions

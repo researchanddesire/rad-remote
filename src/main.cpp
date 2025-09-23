@@ -24,6 +24,7 @@
 #include "esp_log.h"
 #include "components/AnimatedIcons.h"
 #include <OneButton.h>
+#include "services/wm.h"
 
 OneButton leftShoulderBtn;
 OneButton rightShoulderBtn;
@@ -54,6 +55,7 @@ void setup()
 
     initBattery(800);
     // initIMUService();
+    initWM();
     initDisplay();
     initEncoderService();
     initBuzzer();
@@ -76,6 +78,7 @@ void setup()
                 underLeftBtn.tick();
                 underCenterBtn.tick();
                 underRightBtn.tick();
+                wm.process();
             }
         },
         "buttonTask",
