@@ -12,6 +12,7 @@
 #include "components/TextPages.h"
 #include <devices/device.h>
 #include <pages/displayUtils.h>
+#include "components/TextButton.h"
 
 namespace actions
 {
@@ -99,58 +100,34 @@ namespace actions
                                     const int buttonHeight = 30;
                                     const int buttonY = height - buttonHeight - Display::Padding::P2;
                                     
-                                    // Left button
-                                    if (localLeftButton.length() > 0 && localLeftButton != EMPTY_STRING)
-                                    {
-                                        int16_t leftButtonX = Display::Padding::P2;
-                                        
-                                        // Draw button background (TextButton style - not pressed)
-                                        canvas->drawRoundRect(leftButtonX, buttonY, buttonWidth, buttonHeight, 5, 0x7BEF); // Dark grey border like TextButton
-                                        canvas->setTextColor(0x7BEF); // Dark grey text like TextButton
-                                        
-                                        // Draw button text
-                                        canvas->setTextSize(1); // Use same text size as TextButton
-                                        
-                                        int16_t btnX1, btnY1;
-                                        uint16_t btnWidth, btnHeight;
-                                        canvas->getTextBounds(localLeftButton.c_str(), 0, 0, &btnX1, &btnY1, &btnWidth, &btnHeight);
-                                        
-                                        int16_t btnTextX = leftButtonX + (buttonWidth - btnWidth) / 2;
-                                        int16_t btnTextY = buttonY + (buttonHeight - btnHeight) / 2 - btnY1;
-                                        canvas->setCursor(btnTextX, btnTextY);
-                                        canvas->print(localLeftButton);
-                                    }
-                                    
-                                    // Right button
-                                    if (localRightButton.length() > 0 && localRightButton != EMPTY_STRING)
-                                    {
-                                        int16_t rightButtonX = width - buttonWidth - Display::Padding::P2;
-                                        
-                                        // Draw button background (TextButton style - not pressed)
-                                        canvas->drawRoundRect(rightButtonX, buttonY, buttonWidth, buttonHeight, 5, 0x7BEF); // Dark grey border like TextButton
-                                        canvas->setTextColor(0x7BEF); // Dark grey text like TextButton
-                                        
-                                        // Draw button text
-                                        canvas->setTextSize(1); // Use same text size as TextButton
-                                        
-                                        int16_t btnX1, btnY1;
-                                        uint16_t btnWidth, btnHeight;
-                                        canvas->getTextBounds(localRightButton.c_str(), 0, 0, &btnX1, &btnY1, &btnWidth, &btnHeight);
-                                        
-                                        int16_t btnTextX = rightButtonX + (buttonWidth - btnWidth) / 2;
-                                        int16_t btnTextY = buttonY + (buttonHeight - btnHeight) / 2 - btnY1;
-                                        canvas->setCursor(btnTextX, btnTextY);
-                                        canvas->print(localRightButton);
-                                    }
-
                                     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(100)) == pdTRUE)
                                     {
                                         tft.drawRGBBitmap(0, Display::PageY, canvas->getBuffer(), width, height);
                                         xSemaphoreGive(displayMutex);
                                     }
+            
 
                                     delete canvas;
                                     canvas = nullptr;
+                                    
+                                    // Left button
+                                    if (localLeftButton.length() > 0 && localLeftButton != EMPTY_STRING)
+                                    {
+                                        TextButton *leftButton = new TextButton(localLeftButton, pins::BTN_UNDER_L, 0, DISPLAY_HEIGHT - 25);
+                                        leftButton->tick();
+                                        delete leftButton;
+                                        leftButton = nullptr;
+                                    }
+                                    
+                                    // Right button
+                                    if (localRightButton.length() > 0 && localRightButton != EMPTY_STRING)
+                                    {
+                                        TextButton *rightButton = new TextButton(localRightButton, pins::BTN_UNDER_R, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25);
+                                        rightButton->tick();
+                                        delete rightButton;
+                                        rightButton = nullptr;
+                                    }
+
                                     vTaskDelete(NULL); },
                                     "drawPageTask", 5 * configMINIMAL_STACK_SIZE, params, 5, NULL, 1);
         };
