@@ -21,7 +21,7 @@ struct ossm_remote_state
             "device_search"_s + event<left_button_pressed> = "main_menu"_s,
 
             "main_menu"_s + on_entry<_> / drawActiveMenu(mainMenu, numMainMenu),
-            "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::OSSM_CONTROLLER)] = "device_search"_s,
+            "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::DEVICE_SEARCH)] / search = "device_search"_s,
             "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::SETTINGS)] = "settings_menu"_s,
             "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::RESTART)] = "restart"_s,
 
@@ -36,13 +36,14 @@ struct ossm_remote_state
             "device_draw_control"_s + event<middle_button_pressed> = "device_stop"_s,
 
             "device_menu"_s + on_entry<_> / drawDeviceMenu,
-            // Go back and do not process selection.
             "device_menu"_s + event<left_button_pressed> = "device_draw_control"_s,
-            // accept selection.
             "device_menu"_s + event<right_button_pressed> / onDeviceMenuItemSelected = "device_draw_control"_s,
             "device_menu"_s + event<middle_button_pressed> = "device_stop"_s,
 
-            "device_stop"_s + on_entry<_> / drawStop,
+            "device_stop"_s + on_entry<_> / (drawPage(deviceStopPage), stop),
+            "device_stop"_s + event<right_button_pressed> / disconnect = "main_menu"_s,
+            "device_stop"_s + event<left_button_pressed> / start = "device_draw_control"_s,
+            "device_stop"_s + event<middle_button_pressed> / start = "device_draw_control"_s,
 
             "restart"_s + on_entry<_> / espRestart,
             "restart"_s = X);

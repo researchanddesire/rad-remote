@@ -8,6 +8,33 @@ Device::Device(const NimBLEAdvertisedDevice *advertisedDevice) : advertisedDevic
     startConnectionTask();
 }
 
+Device::~Device()
+{
+
+    displayObjects.clear();
+    ESP_LOGD(TAG, "Cleared %zu display objects", displayObjects.size());
+
+    // Clear characteristics map (pointers are managed by NimBLE)
+    characteristics.clear();
+    ESP_LOGD(TAG, "Cleared characteristics map");
+
+    // Clear menu
+    menu.clear();
+    ESP_LOGD(TAG, "Cleared menu");
+
+    // clear te client callbacks so that we don't call "this->onDisconnect()"
+    if (pClient)
+    {
+        pClient->setClientCallbacks(nullptr, true);
+
+        pClient->disconnect();
+
+        pClient = nullptr;
+    }
+
+    ESP_LOGD(TAG, "Device destructor completed");
+}
+
 void Device::connectionTask(void *pvParameter)
 {
     Device *device = (Device *)pvParameter;
@@ -154,6 +181,7 @@ void Device::connectionTask(void *pvParameter)
         device->onConnect();
 
         ESP_LOGI(TAG, "Done with this device!");
+        stateMachine->process_event(connected_event());
 
         break;
     }
@@ -181,6 +209,7 @@ void Device::onDisconnect(NimBLEClient *pClient, int reason)
 
 bool Device::send(const std::string &command, const std::string &value)
 {
+
     auto it = characteristics.find(command);
     if (it == characteristics.end())
     {
@@ -212,6 +241,7 @@ bool Device::send(const std::string &command, const std::string &value)
 
 std::string Device::readString(const std::string &characteristicName)
 {
+
     auto it = characteristics.find(characteristicName);
     if (it == characteristics.end())
     {

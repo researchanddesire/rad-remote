@@ -6,9 +6,17 @@
 static const char DEVICE_SEARCH_TITLE[] PROGMEM = "Device Search";
 static const char DEVICE_SEARCH_DESCRIPTION[] PROGMEM = "Search for devices";
 
+static const char DEVICE_STOP_TITLE[] PROGMEM = "Device Stopped";
+static const char DEVICE_STOP_DESCRIPTION[] PROGMEM = "Your device has been stopped, but it's still connected.";
+
+static const char GO_BACK[] PROGMEM = "Back";
+static const char GO_HOME[] PROGMEM = "Home";
+
 // MENUS
 
-static const char OSSM_CONTROLLER_NAME[] PROGMEM = "OSSM Controller";
+static const char EMPTY_STRING[] PROGMEM = "";
+
+static const char OSSM_CONTROLLER_NAME[] PROGMEM = "Device Search";
 static const char SETTINGS_NAME[] PROGMEM = "Settings";
 static const char SLEEP_NAME[] PROGMEM = "Sleep";
 

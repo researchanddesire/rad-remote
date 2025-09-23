@@ -147,14 +147,12 @@ public:
                                 } });
 
         // finally, we set inital preferences and go to stroke engine mode
-        vTaskDelay(pdMS_TO_TICKS(100));
         send("speedKnobLimit", "false");
-        vTaskDelay(pdMS_TO_TICKS(100));
         send("command", "go:strokeEngine");
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(250));
         // TODO: A bug on AJ's dev unit requires two "go:strokeEngine" commands.
         send("command", "go:strokeEngine");
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(250));
 
         isConnected = true;
 
@@ -182,7 +180,16 @@ public:
 
     void onStop() override
     {
-        send("command", "go:idle");
+        send("command", "go:menu");
+        bool isStopped = false;
+        while (!isStopped)
+        {
+            setSpeed(0);
+            send("command", "go:menu");
+            vTaskDelay(250 / portTICK_PERIOD_MS);
+            readJson<JsonObject>("state", [this, &isStopped](const JsonObject &state)
+                                 { isStopped = state["state"].as<std::string>().rfind("menu", 0) == 0; });
+        }
     }
 
     void onDeviceMenuItemSelected(int index) override

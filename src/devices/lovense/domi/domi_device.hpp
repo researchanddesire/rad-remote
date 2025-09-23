@@ -77,6 +77,13 @@ public:
     {
         setVibrate(value);
     }
+
+    void onStop() override
+    {
+        setVibrate(0);
+        vTaskDelay(250 / portTICK_PERIOD_MS);
+        setVibrate(0);
+    }
 };
 
 #endif // DOMI_DEVICE_H

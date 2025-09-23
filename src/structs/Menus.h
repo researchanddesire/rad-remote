@@ -7,7 +7,7 @@
 // numeric enum for every menu item ever.
 enum MenuItemE
 {
-    OSSM_CONTROLLER,
+    DEVICE_SEARCH,
     SETTINGS,
     SLEEP,
     RESTART,
@@ -36,7 +36,7 @@ struct MenuItem
 // MainMenu
 
 static const MenuItem mainMenu[] = {
-    {MenuItemE::OSSM_CONTROLLER, OSSM_CONTROLLER_NAME, researchAndDesireWaves},
+    {MenuItemE::DEVICE_SEARCH, OSSM_CONTROLLER_NAME, researchAndDesireWaves},
     {MenuItemE::SETTINGS, SETTINGS_NAME, bitmap_settings},
     {MenuItemE::SLEEP, SLEEP_NAME, bitmap_sleep}};
 

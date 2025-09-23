@@ -14,7 +14,7 @@
 #include <queue>
 #include <regex>
 
-#define TAG "COMS"
+static const char *TAG_COMS = "COMS";
 
 static const NimBLEAdvertisedDevice *advDevice;
 static bool doConnect = false;
@@ -72,7 +72,7 @@ void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData,
     str += ", Characteristic = " + pRemoteCharacteristic->getUUID().toString();
     str += ", Value = " + std::string((char *)pData, length);
 
-    ESP_LOGV(TAG, "%s", str.c_str());
+    ESP_LOGV(TAG_COMS, "%s", str.c_str());
 }
 
 /** Handles the provisioning of clients and connects / interfaces with the server */
@@ -80,7 +80,7 @@ bool connectToServer()
 {
     if (advDevice == nullptr)
     {
-        ESP_LOGE(TAG, "connectToServer called with null advDevice");
+        ESP_LOGE(TAG_COMS, "connectToServer called with null advDevice");
         return false;
     }
 
@@ -131,12 +131,12 @@ void sendCommand(const String &command)
             return;
         }
     }
-    ESP_LOGW(TAG, "Invalid command format: %s", command.c_str());
+    ESP_LOGW(TAG_COMS, "Invalid command format: %s", command.c_str());
 }
 
 void initBLE()
 {
-    ESP_LOGI(TAG, "Starting NimBLE Client");
+    ESP_LOGI(TAG_COMS, "Starting NimBLE Client");
 
     /** Initialize NimBLE and set the device name */
     NimBLEDevice::init("OSSM-REMOTE");
@@ -160,5 +160,5 @@ void initBLE()
 
     /** Start scanning for advertisers */
     pScan->start(scanTimeMs);
-    ESP_LOGI(TAG, "Scanning for peripherals");
+    ESP_LOGI(TAG_COMS, "Scanning for peripherals");
 }

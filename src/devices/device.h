@@ -13,7 +13,7 @@
 #include <structs/Menus.h>
 #include <components/DisplayObject.h>
 
-#define TAG "DEVICE"
+static const char *TAG = "DEVICE";
 
 // Forward declaration to avoid heavy include and ensure pointer type is known
 
@@ -54,7 +54,7 @@ public:
     explicit Device(const NimBLEAdvertisedDevice *advertisedDevice);
 
     // Virtual destructor for proper cleanup
-    virtual ~Device() = default;
+    virtual ~Device();
 
     // Virtual methods that child classes can optionally override
     virtual void onRightBumperClick() {}
