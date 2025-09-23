@@ -1,40 +1,36 @@
 #pragma once
 
-#include <Arduino.h>
 #include <Adafruit_GFX.h>
-#include <Fonts/FreeSansBold12pt7b.h>
+#include <Arduino.h>
 #include <Fonts/FreeSans9pt7b.h>
+#include <Fonts/FreeSansBold12pt7b.h>
+#include <constants/Sizes.h>
+#include <devices/device.h>
+#include <pages/displayUtils.h>
+#include <pages/genericPages.h>
+#include <qrcode.h>
+#include <services/wm.h>
+#include <utils/stringFormat.h>
+
+#include "components/TextButton.h"
+#include "components/TextPages.h"
 #include "events.hpp"
 #include "pages/controller.h"
 #include "pages/menus.h"
 #include "services/encoder.h"
-#include "components/TextPages.h"
-#include <devices/device.h>
-#include <pages/displayUtils.h>
-#include "components/TextButton.h"
-#include <constants/Sizes.h>
-#include <qrcode.h>
-#include <services/wm.h>
-#include <utils/stringFormat.h>
-#include <pages/genericPages.h>
 
-namespace actions
-{
+namespace actions {
 
-    auto clearScreen = []()
-    {
+    auto clearScreen = []() {
         // small delay to ensure tasks are finished
-        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
-        {
+        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
             tft.fillScreen(Colors::black);
             xSemaphoreGive(displayMutex);
         }
     };
 
-    auto disconnect = []()
-    {
-        if (device != nullptr)
-        {
+    auto disconnect = []() {
+        if (device != nullptr) {
             device->~Device();
 
             device = nullptr;
@@ -45,84 +41,72 @@ namespace actions
         pScan->stop();
     };
 
-    auto drawPage = [](const TextPage &page)
-    {
-        // Capture reference to static const object - safe since it lives in flash memory
-        return [&page]()
-        {
+    auto drawPage = [](const TextPage &page) {
+        // Capture reference to static const object - safe since it lives in
+        // flash memory
+        return [&page]() {
             clearPage();
-            xTaskCreatePinnedToCore(drawPageTask, "drawPageTask", 5 * configMINIMAL_STACK_SIZE, const_cast<TextPage *>(&page), 5, NULL, 1);
+            xTaskCreatePinnedToCore(drawPageTask, "drawPageTask",
+                                    5 * configMINIMAL_STACK_SIZE,
+                                    const_cast<TextPage *>(&page), 5, NULL, 1);
         };
     };
 
-    auto drawControl = []()
-    {
+    auto drawControl = []() {
         clearPage();
         // TODO: The intention is that the device manages its own controls.
         // device->drawControls();
-        xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 10 * configMINIMAL_STACK_SIZE, device, 5, NULL, 1);
+        xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask",
+                                10 * configMINIMAL_STACK_SIZE, device, 5, NULL,
+                                1);
     };
 
-    auto search = []()
-    {
+    auto search = []() {
         NimBLEScan *pScan = NimBLEDevice::getScan();
         pScan->start(0);
     };
 
-    auto stop = []()
-    {
-        if (device == nullptr)
-        {
+    auto stop = []() {
+        if (device == nullptr) {
             return;
         }
 
         device->onStop();
     };
 
-    auto start = []()
-    {
-        if (device == nullptr)
-        {
+    auto start = []() {
+        if (device == nullptr) {
             return;
         }
         device->onConnect();
     };
 
-    auto drawDeviceMenu = []()
-    {
-        device->drawDeviceMenu();
-    };
+    auto drawDeviceMenu = []() { device->drawDeviceMenu(); };
 
-    auto onDeviceMenuItemSelected = []()
-    {
+    auto onDeviceMenuItemSelected = []() {
         device->onDeviceMenuItemSelected(currentOption);
     };
 
-    auto drawMainMenu = []()
-    {
+    auto drawMainMenu = []() {
         activeMenu = &mainMenu;
         activeMenuCount = numMainMenu;
         clearPage();
         drawMenu();
     };
 
-    auto drawSettingsMenu = []()
-    {
+    auto drawSettingsMenu = []() {
         activeMenu = &settingsMenu;
         activeMenuCount = numSettingsMenu;
         clearPage();
         drawMenu();
     };
 
-    auto espRestart = []()
-    {
-        esp_restart();
-    };
+    auto espRestart = []() { esp_restart(); };
 
-    auto startWiFiPortal = []()
-    {
-        // Give a second for any pending MQTT messages to be sent before disconnecting WiFi
-        // Otherwise we lose this state_change message until the device comes back online.
+    auto startWiFiPortal = []() {
+        // Give a second for any pending MQTT messages to be sent before
+        // disconnecting WiFi Otherwise we lose this state_change message until
+        // the device comes back online.
         vTaskDelay(1000 / portTICK_PERIOD_MS);
 
         // disconnect from the network
@@ -135,14 +119,13 @@ namespace actions
         wm.setCleanConnect(true);
         wm.startConfigPortal("OSSM Remote Setup");
 
-        // if the wifi is not currently connected then make a small task the looks
-        // for the wifi connection and sends an event.
+        // if the wifi is not currently connected then make a small task the
+        // looks for the wifi connection and sends an event.
     };
 
-    auto stopWiFiPortal = []()
-    {
+    auto stopWiFiPortal = []() {
         wm.setConfigPortalBlocking(true);
         wm.stopConfigPortal();
     };
 
-} // namespace actions
+}  // namespace actions

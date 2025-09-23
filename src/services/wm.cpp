@@ -2,9 +2,7 @@
 
 WiFiManager wm;
 
-void initWM()
-{
-
+void initWM() {
     esp_wifi_set_ps(WIFI_PS_NONE);
-    WiFi.begin();
+    // WiFi.begin();
 }
