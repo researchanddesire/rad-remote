@@ -1,13 +1,14 @@
 #ifndef LOCKBOX_MENUITEM_H
 #define LOCKBOX_MENUITEM_H
 
+#include <Arduino.h>
+
+#include <vector>
+
 #include "components/Icons.h"
 #include "constants/Strings.h"
-#include <Arduino.h>
-#include <vector>
 // numeric enum for every menu item ever.
-enum MenuItemE
-{
+enum MenuItemE {
     DEVICE_SEARCH,
     SETTINGS,
     SLEEP,
@@ -19,8 +20,7 @@ enum MenuItemE
     DEVICE_MENU_ITEM
 };
 
-struct MenuItem
-{
+struct MenuItem {
     const MenuItemE id;
     const std::string name;
     const uint8_t *bitmap;
@@ -38,7 +38,8 @@ struct MenuItem
 
 static std::vector<MenuItem> mainMenu = {
     {MenuItemE::DEVICE_SEARCH, OSSM_CONTROLLER_NAME, researchAndDesireWaves},
-    {MenuItemE::SETTINGS, SETTINGS_NAME, bitmap_settings}};
+    // {MenuItemE::SETTINGS, SETTINGS_NAME, bitmap_settings}
+};
 
 static const int numMainMenu = mainMenu.size();
 
