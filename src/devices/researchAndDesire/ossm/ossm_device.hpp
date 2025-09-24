@@ -56,7 +56,7 @@ public:
         draw<TextButton>("Home", pins::BTN_UNDER_L, 0, DISPLAY_HEIGHT - 25);
         draw<TextButton>("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25);
 
-        draw<TextButton>("STOP", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
+        draw<TextButton>("PAUSE", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
 
         draw<LinearRailGraph>(&this->settings.stroke, &this->settings.depth, -1, Display::PageHeight - 40, Display::WIDTH);
 
@@ -181,15 +181,23 @@ public:
 
     void onStop() override
     {
-        send("command", "go:menu");
+        setSpeed(0);
+        leftEncoder.setEncoderValue(0);
+
         bool isStopped = false;
         while (!isStopped)
         {
+            //Block leftEncoder from any changes until isStopped is true
+            
+
             setSpeed(0);
-            send("command", "go:menu");
+            //Continue to update the encoder so the UX will reflect that we're still attempting a pause.
+            leftEncoder.setEncoderValue(0);
+
             vTaskDelay(250 / portTICK_PERIOD_MS);
+            //Listen until we get confirmation from the machine we've stopped.
             readJson<JsonObject>("state", [this, &isStopped](const JsonObject &state)
-                                 { isStopped = state["state"].as<std::string>().rfind("menu", 0) == 0; });
+                                 { isStopped = state["speed"].as<float>() == 0; });
         }
     }
 
