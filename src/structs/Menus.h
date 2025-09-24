@@ -38,8 +38,7 @@ struct MenuItem {
 
 static std::vector<MenuItem> mainMenu = {
     {MenuItemE::DEVICE_SEARCH, OSSM_CONTROLLER_NAME, researchAndDesireWaves},
-    // {MenuItemE::SETTINGS, SETTINGS_NAME, bitmap_settings}
-};
+    {MenuItemE::SETTINGS, SETTINGS_NAME, bitmap_settings}};
 
 static const int numMainMenu = mainMenu.size();
 

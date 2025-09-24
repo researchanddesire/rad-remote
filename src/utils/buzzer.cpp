@@ -11,8 +11,7 @@ const unsigned short TRIPLE_BEEP[] = {100, 100, 100, 100, 100};
 const unsigned short ERROR_BEEP[] = {300};
 
 // Pattern mapping structure
-struct PatternInfo
-{
+struct PatternInfo {
     const unsigned short *pattern;
     size_t length;
 };
@@ -24,10 +23,9 @@ const PatternInfo PATTERN_MAP[] = {
     {TRIPLE_BEEP, sizeof(TRIPLE_BEEP) / sizeof(TRIPLE_BEEP[0])},
     {ERROR_BEEP, sizeof(ERROR_BEEP) / sizeof(ERROR_BEEP[0])}};
 
-void buzzerTask(void *parameter)
-{
+void buzzerTask(void *parameter) {
     BuzzerPattern pattern = *((BuzzerPattern *)parameter);
-    delete (BuzzerPattern *)parameter; // Clean up the parameter
+    delete (BuzzerPattern *)parameter;  // Clean up the parameter
 
     ESP_LOGV("BUZZER", "Starting buzzer pattern %d", static_cast<int>(pattern));
 
@@ -37,16 +35,12 @@ void buzzerTask(void *parameter)
     size_t length = info.length;
 
     // Play the pattern
-    for (size_t i = 0; i < length; i++)
-    {
-        if (i % 2 == 0)
-        {
+    for (size_t i = 0; i < length; i++) {
+        if (i % 2 == 0) {
             // Even indices are beep durations
             digitalWrite(pins::BUZZER, HIGH);
             vTaskDelay(pdMS_TO_TICKS(durations[i]));
-        }
-        else
-        {
+        } else {
             // Odd indices are pause durations
             digitalWrite(pins::BUZZER, LOW);
             vTaskDelay(pdMS_TO_TICKS(durations[i]));
@@ -62,16 +56,13 @@ void buzzerTask(void *parameter)
     vTaskDelete(NULL);
 }
 
-void initBuzzer()
-{
+void initBuzzer() {
     // Nothing to initialize for now
 }
 
-void playBuzzerPattern(BuzzerPattern pattern)
-{
+void playBuzzerPattern(BuzzerPattern pattern) {
     // If a pattern is already playing, stop it
-    if (buzzerActive && buzzerTaskHandle != NULL)
-    {
+    if (buzzerActive && buzzerTaskHandle != NULL) {
         vTaskDelete(buzzerTaskHandle);
         buzzerTaskHandle = NULL;
     }
@@ -81,20 +72,17 @@ void playBuzzerPattern(BuzzerPattern pattern)
 
     // Create the task
     buzzerActive = true;
-    xTaskCreate(
-        buzzerTask,       // Task function
-        "BuzzerTask",     // Task name
-        2048,             // Stack size
-        patternParam,     // Parameter
-        1,                // Priority
-        &buzzerTaskHandle // Task handle
-    );
+    xTaskCreatePinnedToCore(buzzerTask,                    // Task function
+                            "BuzzerTask",                  // Task name
+                            3 * configMINIMAL_STACK_SIZE,  // Stack size
+                            patternParam,                  // Parameter
+                            1,                             // Priority
+                            &buzzerTaskHandle,             // Task handle
+                            0);
 }
 
-void stopBuzzer()
-{
-    if (buzzerActive && buzzerTaskHandle != NULL)
-    {
+void stopBuzzer() {
+    if (buzzerActive && buzzerTaskHandle != NULL) {
         vTaskDelete(buzzerTaskHandle);
         buzzerTaskHandle = NULL;
         digitalWrite(pins::BUZZER, LOW);

@@ -4,8 +4,7 @@
 #include "Arduino.h"
 #include "constants/Strings.h"
 
-struct TextPage
-{
+struct TextPage {
     String title;
     String description;
     String qrValue = EMPTY_STRING;
@@ -25,9 +24,15 @@ static const TextPage deviceStopPage = {.title = DEVICE_STOP_TITLE,
                                         .leftButtonText = GO_BACK,
                                         .rightButtonText = GO_HOME};
 
-static const TextPage wifiSettingsPage = {.title = WIFI_SETTINGS_TITLE,
-                                          .description = WIFI_SETTINGS_DESCRIPTION,
-                                          .qrValue = WIFI_SETTINGS_QR_VALUE,
-                                          .leftButtonText = GO_BACK};
+static const TextPage wifiSettingsPage = {
+    .title = WIFI_SETTINGS_TITLE,
+    .description = WIFI_SETTINGS_DESCRIPTION,
+    .qrValue = WIFI_SETTINGS_QR_VALUE,
+    .leftButtonText = GO_BACK};
 
-#endif // TEXT_PAGES_H
+static const TextPage wifiConnectedPage = {
+    .title = WIFI_CONNECTED_TITLE,
+    .description = WIFI_CONNECTED_DESCRIPTION,
+    .leftButtonText = GO_BACK};
+
+#endif  // TEXT_PAGES_H

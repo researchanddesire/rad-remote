@@ -1,21 +1,16 @@
 #include "encoder.h"
 
 // Initialize the global service instances
-AiEsp32RotaryEncoder leftEncoder(pins::LEFT_ENCODER_A, pins::LEFT_ENCODER_B, -1, -1, 4);
-AiEsp32RotaryEncoder rightEncoder(pins::RIGHT_ENCODER_A, pins::RIGHT_ENCODER_B, -1, -1, 4);
+DRAM_ATTR AiEsp32RotaryEncoder leftEncoder(pins::LEFT_ENCODER_A,
+                                           pins::LEFT_ENCODER_B, -1, -1, 4);
+DRAM_ATTR AiEsp32RotaryEncoder rightEncoder(pins::RIGHT_ENCODER_A,
+                                            pins::RIGHT_ENCODER_B, -1, -1, 4);
 
-void IRAM_ATTR readLeftEncoder()
-{
-    leftEncoder.readEncoder_ISR();
-}
+void IRAM_ATTR readLeftEncoder() { leftEncoder.readEncoder_ISR(); }
 
-void IRAM_ATTR readRightEncoder()
-{
-    rightEncoder.readEncoder_ISR();
-}
+void IRAM_ATTR readRightEncoder() { rightEncoder.readEncoder_ISR(); }
 
-void initEncoderService()
-{
+void initEncoderService() {
     // Initialize encoders
     leftEncoder.begin();
     rightEncoder.begin();
@@ -25,11 +20,13 @@ void initEncoderService()
 
     // Set encoder boundaries and step size
     leftEncoder.setBoundaries(0, 100, false);  // 0-100% speed
-    leftEncoder.setAcceleration(0);            // No acceleration for linear response
-    rightEncoder.setBoundaries(0, 100, false); // 0-100% focus switcher on "stroke", "sensation", "depth", etc
-    rightEncoder.setAcceleration(0);           // No acceleration for linear response
+    leftEncoder.setAcceleration(0);  // No acceleration for linear response
+    rightEncoder.setBoundaries(
+        0, 100,
+        false);  // 0-100% focus switcher on "stroke", "sensation", "depth", etc
+    rightEncoder.setAcceleration(0);  // No acceleration for linear response
 
     // Set initial values
-    leftEncoder.setEncoderValue(50);  // Start at 50%
-    rightEncoder.setEncoderValue(50); // Start at 50ms
+    leftEncoder.setEncoderValue(50);   // Start at 50%
+    rightEncoder.setEncoderValue(50);  // Start at 50ms
 }

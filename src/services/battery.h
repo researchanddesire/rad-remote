@@ -2,6 +2,7 @@
 #define BATTERY_H
 
 #include <Arduino.h>
+
 #include <Adafruit_MAX1704X.h>
 
 // MAX17048 I2C address and registers
@@ -17,7 +18,7 @@
 extern Adafruit_MAX17048 batteryService;
 
 // Function declarations
-bool initBattery(uint16_t fullChargeCapacity = 800); // Kept for API compatibility; capacity unused
+bool initBattery();  // Kept for API compatibility; capacity unused
 
 // MAX17048 accessors
 uint8_t getBatteryPercent();
@@ -35,4 +36,4 @@ void updateBatteryStatus();
 // Charging status function
 bool isCharging();
 
-#endif // BATTERY_H
+#endif  // BATTERY_H

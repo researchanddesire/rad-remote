@@ -1,4 +1,25 @@
 {
+  // Format on save triggers clang-format, which will sort includes per .clang-format
+  "editor.formatOnSave": true,
+
+  // Ensure C/C++ uses clang-format and respects the project file
+  "C_Cpp.formatting": "clangFormat",
+  "C_Cpp.clang_format_style": "file",
+
+  // Also enable in language-scoped block (optional redundancy for explicitness)
+  "[cpp]": {
+    "editor.formatOnSave": true
+  },
+  "[c]": {
+    "editor.formatOnSave": true
+  },
+
+  // Optional: organize imports for languages that support it (no effect on C/C++)
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true
+  }
+}
+{
     "files.associations": {
         "*.tpp": "cpp",
         "*.tcc": "cpp",

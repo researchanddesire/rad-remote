@@ -6,55 +6,24 @@
 #include <components/TextButton.h>
 #include <constants/Colors.h>
 #include <constants/Sizes.h>
+#include <pins.h>
 #include <qrcode.h>
 #include <services/display.h>
-#include <utils/stringFormat.h>
-#include <pins.h>
 
-// Helper function to draw a button directly on the display
-void drawButton(const String &text, uint8_t pin, int16_t x, int16_t y) {
-    const int16_t width = 70;  // Increased width for better appearance
-    const int16_t height = 30; // Increased height for better appearance
-    
-    // Clear the button area first to prevent flickering artifacts
-    tft.fillRect(x, y, width, height, ST77XX_BLACK);
-    
-    bool isPressed = digitalRead(pin) == LOW;
-    
-    if (!isPressed) {
-        tft.drawRoundRect(x, y, width, height, 5, 0x7BEF);
-        tft.setTextColor(0x7BEF);
-    } else {
-        tft.fillRoundRect(x, y, width, height, 5, ST77XX_WHITE);
-        tft.setTextColor(ST77XX_BLACK);
-    }
-    
-    // Calculate text position for centering
-    int16_t x1, y1;
-    uint16_t textWidth, textHeight;
-    tft.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &textWidth, &textHeight);
-    
-    int16_t textX = x + (width - textWidth) / 2;
-    int16_t textY = y + (height + textHeight) / 2;
-    
-    tft.setCursor(textX, textY);
-    tft.print(text);
-}
+#include "displayUtils.h"
 
 void drawPageTask(void *pvParameters) {
     TextPage *params = static_cast<TextPage *>(pvParameters);
-    
+
     if (params == nullptr) {
-        Serial.println("[drawPageTask] ERROR: null parameters");
         vTaskDelete(NULL);
         return;
     }
 
-    // Draw directly to display without canvas to avoid memory allocation
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         // Clear the page area first
-        tft.fillRect(0, Display::PageY, Display::WIDTH, Display::PageHeight, Colors::black);
-        
+        clearPage();
+
         // Draw title with large bold font
         tft.setFont(&FreeSansBold12pt7b);
         tft.setTextColor(Colors::white);
@@ -63,11 +32,12 @@ void drawPageTask(void *pvParameters) {
         int16_t titleX1, titleY1;
         uint16_t titleWidth, titleHeight;
         tft.getTextBounds(params->title.c_str(), 0, 0, &titleX1, &titleY1,
-                              &titleWidth, &titleHeight);
+                          &titleWidth, &titleHeight);
 
         // Center title horizontally
         int16_t titleX = (Display::WIDTH - titleWidth) / 2;
-        int16_t titleY = Display::PageY + Display::Padding::P3 - titleY1;  // Top padding from page start
+        int16_t titleY = Display::PageY + Display::Padding::P3 -
+                         titleY1;  // Top padding from page start
         tft.setCursor(titleX, titleY);
         tft.print(params->title);
 
@@ -77,128 +47,106 @@ void drawPageTask(void *pvParameters) {
 
         // Calculate text area with margins
         const int16_t textMargin = Display::Padding::P2;
-        const int16_t textWidth = Display::WIDTH - (2 * textMargin); // Leave margin on both sides
+        const int16_t textWidth =
+            Display::WIDTH - (2 * textMargin);  // Leave margin on both sides
         int16_t descY = titleY + titleHeight + Display::Padding::P3;
-        
-        // Simple word wrapping
-        String text = params->description;
-        int16_t currentY = descY;
-        int16_t lineHeight = 18; // Approximate line height for FreeSans9pt7b
-        
-        while (text.length() > 0) {
-            String line = "";
-            int16_t lineWidth = 0;
-            int lastSpace = -1;
-            
-            // Build line word by word until it would exceed the available width
-            for (int i = 0; i < text.length(); i++) {
-                char c = text.charAt(i);
-                if (c == ' ') lastSpace = i;
-                
-                String testLine = line + c;
-                int16_t x1, y1;
-                uint16_t w, h;
-                tft.getTextBounds(testLine.c_str(), 0, 0, &x1, &y1, &w, &h);
-                
-                if (w > textWidth && lastSpace > 0) {
-                    // Line would be too long, break at last space
-                    line = text.substring(0, lastSpace);
-                    text = text.substring(lastSpace + 1);
-                    break;
-                } else if (i == text.length() - 1) {
-                    // Last character, use the whole line
-                    line = testLine;
-                    text = "";
-                    break;
-                } else {
-                    line = testLine;
-                }
-            }
-            
-            // If no space was found and line is too long, force break
-            if (line.length() == 0 && text.length() > 0) {
-                line = text.substring(0, 1);
-                text = text.substring(1);
-            }
-            
-            // Draw the line with proper margin
-            tft.setCursor(textMargin, currentY);
-            tft.print(line);
-            currentY += lineHeight;
-        }
-        
-        // Draw buttons if text is provided
-        tft.setFont(&FreeSans9pt7b);
-        
-        // Position buttons at the very bottom of the screen with no bottom padding
-        const int16_t buttonY = Display::HEIGHT - 30; // 30px from bottom (exactly button height, no padding)
-        
-        // Left button
-        if (params->leftButtonText.length() > 0 &&
-            params->leftButtonText != EMPTY_STRING) {
-            drawButton(params->leftButtonText, pins::BTN_UNDER_L, 20, buttonY);
+
+        bool shouldDrawQRCode =
+            params->qrValue.length() > 0 && params->qrValue != EMPTY_STRING;
+
+        int qrCodeWidth = 0;
+        if (shouldDrawQRCode) {
+            qrCodeWidth = drawQRCode(
+                tft, params->qrValue,
+                {.y = descY,
+                 .maxHeight = Display::PageHeight - descY - textMargin});
         }
 
-        // Right button  
-        if (params->rightButtonText.length() > 0 &&
-            params->rightButtonText != EMPTY_STRING) {
-            drawButton(params->rightButtonText, pins::BTN_UNDER_R, Display::WIDTH - 90, buttonY);
-        }
-        
+        wrapText(tft, params->description,
+                 {.x = textMargin,
+                  .y = descY,
+                  .rightPadding = textMargin + qrCodeWidth});
+
         xSemaphoreGive(displayMutex);
     }
 
-    // Clean up dynamically allocated parameters if they came from updateStatusText
-    // For now, just avoid the delete to prevent crashes - memory leak is better than crash
-    // delete params;  
+    // Position buttons at the very bottom of the screen with no bottom
+    // padding
+    const int16_t buttonY =
+        Display::HEIGHT -
+        30;  // 30px from bottom (exactly button height, no padding)
+
+    // Left button
+    if (params->leftButtonText.length() > 0 &&
+        params->leftButtonText != EMPTY_STRING) {
+        TextButton leftButton(params->leftButtonText, pins::BTN_UNDER_L, 20,
+                              buttonY);
+        leftButton.tick();
+    }
+
+    // Right button
+    if (params->rightButtonText.length() > 0 &&
+        params->rightButtonText != EMPTY_STRING) {
+        TextButton rightButton(params->rightButtonText, pins::BTN_UNDER_R,
+                               Display::WIDTH - 90, buttonY);
+        rightButton.tick();
+    }
+
+    // Clean up dynamically allocated parameters if they came from
+    // updateStatusText For now, just avoid the delete to prevent crashes -
+    // memory leak is better than crash delete params;
     vTaskDelete(NULL);
 }
 
 void updateStatusText(const String &statusMessage) {
     // Simple flag to prevent multiple concurrent status updates
     static bool updateInProgress = false;
-    
+
     if (updateInProgress) {
-        return; // Skip if update already in progress
+        return;  // Skip if update already in progress
     }
-    
+
     updateInProgress = true;
-    
+
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         // Clear only a specific area for the status text to avoid overlapping
         // Clear from middle of screen down to button area
-        int16_t statusAreaY = Display::PageY + 55; // Start below title/description area
-        int16_t statusAreaHeight = Display::HEIGHT - statusAreaY - 40; // Leave room for buttons
-        tft.fillRect(0, statusAreaY, Display::WIDTH, statusAreaHeight, ST77XX_BLACK);
-        
+        int16_t statusAreaY =
+            Display::PageY + 55;  // Start below title/description area
+        int16_t statusAreaHeight =
+            Display::HEIGHT - statusAreaY - 40;  // Leave room for buttons
+        tft.fillRect(0, statusAreaY, Display::WIDTH, statusAreaHeight,
+                     ST77XX_BLACK);
+
         // Draw status message with proper text wrapping
         tft.setFont(&FreeSans9pt7b);
         tft.setTextColor(ST77XX_WHITE);
-        
+
         // Calculate text area with margins
         const int16_t textMargin = Display::Padding::P2;
         const int16_t textWidth = Display::WIDTH - (2 * textMargin);
         int16_t currentY = statusAreaY + 20;
-        const int16_t lineHeight = 18; // Approximate line height for FreeSans9pt7b
-        
+        const int16_t lineHeight =
+            18;  // Approximate line height for FreeSans9pt7b
+
         // Simple word wrapping for status message
         String text = statusMessage;
-        
+
         while (text.length() > 0) {
             String line = "";
             int16_t lineWidth = 0;
             int lastSpace = -1;
-            
+
             // Build line word by word until it would exceed the available width
             for (int i = 0; i < text.length(); i++) {
                 char c = text.charAt(i);
                 if (c == ' ') lastSpace = i;
-                
+
                 String testLine = line + c;
                 int16_t x1, y1;
                 uint16_t w, h;
                 tft.getTextBounds(testLine.c_str(), 0, 0, &x1, &y1, &w, &h);
-                
+
                 if (w > textWidth && lastSpace > 0) {
                     // Line would be too long, break at last space
                     line = text.substring(0, lastSpace);
@@ -213,21 +161,21 @@ void updateStatusText(const String &statusMessage) {
                     line = testLine;
                 }
             }
-            
+
             // If no space was found and line is too long, force break
             if (line.length() == 0 && text.length() > 0) {
                 line = text.substring(0, 1);
                 text = text.substring(1);
             }
-            
+
             // Draw the line with proper margin
             tft.setCursor(textMargin, currentY);
             tft.print(line);
             currentY += lineHeight;
         }
-        
+
         xSemaphoreGive(displayMutex);
     }
-    
+
     updateInProgress = false;
 }
