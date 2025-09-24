@@ -1,5 +1,6 @@
 #include "device.h"
 #include "state/remote.h"
+#include "pages/genericPages.h"
 
 Device *device = nullptr;
 
@@ -40,6 +41,9 @@ void Device::connectionTask(void *pvParameter)
     Device *device = (Device *)pvParameter;
     const NimBLEAdvertisedDevice *advDevice = device->advertisedDevice;
     bool connected = false;
+    
+    updateStatusText("Initializing connection...");
+    
     while (true)
     {
         ESP_LOGI(TAG, "Connection task running");
@@ -50,6 +54,7 @@ void Device::connectionTask(void *pvParameter)
         /** Check if we have a client we should reuse first **/
         if (NimBLEDevice::getCreatedClientCount())
         {
+            updateStatusText("Checking existing connections...");
             ESP_LOGD(TAG, "Existing clients detected: %u", NimBLEDevice::getCreatedClientCount());
             if (advDevice)
             {
@@ -64,9 +69,11 @@ void Device::connectionTask(void *pvParameter)
             pClient = NimBLEDevice::getClientByPeerAddress(advDevice->getAddress());
             if (pClient)
             {
+                updateStatusText("Attempting fast reconnect...");
                 ESP_LOGD(TAG, "Found existing client for peer: %s; attempting fast reconnect (no svc refresh)", advDevice->getAddress().toString().c_str());
                 if (!pClient->connect(advDevice, false))
                 {
+                    updateStatusText("Reconnection failed, retrying...");
                     ESP_LOGE(TAG, "Reconnect failed, deleting client and trying again.");
                     NimBLEDevice::deleteClient(pClient);
                     connected = false;
@@ -98,9 +105,11 @@ void Device::connectionTask(void *pvParameter)
         /** No client to reuse? Create a new one. */
         if (!pClient)
         {
+            updateStatusText("Creating new connection...");
             ESP_LOGD(TAG, "No client to reuse, creating new client");
             if (NimBLEDevice::getCreatedClientCount() >= NIMBLE_MAX_CONNECTIONS)
             {
+                updateStatusText("Connection limit reached!");
                 ESP_LOGE(TAG, "Max clients reached - no more connections available");
                 connected = false;
 
@@ -128,9 +137,11 @@ void Device::connectionTask(void *pvParameter)
             ESP_LOGD(TAG, "Connect timeout set: %dms", 5 * 1000);
 
             ESP_LOGI(TAG, "Connecting to peer (new client): %s", advDevice->getAddress().toString().c_str());
+            updateStatusText(String("Connecting to ") + advDevice->getAddress().toString().c_str() + "...");
             vTaskDelay(11);
             if (!pClient->connect(advDevice, true, false, false))
             {
+                updateStatusText("Connection failed, please try again.");
                 /** Created a client but failed to connect, don't need to keep it as it has no data */
                 NimBLEDevice::deleteClient(pClient);
                 ESP_LOGE(TAG, "Failed to connect, deleted client");
@@ -149,6 +160,7 @@ void Device::connectionTask(void *pvParameter)
             ESP_LOGW(TAG, "Client instance exists but not connected; attempting normal connect");
             if (!pClient->connect(advDevice))
             {
+                updateStatusText("Connection failed, please try again.");
                 ESP_LOGE(TAG, "Failed to connect");
                 connected = false;
                 break;
@@ -158,11 +170,13 @@ void Device::connectionTask(void *pvParameter)
         vTaskDelay(1);
 
         ESP_LOGI(TAG, "Connected to: %s RSSI: %d", pClient->getPeerAddress().toString().c_str(), pClient->getRssi());
+        updateStatusText("Connected! Setting up device...");
 
         device->pClient = pClient;
         device->pService = pClient->getService(device->getServiceUUID());
         if (device->pService == nullptr)
         {
+            updateStatusText("Device service not found!");
             ESP_LOGE(TAG, "Service not found");
             if (stateMachine)
             {
@@ -173,6 +187,7 @@ void Device::connectionTask(void *pvParameter)
         }
 
         // for each characteristic in the device characteristics vector, get the characteristic and save it.
+        updateStatusText("Discovering device capabilities...");
         for (auto &characteristic : device->characteristics)
         {
             vTaskDelay(1);
@@ -181,6 +196,8 @@ void Device::connectionTask(void *pvParameter)
         }
 
         vTaskDelay(1);
+        updateStatusText("Initializing device settings...");
+
         // run the user defined "on connect" method.
         device->onConnect();
         // Now signal the UI/state machine that we're ready
@@ -190,6 +207,7 @@ void Device::connectionTask(void *pvParameter)
         }
 
         ESP_LOGI(TAG, "Done with this device!");
+        updateStatusText("Device ready! Loading interface...");
         stateMachine->process_event(connected_event());
 
         break;

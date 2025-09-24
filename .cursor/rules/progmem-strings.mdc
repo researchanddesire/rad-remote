@@ -54,7 +54,7 @@ static const char myString[] PROGMEM = "Hello World";
 // Centralized UI strings (preferred)
 // In src/constants/Strings.h
 static const char DEVICE_SEARCH_TITLE[] PROGMEM = "Device Search";
-static const char DEVICE_SEARCH_DESCRIPTION[] PROGMEM = "Search for devices";
+static const char DEVICE_SEARCH_DESCRIPTION[] PROGMEM = "Searching for nearby devices...";
 
 // Usage in a module
 #include "src/constants/Strings.h"

@@ -52,7 +52,7 @@ struct connected_event : public base_event
 {
 };
 
-struct conncted_error_event : public base_event
+struct connected_error_event : public base_event
 {
 };
 

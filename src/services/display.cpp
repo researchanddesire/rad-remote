@@ -12,6 +12,8 @@ bool initDisplay()
     pinMode(pins::TFT_BL, OUTPUT);
     digitalWrite(pins::TFT_BL, HIGH);
     SPI.begin(pins::TFT_SCLK, -1, pins::TFT_MOSI, pins::TFT_CS);
+    // Increase SPI frequency for faster display updates (40MHz max for ST7789)
+    SPI.setFrequency(40000000); // 40MHz
     tft.init(240, 320); // Initialize with screen dimensions
     tft.setRotation(1); // Landscape mode
     tft.fillScreen(ST77XX_BLACK);

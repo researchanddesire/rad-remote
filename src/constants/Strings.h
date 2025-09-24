@@ -4,7 +4,7 @@
 #include "Arduino.h"
 
 static const char DEVICE_SEARCH_TITLE[] PROGMEM = "Device Search";
-static const char DEVICE_SEARCH_DESCRIPTION[] PROGMEM = "Search for devices";
+static const char DEVICE_SEARCH_DESCRIPTION[] PROGMEM = "Searching for nearby devices...";
 
 static const char DEVICE_STOP_TITLE[] PROGMEM = "Device Stopped";
 static const char DEVICE_STOP_DESCRIPTION[] PROGMEM = "Your device has been stopped, but it's still connected.";

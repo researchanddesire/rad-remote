@@ -19,7 +19,8 @@ public:
     DisplayObject(int16_t x, int16_t y, int16_t width, int16_t height)
         : x(x), y(y), width(width), height(height)
     {
-        canvas = new GFXcanvas16(width, height);
+        // No canvas allocation to avoid memory issues on ESP32-S3
+        canvas = nullptr;
     }
 
     virtual ~DisplayObject()
@@ -31,7 +32,10 @@ public:
         }
     }
 
-    virtual bool shouldDraw() { return millis() - lastDrawTime > 500; }
+    virtual bool shouldDraw() { 
+        // Only redraw every 2 seconds by default, or if it's the first draw
+        return isFirstDraw || (millis() - lastDrawTime > 2000); 
+    }
     virtual void draw() = 0;
 
     void tick()
@@ -48,6 +52,7 @@ public:
 
         isFirstDraw = false;
         isDirty = false;
+        lastDrawTime = millis(); // Update lastDrawTime when we actually draw
     }
 
     // Getters

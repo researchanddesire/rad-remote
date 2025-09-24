@@ -29,6 +29,10 @@ protected:
     uint16_t color;
     unsigned long lastDrawn = 0;
     GFXcanvas16 *canvas = nullptr;
+    // Track last drawn state to prevent unnecessary redraws
+    const unsigned char *lastFrame = nullptr;
+    uint16_t lastColor = 0;
+    uint8_t lastStatus = 255; // Initialize to invalid value
 
 public:
     bool showStatusDot = false;
@@ -48,16 +52,27 @@ public:
 
     void draw(Adafruit_ST7789 *display)
     {
-        if (!shouldDraw())
+        const unsigned char *currentFrame = getFrame();
+        
+        // Only redraw if something actually changed
+        if (currentFrame == lastFrame && color == lastColor && status == lastStatus)
         {
             return;
         }
-        canvas = new GFXcanvas16(width, height);
-        canvas->drawBitmap(0, 0, getFrame(), width, height, color);
+        
+        // Skip drawing if frame is null (used by some icons to skip frames)
+        if (currentFrame == nullptr)
+        {
+            return;
+        }
 
         if (xSemaphoreTake(displayMutex, 100) == pdTRUE)
         {
-            display->drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
+            // Clear the icon area
+            display->fillRect(x, y, width, height, ST77XX_BLACK);
+            
+            // Draw the bitmap directly
+            display->drawBitmap(x, y, currentFrame, width, height, color);
 
             if (showStatusDot)
             {
@@ -66,8 +81,10 @@ public:
             xSemaphoreGive(displayMutex);
         }
 
-        delete canvas;
-        canvas = nullptr;
+        // Update cached state
+        lastFrame = currentFrame;
+        lastColor = color;
+        lastStatus = status;
         lastDrawn = millis();
     }
 
@@ -113,6 +130,15 @@ public:
         }
     }
 
+    void forceRedraw()
+    {
+        // Reset cached state to force redraw on next update
+        lastFrame = nullptr;
+        lastColor = 0;
+        lastStatus = 255; // Invalid value to force redraw
+        lastDrawn = 0; // Force immediate redraw timing
+    }
+
     virtual bool shouldDraw()
     {
 
@@ -126,6 +152,7 @@ class WifiStateIcon : public StateIcon
 {
 private:
     bool pingOn = false;
+    wl_status_t lastWifiStatus = WL_IDLE_STATUS;
 
 public:
     WifiStateIcon(int16_t x, int16_t y) : StateIcon(x, y)
@@ -133,55 +160,88 @@ public:
         showStatusDot = true;
     }
 
+    void forceStatusCheck()
+    {
+        // Reset status cache to force status recheck
+        lastWifiStatus = WL_IDLE_STATUS;
+    }
+
     const unsigned char *getFrame() override
     {
-        if (WiFi.status() == WL_CONNECTED)
+        wl_status_t currentStatus = WiFi.status();
+        
+        // Only update if WiFi state actually changed
+        if (currentStatus == lastWifiStatus)
+        {
+            return lastFrame; // Return cached frame to prevent redraw
+        }
+        
+        lastWifiStatus = currentStatus;
+
+        if (currentStatus == WL_CONNECTED)
         {
             this->status = 4;
+            color = Colors::white;
+            return bitmap_wifi;
         }
         else
         {
             this->status = 0;
+            color = Colors::white;
+            return bitmap_wifi_off;
         }
-
-        return WiFiClass::status() == WL_CONNECTED ? bitmap_wifi
-                                                   : bitmap_wifi_off;
     }
 };
 
 class BatteryStateIcon : public StateIcon
 {
+private:
+    int lastBatteryPercent = -1;
+    bool lastChargingState = false;
+
 public:
     BatteryStateIcon(int16_t x, int16_t y) : StateIcon(x, y) {}
 
-    bool shouldDraw() override { return millis() - lastDrawn > 1000; };
+    void forceStatusCheck()
+    {
+        // Reset status cache to force status recheck
+        lastBatteryPercent = -1;
+        lastChargingState = false;
+    }
 
     const unsigned char *getFrame() override
     {
-        if (!shouldDraw())
-        {
-            return nullptr;
-        }
         updateBatteryStatus();
+        
+        bool currentCharging = isCharging();
+        int currentPercent = getBatteryPercent();
+        
+        // Only update if battery state actually changed
+        if (currentCharging == lastChargingState && currentPercent == lastBatteryPercent)
+        {
+            return lastFrame; // Return cached frame to prevent redraw
+        }
+        
+        lastChargingState = currentCharging;
+        lastBatteryPercent = currentPercent;
 
-        if (isCharging())
+        if (currentCharging)
         {
             color = Colors::green;
             return bitmap_battery_charging;
         }
 
         color = Colors::white;
-        auto batteryPercent = getBatteryPercent();
 
-        if (batteryPercent >= 80)
+        if (currentPercent >= 80)
         {
             return bitmap_battery_full;
         }
-        else if (batteryPercent >= 40)
+        else if (currentPercent >= 40)
         {
             return bitmap_battery_mid;
         }
-        else if (batteryPercent >= 20)
+        else if (currentPercent >= 20)
         {
             return bitmap_battery_low;
         }
@@ -190,47 +250,97 @@ public:
             color = Colors::red;
             return bitmap_battery_empty;
         }
-
-        return bitmap_battery_low;
     }
 };
 
 class BLEStateIcon : public StateIcon
 {
+private:
+    bool lastBleEnabled = false;
+    bool lastScanning = false;
+    int lastConnections = -1;
+
 public:
     BLEStateIcon(int16_t x, int16_t y) : StateIcon(x, y)
     {
     }
 
+    void forceStatusCheck()
+    {
+        // Reset status cache to force status recheck
+        lastBleEnabled = false;
+        lastScanning = false;
+        lastConnections = -1;
+    }
+
     const unsigned char *getFrame() override
     {
-        bool bleEnabled = (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED);
-
-        if (!bleEnabled)
+        bool currentBleEnabled = (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED);
+        bool currentScanning = NimBLEDevice::getScan()->isScanning();
+        int currentConnections = NimBLEDevice::getConnectedClients().size();
+        
+        // Only update if BLE state actually changed
+        if (currentBleEnabled == lastBleEnabled && 
+            currentScanning == lastScanning && 
+            currentConnections == lastConnections)
         {
+            return lastFrame; // Return cached frame to prevent redraw
+        }
+        
+        lastBleEnabled = currentBleEnabled;
+        lastScanning = currentScanning;
+        lastConnections = currentConnections;
+
+        if (!currentBleEnabled)
+        {
+            color = Colors::white;
             return researchAndDesireBluetoothOff;
         }
 
-        color = Colors::white;
-
         // Nimble isScanning?
-        bool isScanning = NimBLEDevice::getScan()->isScanning();
-        if (isScanning)
+        if (currentScanning)
         {
+            color = Colors::white;
             return researchAndDesireBluetoothConnect;
         }
 
         // how many connections do we have?
-        int numConnections = NimBLEDevice::getConnectedClients().size();
-        if (numConnections > 0)
+        if (currentConnections > 0)
         {
             color = Colors::green;
             return researchAndDesireBluetoothSignal;
         }
 
+        color = Colors::white;
         return researchAndDesireBluetoothOn;
     }
 };
+
+// Global variables to access icons from other parts of the code
+static WifiStateIcon* globalWifiIcon = nullptr;
+static BatteryStateIcon* globalBatteryIcon = nullptr;
+static BLEStateIcon* globalBleIcon = nullptr;
+
+// Function to force all status icons to redraw and recheck status
+static void forceStatusIconsRedraw()
+{
+    // Reset the global icon index counter to ensure proper positioning
+    extern int iconIdx;
+    iconIdx = 0;
+    
+    if (globalWifiIcon) {
+        globalWifiIcon->forceRedraw();
+        globalWifiIcon->forceStatusCheck();
+    }
+    if (globalBatteryIcon) {
+        globalBatteryIcon->forceRedraw();
+        globalBatteryIcon->forceStatusCheck();
+    }
+    if (globalBleIcon) {
+        globalBleIcon->forceRedraw();
+        globalBleIcon->forceStatusCheck();
+    }
+}
 
 // Example usage:
 static void setupAnimatedIcons()
@@ -241,6 +351,11 @@ static void setupAnimatedIcons()
         WifiStateIcon wifiIcon(getIconX(), 3);
         BatteryStateIcon batteryIcon(getIconX(), 3);
 
+        // Set global pointers for external access
+        globalBleIcon = &bleIcon;
+        globalWifiIcon = &wifiIcon;
+        globalBatteryIcon = &batteryIcon;
+
         while (true)
         {
             // If we're sleeping, don't draw anything in the status bar.
@@ -250,10 +365,13 @@ static void setupAnimatedIcons()
                 continue;
             }
 
+            // Draw icons - they will only redraw if state actually changed
             wifiIcon.draw(&tft);
             batteryIcon.draw(&tft);
             bleIcon.draw(&tft);
-            vTaskDelay(100 / portTICK_PERIOD_MS);
+            
+            // Reduced frequency - check for updates every 250ms instead of 100ms
+            vTaskDelay(250 / portTICK_PERIOD_MS);
         }
     };
 

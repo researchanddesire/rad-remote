@@ -21,6 +21,22 @@
 
 namespace actions {
 
+    auto clearPage = [](bool clearStatusbar = false) {
+        // small delay to ensure tasks are finished
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+            if (clearStatusbar) {
+                tft.fillRect(0, 0, Display::WIDTH, Display::HEIGHT, Colors::black);
+            } else {
+                tft.fillRect(0, Display::StatusbarHeight, Display::WIDTH, Display::PageHeight + 32, Colors::black);
+                //Also clear top left and top right corners to remove buttons
+                tft.fillRect(0, 0, 75, Display::StatusbarHeight, Colors::black);
+                tft.fillRect(Display::WIDTH - 75, 0, 75, Display::StatusbarHeight, Colors::black);
+            }
+            xSemaphoreGive(displayMutex);
+        }
+    };
+
     auto clearScreen = []() {
         // small delay to ensure tasks are finished
         if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
@@ -53,14 +69,14 @@ namespace actions {
     };
 
     auto drawControl = []() {
-        clearPage();
+        clearPage();  // Use clearPage to clear only the page area, so the status icons stick around
         // Defer UI work to its own task on core 1 to avoid
         // heavy display ops inside the state-machine/connection context.
         // Helps resolve RAD-598
         xTaskCreatePinnedToCore(
             [](void *pv)
             {
-                clearPage();
+                clearPage();  // Use clearPage to clear only the page area, so the status icons stick around
                 // Larger stack for complex UI task
                 xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 16 * configMINIMAL_STACK_SIZE, device, 5, NULL, 1);
                 vTaskDelete(NULL);

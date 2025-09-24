@@ -32,30 +32,31 @@ public:
     void draw() override
     {
         bool currentState = digitalRead(buttonPin) == LOW;
-        canvas->fillScreen(ST77XX_BLACK);
-
-        uint16_t fgColor;
-
-        // Draw button background
-        if (!currentState)
-        {
-            canvas->drawRoundRect(0, 0, width, height, 5, 0x7BEF); // Dark grey color
-            fgColor = 0x7BEF;
-        }
-        else
-        {
-            canvas->fillRoundRect(0, 0, width, height, 5, ST77XX_WHITE);
-            fgColor = ST77XX_BLACK;
-        }
-
-        // Center and draw the 24x24 icon
-        int16_t iconX = (width - ICON_SIZE) / 2;
-        int16_t iconY = (height - ICON_SIZE) / 2;
-        canvas->drawBitmap(iconX, iconY, iconBitmap, ICON_SIZE, ICON_SIZE, fgColor);
-
+        
         if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
         {
-            tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
+            // Clear button area
+            tft.fillRect(x, y, width, height, ST77XX_BLACK);
+
+            uint16_t fgColor;
+
+            // Draw button background
+            if (!currentState)
+            {
+                tft.drawRoundRect(x, y, width, height, 5, 0x7BEF); // Dark grey color
+                fgColor = 0x7BEF;
+            }
+            else
+            {
+                tft.fillRoundRect(x, y, width, height, 5, ST77XX_WHITE);
+                fgColor = ST77XX_BLACK;
+            }
+
+            // Center and draw the 24x24 icon
+            int16_t iconX = x + (width - ICON_SIZE) / 2;
+            int16_t iconY = y + (height - ICON_SIZE) / 2;
+            tft.drawBitmap(iconX, iconY, iconBitmap, ICON_SIZE, ICON_SIZE, fgColor);
+            
             xSemaphoreGive(displayMutex);
         }
 

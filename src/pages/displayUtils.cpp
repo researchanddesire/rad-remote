@@ -7,27 +7,28 @@ static GFXcanvas16 *scrollCanvas = nullptr;
 
 void drawScrollBar(int currentOption, int numOptions)
 {
-    scrollCanvas = new GFXcanvas16(scrollWidth, scrollHeight);
+    // Always use direct drawing to avoid memory allocation
     float scrollPercent = (float)currentOption / (numOptions);
     int scrollPosition = scrollPercent * (scrollHeight - 20);
 
-    scrollCanvas->fillScreen(Colors::black);
-    scrollCanvas->drawFastVLine(scrollWidth / 2, Display::Padding::P0,
-                                scrollHeight - Display::Padding::P1,
-                                Colors::bgGray900);
-    scrollCanvas->fillRoundRect(0, scrollPosition, scrollWidth, 20, 3,
-                                Colors::white);
-
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
-        tft.drawRGBBitmap(
+        tft.fillRect(
             Display::WIDTH - scrollWidth, Display::StatusbarHeight,
-            scrollCanvas->getBuffer(), scrollWidth, scrollHeight);
+            scrollWidth, scrollHeight, Colors::black);
+
+        // Track
+        tft.drawFastVLine(
+            Display::WIDTH - (scrollWidth / 2), Display::StatusbarHeight + Display::Padding::P0,
+            scrollHeight - Display::Padding::P1, Colors::bgGray900);
+
+        // Thumb
+        tft.fillRoundRect(
+            Display::WIDTH - scrollWidth,
+            Display::StatusbarHeight + scrollPosition,
+            scrollWidth, 20, 3, Colors::white);
         xSemaphoreGive(displayMutex);
     }
-
-    delete scrollCanvas;
-    scrollCanvas = nullptr;
 }
 
 void clearScreen()
@@ -52,6 +53,10 @@ void clearPage(bool clearStatusbar)
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
         tft.drawRGBBitmap(0, Display::PageY, canvas->getBuffer(), Display::WIDTH, Display::PageHeight);
+        //Also clear top left and top right corners to remove buttons
+        tft.fillRect(0, 0, 75, Display::StatusbarHeight, Colors::black);
+        tft.fillRect(Display::WIDTH - 75, 0, 75, Display::StatusbarHeight, Colors::black);
+
         xSemaphoreGive(displayMutex);
     }
 

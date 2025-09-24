@@ -27,6 +27,8 @@ static void wrapText(Adafruit_GFX &gfx, const String &text, int16_t x = 0,
         if (gfx.getCursorX() + w >= width)
         {
             gfx.println("");
+            //Update the cursor to the correct X position after a line break
+            gfx.setCursor(x, gfx.getCursorY());
         }
 
         gfx.print(word);

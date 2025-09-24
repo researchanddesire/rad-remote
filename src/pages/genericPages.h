@@ -6,5 +6,6 @@
 #include "constants/Sizes.h"
 
 void drawPageTask(void *pvParameters);
+void updateStatusText(const String &statusMessage); //Future plans to expand to include text color.
 
 #endif

@@ -48,17 +48,17 @@ public:
 
         syncRightEncoder();
 
-        // Top bumpers
-        draw<TextButton>("<-", pins::BTN_L_SHOULDER, 0, 0);
-        draw<TextButton>("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 60, 0);
+        // Top bumpers - positioned with margin to prevent border cutoff
+        draw<TextButton>("<-", pins::BTN_L_SHOULDER, 5, 0);
+        draw<TextButton>("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 75, 0);
 
-        // Bottom bumpers
-        draw<TextButton>("Home", pins::BTN_UNDER_L, 0, DISPLAY_HEIGHT - 25);
-        draw<TextButton>("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 60, DISPLAY_HEIGHT - 25);
+        // Bottom bumpers - positioned with margin to prevent border cutoff
+        draw<TextButton>("Home", pins::BTN_UNDER_L, 5, Display::HEIGHT - 30, 80);
+        draw<TextButton>("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 85, Display::HEIGHT - 30, 80);
 
-        draw<TextButton>("PAUSE", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, DISPLAY_HEIGHT - 25, 120);
+        draw<TextButton>("Pause", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60, Display::HEIGHT - 30, 120);
 
-        draw<LinearRailGraph>(&this->settings.stroke, &this->settings.depth, -1, Display::PageHeight - 40, Display::WIDTH);
+        draw<LinearRailGraph>(&this->settings.stroke, &this->settings.depth, -1, Display::PageY + 25, Display::WIDTH);
 
         // Create a left encoder dial with Speed parameter
         std::map<String, float *> leftParams = {
@@ -68,7 +68,7 @@ public:
             .parameters = leftParams,
             .focusedIndex = &this->leftFocusedIndex,
             .x = 0,
-            .y = (int16_t)(Display::PageY + 10)});
+            .y = (int16_t)(Display::PageY + 65)});  // Both dials aligned 10px lower
 
         // Create a right encoder dial with all parameters
         std::map<String, float *> rightParams = {
@@ -80,7 +80,7 @@ public:
             .parameters = rightParams,
             .focusedIndex = &this->rightFocusedIndex,
             .x = (int16_t)(DISPLAY_WIDTH - 90),
-            .y = (int16_t)(Display::PageY + 10)});
+            .y = (int16_t)(Display::PageY + 65)});  // Both dials aligned 10px lower
     }
 
     void onConnect() override

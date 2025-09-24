@@ -14,7 +14,7 @@
 #include "utils/buzzer.h"
 #include "esp_log.h"
 // Adafruit GFX fonts
-#include <Fonts/FreeSansBold12pt7b.h>
+#include <Fonts/FreeSansBold9pt7b.h>  // Reduced from 12pt to 9pt for better fit
 #include <vector>
 #include <AiEsp32RotaryEncoder.h>
 
@@ -30,8 +30,9 @@ private:
     int *focusedIndex = nullptr;
     std::map<String, int> lastParameterValues;
     int lastFocusedIndex = -1;
+    bool isFirstDraw = true; // Track if this is the first draw to avoid unnecessary clearing
 
-    void drawArc(int arcRadius, int centerX, int centerY, int fillSteps, int steps, int circleRadius, bool isFocused, uint16_t activeColor)
+    void drawArcDirect(int arcRadius, int centerX, int centerY, int fillSteps, int steps, int circleRadius, bool isFocused, uint16_t activeColor)
     {
         int startAngle = 0;
         int endAngle = 270;
@@ -43,11 +44,11 @@ private:
             int y = centerY + arcRadius * sin(angle + 3 * PI / 4);
             if (i < fillSteps || i == 0)
             {
-                canvas->fillCircle(x, y, circleRadius, isFocused ? ST77XX_WHITE : activeColor);
+                tft.fillCircle(x, y, circleRadius, isFocused ? ST77XX_WHITE : activeColor);
             }
             else
             {
-                canvas->fillCircle(x, y, circleRadius, 0x7BEF); // Dark gray color
+                tft.fillCircle(x, y, circleRadius, 0x7BEF); // Dark gray color
             }
         }
     }
@@ -143,73 +144,115 @@ public:
 
     void draw() override
     {
-        canvas->fillScreen(ST77XX_BLACK);
-
-        int steps = 100;
-        int circleRadius = 2;
-        int maxArcRadius = width / 2 - circleRadius;
-        int arcSpacing = maxArcRadius / (parameters.size() + 1); // Space between arcs
-
-        int centerX = width / 2;
-        int centerY = height / 2;
-
-        // Draw arcs for each parameter
-        int arcIndex = 0;
-        for (const auto &param : parameters)
-        {
-            int currentRadius = maxArcRadius - (arcIndex * arcSpacing);
-            int paramValue = 0;
-            if (param.second != nullptr)
-            {
-                paramValue = constrain((int)roundf(*(param.second)), minValue, maxValue);
-            }
-            int range = maxValue - minValue;
-            int fillSteps = range > 0 ? (int)lround(((double)(paramValue - minValue) * steps) / (double)range) : steps;
-            uint16_t arcColor = (arcIndex < (int)colors.size()) ? colors[arcIndex] : color;
-            drawArc(currentRadius, centerX, centerY, fillSteps, steps, circleRadius, arcIndex == *focusedIndex, arcColor);
-            arcIndex++;
-        }
-
-        // Draw focused parameter label and value
-        canvas->setTextColor(ST77XX_WHITE);
-
-        // Find the focused parameter
-        auto it = parameters.begin();
-        std::advance(it, *focusedIndex);
-        if (it != parameters.end())
-        {
-            // Draw parameter name at bottom (classic font)
-            String label = it->first;
-            canvas->setFont(NULL);
-            int16_t x1, y1;
-            uint16_t w, h;
-            canvas->getTextBounds(label.c_str(), 0, 0, &x1, &y1, &w, &h);
-            int16_t labelCursorX = centerX - (x1 + (int16_t)(w / 2));
-            int16_t labelBaselineY = height - 10; // slight margin from bottom
-            canvas->setCursor(labelCursorX, labelBaselineY);
-            canvas->print(label);
-
-            int displayValue = 0;
-            if (it->second != nullptr)
-            {
-                displayValue = constrain((int)roundf(*(it->second)), minValue, maxValue);
-            }
-            String percentStr = String(displayValue);
-
-            canvas->setFont(&FreeSansBold12pt7b);
-            // Measure to center precisely with current font
-            canvas->getTextBounds(percentStr.c_str(), 0, 0, &x1, &y1, &w, &h);
-            int16_t valueCursorX = centerX - (x1 + (int16_t)(w / 2));
-            int16_t valueBaselineY = centerY - (y1 + (int16_t)(h / 2));
-            canvas->setCursor(valueCursorX, valueBaselineY);
-            canvas->print(percentStr);
-            // Restore default font
-            canvas->setFont(NULL);
-        }
-
         if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
         {
-            tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
+            // Only clear entire area on first draw or focus change
+            if (isFirstDraw || lastFocusedIndex != *focusedIndex)
+            {
+                tft.fillRect(x, y, width, height, ST77XX_BLACK);
+                isFirstDraw = false;
+            }
+            else
+            {
+                // For parameter value updates, we'll redraw over existing arcs
+                // This reduces flicker significantly
+            }
+
+            int steps = 100;
+            int circleRadius = 2;
+            int maxArcRadius = width / 2 - circleRadius;
+            int arcSpacing = maxArcRadius / (parameters.size() + 1); // Space between arcs
+
+            int centerX = x + width / 2; 
+            int centerY = y + height / 2; 
+
+            // Draw arcs for each parameter
+            int arcIndex = 0;
+            for (const auto &param : parameters)
+            {
+                int currentRadius = maxArcRadius - (arcIndex * arcSpacing);
+                int paramValue = 0;
+                if (param.second != nullptr)
+                {
+                    paramValue = constrain((int)roundf(*(param.second)), minValue, maxValue);
+                }
+                int range = maxValue - minValue;
+                int fillSteps = range > 0 ? (int)lround(((double)(paramValue - minValue) * steps) / (double)range) : steps;
+                uint16_t arcColor = (arcIndex < (int)colors.size()) ? colors[arcIndex] : color;
+                
+                // Only redraw arc if value changed or if it's focused parameter or first draw
+                auto lastValueIt = lastParameterValues.find(param.first);
+                bool valueChanged = (lastValueIt == lastParameterValues.end() || lastValueIt->second != paramValue);
+                bool isFocused = (arcIndex == *focusedIndex);
+                
+                if (valueChanged || isFocused || isFirstDraw || lastFocusedIndex != *focusedIndex)
+                {
+                    drawArcDirect(currentRadius, centerX, centerY, fillSteps, steps, circleRadius, isFocused, arcColor);
+                }
+                
+                arcIndex++;
+            }
+
+            // Draw focused parameter label and value with maximum width clearing
+            tft.setTextColor(ST77XX_WHITE);
+
+            // Find the focused parameter
+            auto it = parameters.begin();
+            std::advance(it, *focusedIndex);
+            if (it != parameters.end())
+            {
+                // Get current and previous text bounds for clearing
+                String label = it->first;
+                int displayValue = 0;
+                if (it->second != nullptr)
+                {
+                    displayValue = constrain((int)roundf(*(it->second)), minValue, maxValue);
+                }
+                String percentStr = String(displayValue);
+
+                // Measure label text bounds with classic font
+                tft.setFont(NULL);
+                int16_t x1, y1;
+                uint16_t w, h;
+                tft.getTextBounds(label.c_str(), 0, 0, &x1, &y1, &w, &h);
+                int16_t labelCursorX = centerX - (x1 + (int16_t)(w / 2));
+                int16_t labelBaselineY = y + height - 10; // slight margin from bottom
+                
+                // Clear only the exact label area (with small padding)
+                tft.fillRect(labelCursorX + x1 - 2, labelBaselineY + y1 - 1, w + 4, h + 2, ST77XX_BLACK);
+                
+                // Draw parameter name
+                tft.setCursor(labelCursorX, labelBaselineY);
+                tft.print(label);
+
+                // Calculate maximum possible text width to prevent artifacts
+                tft.setFont(&FreeSansBold9pt7b);  // Use smaller 9pt font
+                
+                // Get bounds for maximum possible value to determine clearing area
+                String maxValueStr = String(maxValue);
+                int16_t maxX1, maxY1;
+                uint16_t maxW, maxH;
+                tft.getTextBounds(maxValueStr.c_str(), 0, 0, &maxX1, &maxY1, &maxW, &maxH);
+                
+                // Center the clearing area based on maximum width
+                int16_t maxValueCursorX = centerX - (maxX1 + (int16_t)(maxW / 2));
+                int16_t valueBaselineY = centerY - (maxY1 + (int16_t)(maxH / 2));
+                
+                // Clear area large enough for maximum possible text width (with padding)
+                tft.fillRect(maxValueCursorX + maxX1 - 3, valueBaselineY + maxY1 - 2, maxW + 6, maxH + 4, ST77XX_BLACK);
+                
+                // Now get actual text positioning for current value
+                tft.getTextBounds(percentStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+                int16_t valueCursorX = centerX - (x1 + (int16_t)(w / 2));
+                
+                // Draw value at proper centered position
+                tft.setCursor(valueCursorX, valueBaselineY);
+                tft.print(percentStr);
+                
+                // Restore default font
+                tft.setFont(NULL);
+            }
+
             xSemaphoreGive(displayMutex);
         }
 
