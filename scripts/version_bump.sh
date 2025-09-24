@@ -28,15 +28,15 @@ if ! [[ "$major" =~ ^[0-9]+$ ]] || ! [[ "$minor" =~ ^[0-9]+$ ]] || ! [[ "$patch"
 fi
 # Update src/constants/Version.h
 cat > src/constants/Version.h << EOF
-#ifndef LOCKBOX_VERSION_H
-#define LOCKBOX_VERSION_H
+#ifndef OSSM_REMOTE_VERSION_H
+#define OSSM_REMOTE_VERSION_H
 
 #define VERSION "$new_version_string"
 #define MAJOR_VERSION $major
 #define MINOR_VERSION $minor
 #define PATCH_VERSION $patch
 
-#endif  // LOCKBOX_VERSION_H
+#endif  // OSSM_REMOTE_VERSION_H
 EOF
 
 # Now, pip install platformio and build the project for production.

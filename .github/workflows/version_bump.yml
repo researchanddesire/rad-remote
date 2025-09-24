@@ -45,6 +45,14 @@ jobs:
           chmod +x ./scripts/version_bump.sh
           ./scripts/version_bump.sh "$NEXT_VERSION"
 
+      - name: Merge origin/main with -X ours strategy
+        if: ${{ github.event.sender.login != 'github-actions[bot]' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge origin/main -X ours --no-edit
+
       - name: Create Pull Request
         if: ${{ github.event.sender.login != 'github-actions[bot]' }}
         id: cpr
