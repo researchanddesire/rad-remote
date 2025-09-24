@@ -6,110 +6,176 @@
 #include <components/TextButton.h>
 #include <constants/Colors.h>
 #include <constants/Sizes.h>
+#include <pins.h>
 #include <qrcode.h>
 #include <services/display.h>
-#include <utils/stringFormat.h>
+
+#include "displayUtils.h"
 
 void drawPageTask(void *pvParameters) {
-    const TextPage *params = static_cast<const TextPage *>(pvParameters);
-    // No delete needed - params points to static const objects in flash memory
+    TextPage *params = static_cast<TextPage *>(pvParameters);
 
-    int16_t width = Display::WIDTH;
-    int16_t height = Display::PageHeight;
-    GFXcanvas16 *canvas = new GFXcanvas16(width, height);
-    if (canvas == nullptr) {
+    if (params == nullptr) {
         vTaskDelete(NULL);
         return;
     }
 
-    canvas->fillScreen(Colors::black);
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        // Clear the page area first
+        clearPage();
 
-    // Draw title with large bold font
-    canvas->setFont(&FreeSansBold12pt7b);
-    canvas->setTextColor(Colors::white);
+        // Draw title with large bold font
+        tft.setFont(&FreeSansBold12pt7b);
+        tft.setTextColor(Colors::white);
 
-    // Get title bounds for centering
-    int16_t titleX1, titleY1;
-    uint16_t titleWidth, titleHeight;
-    canvas->getTextBounds(params->title.c_str(), 0, 0, &titleX1, &titleY1,
+        // Get title bounds for centering
+        int16_t titleX1, titleY1;
+        uint16_t titleWidth, titleHeight;
+        tft.getTextBounds(params->title.c_str(), 0, 0, &titleX1, &titleY1,
                           &titleWidth, &titleHeight);
 
-    // Center title horizontally
-    int16_t titleX = (width - titleWidth) / 2;
-    int16_t titleY = Display::Padding::P3 - titleY1;  // Top padding
-    canvas->setCursor(titleX, titleY);
-    canvas->print(params->title);
+        // Center title horizontally
+        int16_t titleX = (Display::WIDTH - titleWidth) / 2;
+        int16_t titleY = Display::PageY + Display::Padding::P3 -
+                         titleY1;  // Top padding from page start
+        tft.setCursor(titleX, titleY);
+        tft.print(params->title);
 
-    // Draw description with smaller font
-    canvas->setFont(&FreeSans9pt7b);
-    canvas->setTextColor(Colors::lightGray);
+        // Draw description with smaller font and proper text wrapping
+        tft.setFont(&FreeSans9pt7b);
+        tft.setTextColor(Colors::lightGray);
 
-    // Optionally draw QR code on the right side if provided
-    if (params->qrValue.length() > 0 && params->qrValue != EMPTY_STRING) {
-        QRCode qrcode;
-        const int qrVersion = 7;  // reasonable size
-        const int qrScale = 2;
-        // NOLINTBEGIN(modernize-avoid-c-arrays)
-        uint8_t qrcodeData[qrcode_getBufferSize(qrVersion)];
-        // NOLINTEND(modernize-avoid-c-arrays)
-        qrcode_initText(&qrcode, qrcodeData, qrVersion, 1,
-                        params->qrValue.c_str());
+        // Calculate text area with margins
+        const int16_t textMargin = Display::Padding::P2;
+        const int16_t textWidth =
+            Display::WIDTH - (2 * textMargin);  // Leave margin on both sides
+        int16_t descY = titleY + titleHeight + Display::Padding::P3;
 
-        int qrWidthPixels = qrcode.size * qrScale;
-        int qrHeightPixels = qrcode.size * qrScale;
+        bool shouldDrawQRCode =
+            params->qrValue.length() > 0 && params->qrValue != EMPTY_STRING;
 
-        int xOffset = width - qrWidthPixels - Display::Padding::P2;
-        int yOffset = (Display::PageHeight - qrHeightPixels) / 2;
-        if (yOffset < 0) yOffset = 0;
-
-        for (uint8_t y = 0; y < qrcode.size; y++) {
-            for (uint8_t x = 0; x < qrcode.size; x++) {
-                if (qrcode_getModule(&qrcode, x, y)) {
-                    canvas->fillRect(xOffset + x * qrScale,
-                                     yOffset + y * qrScale, qrScale, qrScale,
-                                     Colors::white);
-                }
-            }
+        int qrCodeWidth = 0;
+        if (shouldDrawQRCode) {
+            qrCodeWidth = drawQRCode(
+                tft, params->qrValue,
+                {.y = descY,
+                 .maxHeight = Display::PageHeight - descY - textMargin});
         }
-    }
 
-    int16_t descY = titleY + titleHeight + Display::Padding::P2;
-    wrapText(*canvas, params->description, Display::Padding::P2, descY);
+        wrapText(tft, params->description,
+                 {.x = textMargin,
+                  .y = descY,
+                  .rightPadding = textMargin + qrCodeWidth});
 
-    // Draw buttons if text is provided (using TextButton styling)
-    const int buttonWidth = 80;
-    const int buttonHeight = 30;
-    const int buttonY = height - buttonHeight - Display::Padding::P2;
-
-    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-        tft.drawRGBBitmap(0, Display::PageY, canvas->getBuffer(), width,
-                          height);
         xSemaphoreGive(displayMutex);
     }
 
-    delete canvas;
-    canvas = nullptr;
+    // Position buttons at the very bottom of the screen with no bottom
+    // padding
+    const int16_t buttonY =
+        Display::HEIGHT -
+        30;  // 30px from bottom (exactly button height, no padding)
 
     // Left button
     if (params->leftButtonText.length() > 0 &&
         params->leftButtonText != EMPTY_STRING) {
-        TextButton *leftButton = new TextButton(
-            params->leftButtonText, pins::BTN_UNDER_L, 0, Display::HEIGHT - 25);
-        leftButton->tick();
-        delete leftButton;
-        leftButton = nullptr;
+        TextButton leftButton(params->leftButtonText, pins::BTN_UNDER_L, 20,
+                              buttonY);
+        leftButton.tick();
     }
 
     // Right button
     if (params->rightButtonText.length() > 0 &&
         params->rightButtonText != EMPTY_STRING) {
-        TextButton *rightButton =
-            new TextButton(params->rightButtonText, pins::BTN_UNDER_R,
-                           Display::WIDTH - 60, Display::HEIGHT - 25);
-        rightButton->tick();
-        delete rightButton;
-        rightButton = nullptr;
+        TextButton rightButton(params->rightButtonText, pins::BTN_UNDER_R,
+                               Display::WIDTH - 90, buttonY);
+        rightButton.tick();
     }
 
+    // Clean up dynamically allocated parameters if they came from
+    // updateStatusText For now, just avoid the delete to prevent crashes -
+    // memory leak is better than crash delete params;
     vTaskDelete(NULL);
+}
+
+void updateStatusText(const String &statusMessage) {
+    // Simple flag to prevent multiple concurrent status updates
+    static bool updateInProgress = false;
+
+    if (updateInProgress) {
+        return;  // Skip if update already in progress
+    }
+
+    updateInProgress = true;
+
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        // Clear only a specific area for the status text to avoid overlapping
+        // Clear from middle of screen down to button area
+        int16_t statusAreaY =
+            Display::PageY + 55;  // Start below title/description area
+        int16_t statusAreaHeight =
+            Display::HEIGHT - statusAreaY - 40;  // Leave room for buttons
+        tft.fillRect(0, statusAreaY, Display::WIDTH, statusAreaHeight,
+                     ST77XX_BLACK);
+
+        // Draw status message with proper text wrapping
+        tft.setFont(&FreeSans9pt7b);
+        tft.setTextColor(ST77XX_WHITE);
+
+        // Calculate text area with margins
+        const int16_t textMargin = Display::Padding::P2;
+        const int16_t textWidth = Display::WIDTH - (2 * textMargin);
+        int16_t currentY = statusAreaY + 20;
+        const int16_t lineHeight =
+            18;  // Approximate line height for FreeSans9pt7b
+
+        // Simple word wrapping for status message
+        String text = statusMessage;
+
+        while (text.length() > 0) {
+            String line = "";
+            int16_t lineWidth = 0;
+            int lastSpace = -1;
+
+            // Build line word by word until it would exceed the available width
+            for (int i = 0; i < text.length(); i++) {
+                char c = text.charAt(i);
+                if (c == ' ') lastSpace = i;
+
+                String testLine = line + c;
+                int16_t x1, y1;
+                uint16_t w, h;
+                tft.getTextBounds(testLine.c_str(), 0, 0, &x1, &y1, &w, &h);
+
+                if (w > textWidth && lastSpace > 0) {
+                    // Line would be too long, break at last space
+                    line = text.substring(0, lastSpace);
+                    text = text.substring(lastSpace + 1);
+                    break;
+                } else if (i == text.length() - 1) {
+                    // Last character, use the whole line
+                    line = testLine;
+                    text = "";
+                    break;
+                } else {
+                    line = testLine;
+                }
+            }
+
+            // If no space was found and line is too long, force break
+            if (line.length() == 0 && text.length() > 0) {
+                line = text.substring(0, 1);
+                text = text.substring(1);
+            }
+
+            // Draw the line with proper margin
+            tft.setCursor(textMargin, currentY);
+            tft.print(line);
+            currentY += lineHeight;
+        }
+
+        xSemaphoreGive(displayMutex);
+    }
+
+    updateInProgress = false;
 }

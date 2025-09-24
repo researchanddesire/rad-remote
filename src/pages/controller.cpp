@@ -27,6 +27,13 @@ void drawControllerTask(void *pvParameters)
     device->displayObjects.clear();
     // give other tasks a chance to catch up.
     vTaskDelay(100 / portTICK_PERIOD_MS);
+    
+    // Clear only the page area, preserving top 30px for status icons
+    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        tft.fillRect(0, Display::PageY, Display::WIDTH, Display::PageHeight + 32, ST77XX_BLACK);
+        xSemaphoreGive(displayMutex);
+    }
+    
     device->drawControls();
 
     bool lastLeftShoulderState = HIGH;
@@ -84,7 +91,7 @@ void drawControllerTask(void *pvParameters)
             vTaskDelay(1 / portTICK_PERIOD_MS);
         }
 
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+        vTaskDelay(16 / portTICK_PERIOD_MS); // ~60fps for smooth updating. TODO: make sure this isn't too much for power usage
     }
 
     // unique_ptr will clean up automatically when the device is destroyed or vector cleared

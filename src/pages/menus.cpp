@@ -17,7 +17,6 @@ using namespace sml;
 
 static const int menuWidth = Display::WIDTH - scrollWidth - Display::Padding::P1 * 2;
 static const int menuItemHeight = Display::Icons::Small + Display::Padding::P2;
-static GFXcanvas16 menuItemCanvas(menuWidth, menuItemHeight);
 
 static void drawMenuItem(int index, const MenuItem &option, bool selected = false)
 {
@@ -27,39 +26,39 @@ static void drawMenuItem(int index, const MenuItem &option, bool selected = fals
     auto unfocusedColor = option.unfocusedColor > 0 ? option.unfocusedColor : Colors::bgGray600;
 
     int y = Display::StatusbarHeight + Display::Padding::P2 + (menuItemHeight)*index;
-    menuItemCanvas.fillScreen(Colors::black);
-
-    if (index > 0)
-    {
-        menuItemCanvas.drawFastHLine(Display::Padding::P1, 0,
-                                     menuWidth - Display::Padding::P2,
-                                     Colors::bgGray900);
-    }
-
-    if (selected)
-    {
-        menuItemCanvas.fillRoundRect(0, 0, menuWidth, menuItemHeight, 3, Colors::bgGray900);
-    }
-
-    menuItemCanvas.setTextColor(selected ? color : unfocusedColor);
-    menuItemCanvas.setFont(&FreeSans9pt7b);
-
-    int padding = Display::Padding::P2;
-    int textOffset = 6;
-
-    menuItemCanvas.drawBitmap(padding, textOffset, bitmap,
-                              Display::Icons::Small, Display::Icons::Small,
-                              selected ? color : unfocusedColor);
-
-    padding += Display::Icons::Small + Display::Padding::P2;
-    menuItemCanvas.setCursor(padding, textOffset + menuItemHeight / 2);
-    menuItemCanvas.print(text.c_str());
-
+    int x = Display::Padding::P1;
+    
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
-        tft.drawRGBBitmap(Display::Padding::P1, y,
-                          menuItemCanvas.getBuffer(), menuWidth,
-                          menuItemHeight);
+        // Clear menu item area
+        tft.fillRect(x, y, menuWidth, menuItemHeight, Colors::black);
+        
+        if (index > 0)
+        {
+            tft.drawFastHLine(x + Display::Padding::P1, y,
+                             menuWidth - Display::Padding::P2,
+                             Colors::bgGray900);
+        }
+
+        if (selected)
+        {
+            tft.fillRoundRect(x, y, menuWidth, menuItemHeight, 3, Colors::bgGray900);
+        }
+
+        tft.setTextColor(selected ? color : unfocusedColor);
+        tft.setFont(&FreeSans9pt7b);
+
+        int padding = Display::Padding::P2;
+        int textOffset = 6;
+
+        tft.drawBitmap(x + padding, y + textOffset, bitmap,
+                      Display::Icons::Small, Display::Icons::Small,
+                      selected ? color : unfocusedColor);
+
+        padding += Display::Icons::Small + Display::Padding::P2;
+        tft.setCursor(x + padding, y + textOffset + menuItemHeight / 2);
+        tft.print(text.c_str());
+
         xSemaphoreGive(displayMutex);
     }
 }

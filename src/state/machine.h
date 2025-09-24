@@ -1,19 +1,18 @@
-#include "events.hpp"
 #include "actions.hpp"
-#include "guards.hpp"
 #include "boost/sml.hpp"
+#include "events.hpp"
+#include "guards.hpp"
 #include "pages/controller.h"
 
 namespace sml = boost::sml;
 
-struct ossm_remote_state
-{
-    auto operator()() const
-    {
+struct ossm_remote_state {
+    auto operator()() const {
         using namespace sml;
         using namespace actions;
 
         return make_transition_table(
+            // clang-format off
             *"init"_s + event<done> = "device_search"_s,
 
             "device_search"_s + on_entry<_> / (drawPage(deviceSearchPage)),
@@ -34,22 +33,14 @@ struct ossm_remote_state
 
             "wmConfig"_s + on_entry<_> / (drawPage(wifiSettingsPage), startWiFiPortal),
             "wmConfig"_s + event<left_button_pressed> = "settings_menu"_s,
-            // "wmConfig"_s + backPress = "home"_s,
-            // "wmConfig"_s + lock / (clearLocalPlay, lockAction) = "locking"_s,
-            // "wmConfig"_s + locktimer / (clearLocalPlay, lockTimerAction) = "locking"_s,
-            // "wmConfig"_s + wifiConnected = "home"_s,
-            // "wmConfig"_s + forceUpdate = "update"_s,
+            "wmConfig"_s + event<wifi_connected> / drawPage(wifiConnectedPage),
             "wmConfig"_s + boost::sml::on_exit<_> / stopWiFiPortal,
-
-            // "wmConfig.error"_s + on_entry<_> / (drawCouldNotConnectQR),
-            // "wmConfig.error"_s + buttonPress = "home"_s,
-            // "wmConfig.error"_s + backPress = "home"_s,
-            // "wmConfig.error"_s + forceUpdate = "update"_s,
 
             "device_draw_control"_s + on_entry<_> / drawControl,
             "device_draw_control"_s + event<right_button_pressed>[hasDeviceMenu<>] = "device_menu"_s,
+            // TODO: Map left button to something other than stop
             "device_draw_control"_s + event<left_button_pressed> = "device_stop"_s,
-            "device_draw_control"_s + event<middle_button_pressed> / stop,
+            "device_draw_control"_s + event<middle_button_pressed> / stop = "device_stop"_s,
             "device_draw_control"_s + event<disconnected_event> / disconnect = "main_menu"_s,
 
             "device_menu"_s + on_entry<_> / drawDeviceMenu,
@@ -66,5 +57,7 @@ struct ossm_remote_state
 
             "restart"_s + on_entry<_> / espRestart,
             "restart"_s = X);
+
+        // clang-format on
     }
 };

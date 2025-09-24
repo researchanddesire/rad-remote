@@ -1,3 +1,24 @@
+BasedOnStyle: Google
+IndentWidth: 2
+ColumnLimit: 100
+
+# Sort and group includes on format
+SortIncludes: true
+IncludeBlocks: Regroup
+
+# Control include grouping/sort priority (lower Priority comes first)
+IncludeCategories:
+  - Regex: '^<Arduino\.h>'
+    Priority: 1
+  - Regex: '^<.*>'
+    Priority: 2
+  - Regex: '^"src/.*"'
+    Priority: 3
+  - Regex: '^".*"'
+    Priority: 4
+
+# Keep include guards and pragma once as-is
+ReflowComments: false
 ---
 Language: Cpp
 # BasedOnStyle:  Google
@@ -99,19 +120,19 @@ IfMacros:
   - KJ_IF_MAYBE
 IncludeBlocks: Regroup
 IncludeCategories:
-  - Regex: '^<ext/.*\.h>'
-    Priority: 2
+  - Regex: '^<Arduino\.h>'
+    Priority: 0
     SortPriority: 0
     CaseSensitive: false
-  - Regex: '^<.*\.h>'
+  - Regex: '^<.*>'
     Priority: 1
     SortPriority: 0
     CaseSensitive: false
-  - Regex: '^<.*'
+  - Regex: '^"src/.*"'
     Priority: 2
     SortPriority: 0
     CaseSensitive: false
-  - Regex: '.*'
+  - Regex: '^".*"'
     Priority: 3
     SortPriority: 0
     CaseSensitive: false
@@ -202,7 +223,7 @@ RequiresClausePosition: OwnLine
 RequiresExpressionIndentation: OuterScope
 SeparateDefinitionBlocks: Leave
 ShortNamespaceLines: 1
-SortIncludes: CaseSensitive
+SortIncludes: true
 SortJavaStaticImport: Before
 SortUsingDeclarations: LexicographicNumeric
 SpaceAfterCStyleCast: false
