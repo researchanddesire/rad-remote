@@ -164,7 +164,11 @@ void Device::connectionTask(void *pvParameter)
         if (device->pService == nullptr)
         {
             ESP_LOGE(TAG, "Service not found");
-            stateMachine->process_event(conncted_error_event());
+            if (stateMachine)
+            {
+                stateMachine->process_event(connected_error_event());
+            }
+            NimBLEDevice::getScan()->start(0);
             break;
         }
 
@@ -179,6 +183,11 @@ void Device::connectionTask(void *pvParameter)
         vTaskDelay(1);
         // run the user defined "on connect" method.
         device->onConnect();
+        // Now signal the UI/state machine that we're ready
+        if (stateMachine)
+        {
+            stateMachine->process_event(connected_event());
+        }
 
         ESP_LOGI(TAG, "Done with this device!");
         stateMachine->process_event(connected_event());
@@ -196,14 +205,19 @@ void Device::startConnectionTask()
 void Device::onConnect(NimBLEClient *pClient)
 {
     ESP_LOGD(TAG, "Connected to %s", getName());
-    stateMachine->process_event(connected_event());
+    // Defer signaling connected until service discovery & device init completes.
+    // Helps resolve RAD-598
+    // stateMachine->process_event(connected_event());
 }
 
 void Device::onDisconnect(NimBLEClient *pClient, int reason)
 {
     ESP_LOGD(TAG, "Disconnected from %s", getName());
     NimBLEDevice::getScan()->start(0);
-    stateMachine->process_event(disconnected_event());
+    if (stateMachine)
+    {
+        stateMachine->process_event(disconnected_event());
+    }
     this->onDisconnect();
 }
 

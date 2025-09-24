@@ -54,11 +54,23 @@ namespace actions {
 
     auto drawControl = []() {
         clearPage();
-        // TODO: The intention is that the device manages its own controls.
-        // device->drawControls();
-        xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask",
-                                10 * configMINIMAL_STACK_SIZE, device, 5, NULL,
-                                1);
+        // Defer UI work to its own task on core 1 to avoid
+        // heavy display ops inside the state-machine/connection context.
+        // Helps resolve RAD-598
+        xTaskCreatePinnedToCore(
+            [](void *pv)
+            {
+                clearPage();
+                // Larger stack for complex UI task
+                xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 16 * configMINIMAL_STACK_SIZE, device, 5, NULL, 1);
+                vTaskDelete(NULL);
+            },
+            "spawnControllerUI",
+            6 * configMINIMAL_STACK_SIZE,
+            nullptr,
+            4,
+            nullptr,
+            1);
     };
 
     auto search = []() {
