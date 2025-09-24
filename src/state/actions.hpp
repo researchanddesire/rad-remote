@@ -1,95 +1,143 @@
 #pragma once
 
+#include <Adafruit_GFX.h>
 #include <Arduino.h>
+#include <Fonts/FreeSans9pt7b.h>
+#include <Fonts/FreeSansBold12pt7b.h>
+#include <constants/Sizes.h>
+#include <devices/device.h>
+#include <pages/displayUtils.h>
+#include <pages/genericPages.h>
+#include <qrcode.h>
+#include <services/wm.h>
+#include <utils/stringFormat.h>
+
+#include "components/TextButton.h"
+#include "components/TextPages.h"
 #include "events.hpp"
-#include "dependencies.hpp"
 #include "pages/controller.h"
 #include "pages/menus.h"
 #include "services/encoder.h"
 
-namespace actions
-{
+namespace actions {
 
-    auto send_fin = [](sender &s)
-    { s.send(fin{}); };
-
-    template <typename T>
-    auto send_ack = [](const T &event, sender &s)
-    {
-        s.send(event);
-    };
-
-    auto clearScreen = [](sender &s)
-    {
+    auto clearScreen = []() {
         // small delay to ensure tasks are finished
-        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
-        {
+        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
             tft.fillScreen(Colors::black);
             xSemaphoreGive(displayMutex);
         }
     };
 
-    auto drawControl = [](sender &s)
-    {
-        delay(100);
-        clearScreen(s);
+    auto disconnect = []() {
+        if (device != nullptr) {
+            device->~Device();
 
-        rightEncoder.setBoundaries(0, 100, false);
-        rightEncoder.setAcceleration(0);
-        rightEncoder.setEncoderValue(100);
+            device = nullptr;
+        }
 
-        leftEncoder.setBoundaries(0, 100, false);
-        leftEncoder.setAcceleration(0);
-        leftEncoder.setEncoderValue(100);
-
-        // settings.speed = 0;
-        // settings.stroke = 0;
-        // settings.sensation = 0;
-        // settings.depth = 0;
-        // settings.pattern = StrokePatterns::SimpleStroke;
-        // settings.speedKnob = 0;
-
-        xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
+        // and then stop scanning.
+        NimBLEScan *pScan = NimBLEDevice::getScan();
+        pScan->stop();
     };
 
-    auto drawStop = [](sender &s)
-    {
-        delay(100);
-        clearScreen(s);
-        xTaskCreatePinnedToCore(drawStopTask, "drawStopTask", 10 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
-    };
-
-    auto drawPatternMenu = [](sender &s)
-    {
-        clearScreen(s);
-        xTaskCreatePinnedToCore(drawPatternMenuTask, "drawPatternMenuTask", 15 * configMINIMAL_STACK_SIZE, NULL, 5, NULL, 1);
-    };
-
-    auto drawActiveMenu = [](const MenuItem *menu, int count)
-    {
-        return [menu, count](sender &s)
-        {
-            activeMenu = menu;
-            activeMenuCount = count;
-
-            rightEncoder.setBoundaries(0, activeMenuCount - 1);
-            rightEncoder.setAcceleration(0);
-            rightEncoder.setEncoderValue(-1);
-
-            clearScreen(s);
-
-            if (menuTaskHandle != nullptr)
-            {
-                // then the menu task is already running, so we don't need to create it again.
-                return;
-            }
-            xTaskCreatePinnedToCore(drawMenuTask, "drawMenuTask", 5 * configMINIMAL_STACK_SIZE, NULL, 5, &menuTaskHandle, 1);
+    auto drawPage = [](const TextPage &page) {
+        // Capture reference to static const object - safe since it lives in
+        // flash memory
+        return [&page]() {
+            clearPage();
+            xTaskCreatePinnedToCore(drawPageTask, "drawPageTask",
+                                    5 * configMINIMAL_STACK_SIZE,
+                                    const_cast<TextPage *>(&page), 5, NULL, 1);
         };
     };
 
-    auto espRestart = [](sender &s)
-    {
-        esp_restart();
+    auto drawControl = []() {
+        clearPage();
+        // Defer UI work to its own task on core 1 to avoid
+        // heavy display ops inside the state-machine/connection context.
+        // Helps resolve RAD-598
+        xTaskCreatePinnedToCore(
+            [](void *pv)
+            {
+                clearPage();
+                // Larger stack for complex UI task
+                xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask", 16 * configMINIMAL_STACK_SIZE, device, 5, NULL, 1);
+                vTaskDelete(NULL);
+            },
+            "spawnControllerUI",
+            6 * configMINIMAL_STACK_SIZE,
+            nullptr,
+            4,
+            nullptr,
+            1);
     };
 
-} // namespace actions
+    auto search = []() {
+        NimBLEScan *pScan = NimBLEDevice::getScan();
+        pScan->start(0);
+    };
+
+    auto stop = []() {
+        if (device == nullptr) {
+            return;
+        }
+
+        device->onStop();
+    };
+
+    auto start = []() {
+        if (device == nullptr) {
+            return;
+        }
+        device->onConnect();
+    };
+
+    auto drawDeviceMenu = []() { device->drawDeviceMenu(); };
+
+    auto onDeviceMenuItemSelected = []() {
+        device->onDeviceMenuItemSelected(currentOption);
+    };
+
+    auto drawMainMenu = []() {
+        activeMenu = &mainMenu;
+        activeMenuCount = numMainMenu;
+        clearPage();
+        drawMenu();
+    };
+
+    auto drawSettingsMenu = []() {
+        activeMenu = &settingsMenu;
+        activeMenuCount = numSettingsMenu;
+        clearPage();
+        drawMenu();
+    };
+
+    auto espRestart = []() { esp_restart(); };
+
+    auto startWiFiPortal = []() {
+        // Give a second for any pending MQTT messages to be sent before
+        // disconnecting WiFi Otherwise we lose this state_change message until
+        // the device comes back online.
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        // disconnect from the network
+        WiFi.disconnect(true);
+
+        wm.setConfigPortalBlocking(false);
+        wm.setConnectTimeout(30);
+        wm.setConnectRetries(5);
+        wm.setEnableConfigPortal(true);
+        wm.setCleanConnect(true);
+        wm.startConfigPortal("OSSM Remote Setup");
+
+        // if the wifi is not currently connected then make a small task the
+        // looks for the wifi connection and sends an event.
+    };
+
+    auto stopWiFiPortal = []() {
+        wm.setConfigPortalBlocking(true);
+        wm.stopConfigPortal();
+    };
+
+}  // namespace actions

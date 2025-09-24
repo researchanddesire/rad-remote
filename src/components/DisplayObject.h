@@ -1,26 +1,28 @@
-#pragma once
+#ifndef DISPLAYOBJECT_H
+#define DISPLAYOBJECT_H
 
 #include <Adafruit_GFX.h>
 
-class DisplayButton
+class DisplayObject
 {
 protected:
     int16_t x, y;
     int16_t width, height;
     GFXcanvas16 *canvas = nullptr;
     bool isDirty = false;
+    long lastDrawTime = 0;
 
 private:
     bool isFirstDraw = true;
 
 public:
-    DisplayButton(int16_t x, int16_t y, int16_t width, int16_t height)
+    DisplayObject(int16_t x, int16_t y, int16_t width, int16_t height)
         : x(x), y(y), width(width), height(height)
     {
         canvas = new GFXcanvas16(width, height);
     }
 
-    virtual ~DisplayButton()
+    virtual ~DisplayObject()
     {
         if (canvas != nullptr)
         {
@@ -29,12 +31,12 @@ public:
         }
     }
 
-    // Pure virtual functions that must be implemented by derived classes
-    virtual bool shouldDraw() = 0;
+    virtual bool shouldDraw() { return millis() - lastDrawTime > 500; }
     virtual void draw() = 0;
 
     void tick()
     {
+
         isDirty |= shouldDraw();
         isDirty |= isFirstDraw;
 
@@ -42,8 +44,8 @@ public:
         {
             return;
         }
-
         draw();
+
         isFirstDraw = false;
         isDirty = false;
     }
@@ -55,3 +57,5 @@ public:
     int16_t getHeight() const { return height; }
     GFXcanvas16 *getCanvas() const { return canvas; }
 };
+
+#endif

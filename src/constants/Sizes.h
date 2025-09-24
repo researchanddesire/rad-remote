@@ -10,12 +10,17 @@ namespace Display
     constexpr int P1 = 6;
     constexpr int StatusbarIcons = 24;
     constexpr int StatusbarHeight = StatusbarIcons + P1;
+
+    constexpr int PageHeight = HEIGHT - StatusbarHeight;
+    constexpr int PageY = StatusbarHeight;
+
     constexpr int NotificationBarHeight = StatusbarHeight + StatusbarIcons + P1;
 
     namespace Icons
     {
         constexpr int Big = 120;
         constexpr int Small = 24;
+        constexpr int NumIcons = 3;
     }
 
     namespace Padding
@@ -28,8 +33,12 @@ namespace Display
     }
 }
 
-static int16_t getIconX(const int iconNum, const int totalIcons)
+static int iconIdx = 0;
+
+static int16_t getIconX(const int iconNum = iconIdx, const int totalIcons = Display::Icons::NumIcons)
 {
+    iconIdx++;
+    iconIdx %= totalIcons;
     // Calculate total width of all icons including padding
     int totalWidth = (Display::Icons::Small + Display::Padding::P1) * totalIcons;
     // Calculate the starting X position to center all icons

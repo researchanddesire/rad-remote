@@ -2,43 +2,18 @@
 #include "services/display.h"
 #include <services/encoder.h>
 #include <state/remote.h>
+#include "displayUtils.h"
 
 TaskHandle_t menuTaskHandle = NULL;
+static volatile bool menuTaskExitRequested = false;
 
-const MenuItem *activeMenu = mainMenu;
+std::vector<MenuItem> *activeMenu = &mainMenu;
 int activeMenuCount = numMainMenu;
 int currentOption = 0;
 
 static const int scrollWidth = 6;
-static const int scrollHeight = Display::HEIGHT - Display::StatusbarHeight;
-static GFXcanvas16 *scrollCanvas = nullptr;
 
 using namespace sml;
-
-static void drawScrollBar(int currentOption, int numOptions)
-{
-    scrollCanvas = new GFXcanvas16(scrollWidth, scrollHeight);
-    float scrollPercent = (float)currentOption / (numOptions);
-    int scrollPosition = scrollPercent * (scrollHeight - 20);
-
-    scrollCanvas->fillScreen(Colors::black);
-    scrollCanvas->drawFastVLine(scrollWidth / 2, Display::Padding::P0,
-                                scrollHeight - Display::Padding::P1,
-                                Colors::bgGray900);
-    scrollCanvas->fillRoundRect(0, scrollPosition, scrollWidth, 20, 3,
-                                Colors::white);
-
-    if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
-    {
-        tft.drawRGBBitmap(
-            Display::WIDTH - scrollWidth, Display::StatusbarHeight,
-            scrollCanvas->getBuffer(), scrollWidth, scrollHeight);
-        xSemaphoreGive(displayMutex);
-    }
-
-    delete scrollCanvas;
-    scrollCanvas = nullptr;
-}
 
 static const int menuWidth = Display::WIDTH - scrollWidth - Display::Padding::P1 * 2;
 static const int menuItemHeight = Display::Icons::Small + Display::Padding::P2;
@@ -46,7 +21,7 @@ static GFXcanvas16 menuItemCanvas(menuWidth, menuItemHeight);
 
 static void drawMenuItem(int index, const MenuItem &option, bool selected = false)
 {
-    auto text = option.name.c_str();
+    auto text = option.name;
     auto bitmap = option.bitmap;
     auto color = option.color > 0 ? option.color : Colors::white;
     auto unfocusedColor = option.unfocusedColor > 0 ? option.unfocusedColor : Colors::bgGray600;
@@ -78,7 +53,7 @@ static void drawMenuItem(int index, const MenuItem &option, bool selected = fals
 
     padding += Display::Icons::Small + Display::Padding::P2;
     menuItemCanvas.setCursor(padding, textOffset + menuItemHeight / 2);
-    menuItemCanvas.print(text);
+    menuItemCanvas.print(text.c_str());
 
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
@@ -89,11 +64,11 @@ static void drawMenuItem(int index, const MenuItem &option, bool selected = fals
     }
 }
 
-void drawMenu()
+void drawMenuFrame()
 {
     int rawCurrentOption = currentOption;
     int numOptions = activeMenuCount;
-    const MenuItem *options = activeMenu;
+    const MenuItem *options = activeMenu->data();
 
     int currentOption = abs(rawCurrentOption % numOptions);
     if (rawCurrentOption < 0 && currentOption != 0)
@@ -135,38 +110,69 @@ void drawMenu()
 void drawMenuTask(void *pvParameters)
 {
     int lastEncoderValue = -1;
-    std::string lastState = "";
-    String lastStateName = "";
 
     auto isInCorrectState = []()
     {
-        return stateMachine->is("main_menu"_s) || stateMachine->is("settings_menu"_s);
+        return stateMachine->is("main_menu"_s) || stateMachine->is("settings_menu"_s) || stateMachine->is("device_menu"_s);
     };
 
-    while (isInCorrectState())
-    {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+    // Ensure global handle is set for lifecycle coordination
+    menuTaskHandle = xTaskGetCurrentTaskHandle();
 
-        String stateName = "";
-        stateMachine->visit_current_states(
-            [&](auto state)
-            { stateName = state.c_str(); });
+    while (isInCorrectState() && !menuTaskExitRequested)
+    {
+        vTaskDelay(1);
 
         currentOption = rightEncoder.readEncoder();
 
-        if (lastEncoderValue == currentOption && stateName == lastStateName)
+        if (lastEncoderValue == currentOption)
         {
             continue;
         }
         else
         {
             lastEncoderValue = currentOption;
-            lastStateName = stateName;
-            drawMenu();
+            drawMenuFrame();
         }
     }
 
-    menuTaskHandle = nullptr;
-
+    // Mark as finished before self-delete so creator can proceed safely
+    menuTaskHandle = NULL;
     vTaskDelete(NULL);
+}
+
+void drawMenu()
+{
+    rightEncoder.setBoundaries(0, activeMenuCount - 1, true);
+    rightEncoder.setAcceleration(0);
+    rightEncoder.setEncoderValue(currentOption % activeMenuCount);
+
+    // If an existing task is running, request cooperative exit and wait
+    if (menuTaskHandle != NULL)
+    {
+        menuTaskExitRequested = true;
+        // Wait (with timeout) for the task to cleanly exit and release any mutexes
+        const TickType_t waitStart = xTaskGetTickCount();
+        const TickType_t waitTimeout = pdMS_TO_TICKS(200);
+        while (menuTaskHandle != NULL && (xTaskGetTickCount() - waitStart) < waitTimeout)
+        {
+            vTaskDelay(1);
+        }
+        // If still not null after timeout, as a last resort suspend to avoid delete-while-holding-mutex
+        if (menuTaskHandle != NULL)
+        {
+            vTaskSuspend(menuTaskHandle);
+            vTaskDelete(menuTaskHandle);
+            menuTaskHandle = NULL;
+        }
+    }
+
+    // Reset exit flag before creating a new task
+    menuTaskExitRequested = false;
+
+    ESP_LOGD("MENU", "Drawing menu");
+
+    clearPage();
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+    xTaskCreatePinnedToCore(drawMenuTask, "drawMenuTask", 5 * configMINIMAL_STACK_SIZE, NULL, 5, &menuTaskHandle, 1);
 }

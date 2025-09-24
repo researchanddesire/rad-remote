@@ -44,19 +44,19 @@ void vibratorTask(void *parameter)
         if (i % 2 == 0)
         {
             // Even indices are vibration durations
-            mcp.digitalWrite(pins::VIBRATOR, HIGH);
+            digitalWrite(pins::VIBRATOR, HIGH);
             vTaskDelay(pdMS_TO_TICKS(durations[i]));
         }
         else
         {
             // Odd indices are pause durations
-            mcp.digitalWrite(pins::VIBRATOR, LOW);
+            digitalWrite(pins::VIBRATOR, LOW);
             vTaskDelay(pdMS_TO_TICKS(durations[i]));
         }
     }
 
     // Ensure vibrator is off at the end
-    mcp.digitalWrite(pins::VIBRATOR, LOW);
+    digitalWrite(pins::VIBRATOR, LOW);
 
     // pause for 100ms between patterns
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -68,8 +68,7 @@ void vibratorTask(void *parameter)
 
 void initVibrator()
 {
-    // set mcp to low
-    mcp.digitalWrite(pins::VIBRATOR, LOW);
+    pinMode(pins::VIBRATOR_PIN, OUTPUT);
 }
 
 void playVibratorPattern(VibratorPattern pattern)
@@ -114,7 +113,7 @@ void stopVibrator()
     if (vibratorTaskHandle == NULL)
     {
         vibratorTaskHandle = NULL;
-        mcp.digitalWrite(pins::VIBRATOR, LOW);
+        digitalWrite(pins::VIBRATOR, LOW);
         vibratorActive = false;
     }
 }

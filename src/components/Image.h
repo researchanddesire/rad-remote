@@ -2,7 +2,6 @@
 
 #include <Arduino.h>
 #include "services/display.h"
-#include <TJpg_Decoder.h>
 
 #include <pgmspace.h>
 

@@ -18,6 +18,9 @@ namespace Colors
 
     // bg-gray-600 rgb(75 85 99);
     constexpr int bgGray600 = 0x4aac;
+
+    // light gray for body text rgb(156 163 175);
+    constexpr int lightGray = 0x9c71;
 }
 
 #endif // COLORS_H

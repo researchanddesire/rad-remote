@@ -1,39 +1,38 @@
-#pragma once
+#ifndef TEXTBUTTON_H
+#define TEXTBUTTON_H
 
-#include "DisplayButton.h"
+#include "DisplayObject.h"
 #include "pins.h"
 #include <Adafruit_MCP23X17.h>
 #include <Adafruit_ST77xx.h>
 #include "services/display.h"
-#include "services/mcp.h"
 
-class TextButton : public DisplayButton
+class TextButton : public DisplayObject
 {
 private:
-    static bool lastButtonState;
+    bool lastButtonState = false;
     const String buttonText;
     const uint8_t buttonPin;
 
 public:
     TextButton(const String &text, uint8_t pin, int16_t x, int16_t y, int16_t width = 60, int16_t height = 25)
-        : DisplayButton(x, y, width, height), buttonText(text), buttonPin(pin)
+        : DisplayObject(x, y, width, height), buttonText(text), buttonPin(pin)
     {
     }
 
     bool shouldDraw() override
     {
-        bool currentState = mcp.digitalRead(buttonPin) == LOW;
-        bool shouldRedraw = currentState != lastButtonState;
-        lastButtonState = mcp.digitalRead(buttonPin) == LOW;
-        return true;
+        bool currentState = digitalRead(buttonPin) == LOW;
+        return currentState != lastButtonState;
     }
 
     void draw() override
     {
+        bool currentState = digitalRead(buttonPin) == LOW;
         canvas->fillScreen(ST77XX_BLACK);
 
         // Draw button background
-        if (!lastButtonState)
+        if (!currentState)
         {
             canvas->drawRoundRect(0, 0, width, height, 5, 0x7BEF); // Dark grey color
             canvas->setTextColor(0x7BEF);                          // Dark grey color
@@ -64,8 +63,9 @@ public:
             tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
             xSemaphoreGive(displayMutex);
         }
+
+        lastButtonState = currentState;
     }
 };
 
-// Initialize static member
-bool TextButton::lastButtonState = false;
+#endif
