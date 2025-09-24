@@ -61,7 +61,10 @@ void vibratorTask(void *parameter) {
     vTaskDelete(NULL);
 }
 
-void initVibrator() { pinMode(pins::VIBRATOR_PIN, OUTPUT); }
+void initVibrator() {
+    pinMode(pins::VIBRATOR_PIN, OUTPUT);
+    playVibratorPattern(VibratorPattern::SINGLE_PULSE);
+}
 
 void playVibratorPattern(VibratorPattern pattern) {
     // If a pattern is already playing, stop it

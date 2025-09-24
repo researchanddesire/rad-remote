@@ -62,7 +62,6 @@ void setup() {
     initStateMachine();
 
     initBattery();
-    // updateBatteryStatus();
 
     // initIMUService();
     // updateIMUReadings();

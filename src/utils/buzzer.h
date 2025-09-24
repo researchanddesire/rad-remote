@@ -1,13 +1,16 @@
 #pragma once
 
 #include <Arduino.h>
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+
 #include "pins.h"
 
 // Pattern types
-enum class BuzzerPattern
-{
+enum class BuzzerPattern {
+    NONE,
+    MARIO_COIN,
     SINGLE_BEEP,
     DOUBLE_BEEP,
     TRIPLE_BEEP,
@@ -22,3 +25,6 @@ void playBuzzerPattern(BuzzerPattern pattern);
 
 // Stop any currently playing pattern
 void stopBuzzer();
+
+// Play the Mario coin jingle after initialization
+void playMarioCoin();

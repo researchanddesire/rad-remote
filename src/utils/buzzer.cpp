@@ -1,91 +1,82 @@
 #include "buzzer.h"
 
+#include <unordered_map>
+#include <vector>
 // Task handle for the buzzer pattern
 static TaskHandle_t buzzerTaskHandle = NULL;
 static bool buzzerActive = false;
+static BuzzerPattern currentPattern = BuzzerPattern::NONE;
 
-// Internal pattern definitions
-const unsigned short SINGLE_BEEP[] = {100};
-const unsigned short DOUBLE_BEEP[] = {100, 100, 100};
-const unsigned short TRIPLE_BEEP[] = {100, 100, 100, 100, 100};
-const unsigned short ERROR_BEEP[] = {300};
-
-// Pattern mapping structure
-struct PatternInfo {
-    const unsigned short *pattern;
-    size_t length;
+struct Beat {
+    int frequency;
+    int duration;
 };
 
-// Pattern lookup table
-const PatternInfo PATTERN_MAP[] = {
-    {SINGLE_BEEP, sizeof(SINGLE_BEEP) / sizeof(SINGLE_BEEP[0])},
-    {DOUBLE_BEEP, sizeof(DOUBLE_BEEP) / sizeof(DOUBLE_BEEP[0])},
-    {TRIPLE_BEEP, sizeof(TRIPLE_BEEP) / sizeof(TRIPLE_BEEP[0])},
-    {ERROR_BEEP, sizeof(ERROR_BEEP) / sizeof(ERROR_BEEP[0])}};
+std::unordered_map<BuzzerPattern, std::vector<Beat>> PATTERN_MAP = {
+    {BuzzerPattern::MARIO_COIN, {{2637, 100}, {3136, 150}}},
+    {BuzzerPattern::SINGLE_BEEP, {{1000, 100}}},
+    {BuzzerPattern::DOUBLE_BEEP, {{1000, 100}, {1000, 100}}},
+    {BuzzerPattern::TRIPLE_BEEP, {{1000, 100}, {1000, 100}, {1000, 100}}},
+    {BuzzerPattern::ERROR_BEEP, {{300, 100}}},
+};
 
 void buzzerTask(void *parameter) {
-    BuzzerPattern pattern = *((BuzzerPattern *)parameter);
-    delete (BuzzerPattern *)parameter;  // Clean up the parameter
-
-    ESP_LOGV("BUZZER", "Starting buzzer pattern %d", static_cast<int>(pattern));
-
-    // Get pattern info from lookup table
-    const PatternInfo &info = PATTERN_MAP[static_cast<int>(pattern)];
-    const unsigned short *durations = info.pattern;
-    size_t length = info.length;
-
-    // Play the pattern
-    for (size_t i = 0; i < length; i++) {
-        if (i % 2 == 0) {
-            // Even indices are beep durations
-            digitalWrite(pins::BUZZER, HIGH);
-            vTaskDelay(pdMS_TO_TICKS(durations[i]));
-        } else {
-            // Odd indices are pause durations
-            digitalWrite(pins::BUZZER, LOW);
-            vTaskDelay(pdMS_TO_TICKS(durations[i]));
+    while (true) {
+        if (currentPattern == BuzzerPattern::NONE) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
         }
+
+        // Mario coin two-note motif: E7, G7 (approx). Adjust as desired.
+        const std::vector<Beat> &beats = PATTERN_MAP[currentPattern];
+        for (const Beat &beat : beats) {
+            tone(pins::BUZZER_PIN, beat.frequency);
+            vTaskDelay(pdMS_TO_TICKS(beat.duration));
+            noTone(pins::BUZZER_PIN);
+            vTaskDelay(1);
+        }
+
+        currentPattern = BuzzerPattern::NONE;
     }
 
-    // Ensure buzzer is off at the end
-    digitalWrite(pins::BUZZER, LOW);
-    ESP_LOGV("BUZZER", "Buzzer pattern complete");
-
-    buzzerActive = false;
-    buzzerTaskHandle = NULL;
     vTaskDelete(NULL);
 }
 
 void initBuzzer() {
-    // Nothing to initialize for now
-}
+    pinMode(pins::BUZZER_PIN, OUTPUT);
+    digitalWrite(pins::BUZZER_PIN, LOW);
+    playBuzzerPattern(BuzzerPattern::SINGLE_BEEP);
 
-void playBuzzerPattern(BuzzerPattern pattern) {
-    // If a pattern is already playing, stop it
-    if (buzzerActive && buzzerTaskHandle != NULL) {
-        vTaskDelete(buzzerTaskHandle);
-        buzzerTaskHandle = NULL;
-    }
-
-    // Create new parameter for the task
-    BuzzerPattern *patternParam = new BuzzerPattern(pattern);
-
-    // Create the task
-    buzzerActive = true;
     xTaskCreatePinnedToCore(buzzerTask,                    // Task function
                             "BuzzerTask",                  // Task name
                             3 * configMINIMAL_STACK_SIZE,  // Stack size
-                            patternParam,                  // Parameter
+                            nullptr,                       // Parameter
                             1,                             // Priority
                             &buzzerTaskHandle,             // Task handle
                             0);
 }
 
+void playBuzzerPattern(BuzzerPattern pattern) { currentPattern = pattern; }
+
 void stopBuzzer() {
     if (buzzerActive && buzzerTaskHandle != NULL) {
         vTaskDelete(buzzerTaskHandle);
         buzzerTaskHandle = NULL;
-        digitalWrite(pins::BUZZER, LOW);
+        digitalWrite(pins::BUZZER_PIN, LOW);
         buzzerActive = false;
+    }
+}
+
+// Simple Mario coin jingle using Arduino tone API on the direct buzzer pin
+void playMarioCoin() {
+    // Mario coin two-note motif: E7, G7 (approx). Adjust as desired.
+    const int notes[] = {2637, 3136};
+    const int durations[] = {100, 150};
+    const size_t count = sizeof(notes) / sizeof(notes[0]);
+    for (size_t i = 0; i < count; ++i) {
+        tone(pins::BUZZER_PIN, notes[i]);
+        vTaskDelay(pdMS_TO_TICKS(durations[i]));
+        noTone(pins::BUZZER_PIN);
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
