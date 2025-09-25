@@ -170,11 +170,37 @@ class OSSM : public Device {
 #endif
     }
 
-    void onStop() override {
+    void onPause() override {
+        playBuzzerPattern(BuzzerPattern::PAUSED);
+        isPaused = true;
         setSpeed(0);
         leftEncoder.setEncoderValue(0);
+        leftEncoder.setBoundaries(0, 0);
+    }
 
-        bool isStopped = false;
+    void onResume() override {
+        playBuzzerPattern(BuzzerPattern::PLAY);
+        leftEncoder.setBoundaries(0, 100);
+        isPaused = false;
+    }
+
+    void onExit() override {
+        // This forces the OSSM to go the menu screen.
+        // this loop will not return until the device is diconnected or the menu
+        // screen is reached.
+        bool isInMenu = false;
+        do {
+            send("command", "go:menu");
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+            readJson<String>("state", [this, &isInMenu](const String &state) {
+                String currentState;
+                stateMachine->visit_current_states([&currentState](auto state) {
+                    currentState = state.c_str();
+                });
+                isInMenu = currentState.startsWith("menu");
+            });
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+        } while (isConnected && !isInMenu);
     }
 
     void onDeviceMenuItemSelected(int index) override { setPattern(index); }

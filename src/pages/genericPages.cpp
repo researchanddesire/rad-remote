@@ -84,6 +84,7 @@ void drawPageTask(void *pvParameters) {
         leftButton.tick();
     }
 
+    
     // Right button
     if (params->rightButtonText.length() > 0 &&
         params->rightButtonText != EMPTY_STRING) {

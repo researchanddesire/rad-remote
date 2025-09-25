@@ -9,15 +9,15 @@
 #include "esp_log.h"
 #include "pins.h"
 #include "services/battery.h"
+#include "services/buzzer.h"
 #include "services/coms.h"
 #include "services/display.h"
 #include "services/encoder.h"
 #include "services/imu.h"
 #include "services/leds.h"
+#include "services/vibrator.h"
 #include "services/wm.h"
 #include "state/remote.h"
-#include "utils/buzzer.h"
-#include "utils/vibrator.h"
 
 OneButton leftShoulderBtn;
 OneButton rightShoulderBtn;
@@ -54,6 +54,7 @@ void setup() {
 
     initEncoderService();
 
+    initFastLEDs();
     initWM();
     initDisplay();
     initBuzzer();
@@ -62,7 +63,6 @@ void setup() {
     initStateMachine();
 
     initBattery();
-    // updateBatteryStatus();
 
     // initIMUService();
     // updateIMUReadings();
