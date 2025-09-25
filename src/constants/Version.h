@@ -1,9 +1,9 @@
 #ifndef OSSM_REMOTE_VERSION_H
 #define OSSM_REMOTE_VERSION_H
 
-#define VERSION "0.0.5"
+#define VERSION "0.0.6"
 #define MAJOR_VERSION 0
 #define MINOR_VERSION 0
-#define PATCH_VERSION 5
+#define PATCH_VERSION 6
 
 #endif  // OSSM_REMOTE_VERSION_H
