@@ -28,12 +28,16 @@ OneButton underRightBtn;
 void setup() {
     Serial.begin(115200);
 
+    delay(5000);
+
     // Version 1.x of the PCB Boards cannot use PSRAM
     if (psramInit()) {
         ESP_LOGI(TAG, "PSRAM initialized");
     } else {
         ESP_LOGI(TAG, "PSRAM initialization failed");
     }
+
+    ESP_LOGD(TAG, "PSRAM found: %d", psramFound());
 
     // init buttons
     leftShoulderBtn = OneButton(pins::BTN_L_SHOULDER, true, true);
@@ -52,14 +56,34 @@ void setup() {
     underRightBtn.attachClick(
         []() { stateMachine->process_event(right_button_pressed()); });
 
+    ESP_LOGD(TAG, "init Encoder");
+
     initEncoderService();
 
+    ESP_LOGD(TAG, "init FastLEDs");
+
     initFastLEDs();
+
+    ESP_LOGD(TAG, "init WM");
+
     initWM();
+
+    ESP_LOGD(TAG, "init Display");
+
     initDisplay();
+
+    ESP_LOGD(TAG, "init Buzzer");
+
     initBuzzer();
+
+    ESP_LOGD(TAG, "init Vibrator");
     initVibrator();
+
+    ESP_LOGD(TAG, "init BLE");
+
     initBLE();
+
+    ESP_LOGD(TAG, "init State Machine");
     initStateMachine();
 
     initBattery();
