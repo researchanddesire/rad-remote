@@ -1,11 +1,12 @@
 #include "wm.h"
 
+#include "WiFi.h"
 #include "state/remote.h"
 
 WiFiManager wm;
 
 void initWM() {
-    esp_wifi_set_ps(WIFI_PS_NONE);
+    WiFi.useStaticBuffers(true);
     WiFi.begin();
 
     wm.setSaveConfigCallback(
