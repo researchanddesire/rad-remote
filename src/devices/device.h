@@ -2,16 +2,18 @@
 #define DEVICE_H
 
 #include <Arduino.h>
-#include <vector>
+
 #include <ArduinoJson.h>
 #include <NimBLEDevice.h>
-#include "devices/serviceUUIDs.h"
-#include <unordered_map>
+#include <components/DisplayObject.h>
 #include <functional>
 #include <memory>
-#include <utility>
 #include <structs/Menus.h>
-#include <components/DisplayObject.h>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "devices/serviceUUIDs.h"
 
 static const char *TAG = "DEVICE";
 
@@ -21,8 +23,7 @@ class Device;
 
 extern Device *device;
 
-struct DeviceCharacteristics
-{
+struct DeviceCharacteristics {
     NimBLEUUID uuid;
     NimBLERemoteCharacteristic *pCharacteristic = nullptr;
 
@@ -30,20 +31,19 @@ struct DeviceCharacteristics
     std::function<std::string(const std::string &)> encode = nullptr;
 };
 
-struct DeviceDisplayObject
-{
+struct DeviceDisplayObject {
     std::string name;
     DisplayObject *displayObject;
 };
 
-class Device : public NimBLEClientCallbacks
-{
-public:
+class Device : public NimBLEClientCallbacks {
+  public:
     const NimBLEAdvertisedDevice *advertisedDevice;
     NimBLEClient *pClient;
     NimBLERemoteService *pService;
 
     bool isConnected = false;
+    bool isPaused = false;
 
     std::vector<MenuItem> menu;
 
@@ -62,7 +62,8 @@ public:
     virtual void onRightButtonClick() {}
     virtual void onLeftButtonClick() {}
     virtual void onExit() {}
-    virtual void onStop() {}
+    virtual void onPause() {}
+    virtual void onResume() {}
     virtual void onConnect() {}
     virtual void onDisconnect() {}
     virtual void onDeviceMenuItemSelected(int index) {}
@@ -81,15 +82,15 @@ public:
 
     // Display object helpers
     template <typename TDisplayObject, typename... TArgs>
-    TDisplayObject *draw(TArgs &&...args)
-    {
-        auto uniquePtr = std::make_unique<TDisplayObject>(std::forward<TArgs>(args)...);
+    TDisplayObject *draw(TArgs &&...args) {
+        auto uniquePtr =
+            std::make_unique<TDisplayObject>(std::forward<TArgs>(args)...);
         TDisplayObject *rawPtr = uniquePtr.get();
         displayObjects.emplace_back(std::move(uniquePtr));
         return rawPtr;
     }
 
-protected:
+  protected:
     TaskHandle_t connectionTaskHandle;
     static void connectionTask(void *pvParameter);
 
@@ -105,20 +106,18 @@ protected:
 
     // Helper method to safely read JSON values
     template <typename T>
-    T readJsonValue(const std::string &characteristicName, const char *key, T defaultValue)
-    {
+    T readJsonValue(const std::string &characteristicName, const char *key,
+                    T defaultValue) {
         auto value = readString(characteristicName);
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, value.c_str());
 
-        if (error)
-        {
+        if (error) {
             ESP_LOGE("DEVICE", "JSON parse failed: %s", error.c_str());
             return defaultValue;
         }
 
-        if (!doc.containsKey(key))
-        {
+        if (!doc.containsKey(key)) {
             ESP_LOGW("DEVICE", "JSON key '%s' not found", key);
             return defaultValue;
         }
@@ -127,14 +126,13 @@ protected:
     }
 
     template <typename T = JsonObject>
-    bool readJson(const std::string &command, std::function<void(const T &)> callback)
-    {
+    bool readJson(const std::string &command,
+                  std::function<void(const T &)> callback) {
         auto value = readString(command);
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, value.c_str());
 
-        if (error)
-        {
+        if (error) {
             ESP_LOGE("DEVICE", "JSON parse failed: %s", error.c_str());
             return false;
         }
@@ -146,8 +144,8 @@ protected:
     // Legacy method - now returns a copy of the JSON as string for safety
     std::string readJsonString(const std::string &command);
 
-private:
+  private:
     void startConnectionTask();
 };
 
-#endif // DEVICE_H
+#endif  // DEVICE_H

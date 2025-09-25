@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <vector>
+
 // Task handle for the buzzer pattern
 static TaskHandle_t buzzerTaskHandle = NULL;
 static bool buzzerActive = false;
@@ -9,7 +10,7 @@ static BuzzerPattern currentPattern = BuzzerPattern::NONE;
 
 struct Beat {
     int frequency;
-    int duration;
+    int duration = 100;
 };
 
 std::unordered_map<BuzzerPattern, std::vector<Beat>> PATTERN_MAP = {
@@ -18,7 +19,14 @@ std::unordered_map<BuzzerPattern, std::vector<Beat>> PATTERN_MAP = {
     {BuzzerPattern::DOUBLE_BEEP, {{1000, 100}, {1000, 100}}},
     {BuzzerPattern::TRIPLE_BEEP, {{1000, 100}, {1000, 100}, {1000, 100}}},
     {BuzzerPattern::ERROR_BEEP, {{300, 100}}},
-};
+    {BuzzerPattern::BOOT, {{523, 100}, {659, 100}, {784, 100}, {1047, 150}}},
+    {BuzzerPattern::SHUTDOWN,
+     {{1047, 100}, {784, 100}, {659, 100}, {523, 150}}},
+    {BuzzerPattern::DEVICE_CONNECTED, {{1047, 100}, {1319, 100}, {1568, 150}}},
+    {BuzzerPattern::DEVICE_DISCONNECTED,
+     {{1568, 100}, {1319, 100}, {1047, 150}}},
+    {BuzzerPattern::PAUSED, {{800, 150}, {800, 150}}},
+    {BuzzerPattern::PLAY, {{1200, 100}, {1400, 100}}}};
 
 void buzzerTask(void *parameter) {
     while (true) {
@@ -45,7 +53,7 @@ void buzzerTask(void *parameter) {
 void initBuzzer() {
     pinMode(pins::BUZZER_PIN, OUTPUT);
     digitalWrite(pins::BUZZER_PIN, LOW);
-    playBuzzerPattern(BuzzerPattern::SINGLE_BEEP);
+    playBuzzerPattern(BuzzerPattern::BOOT);
 
     xTaskCreatePinnedToCore(buzzerTask,                    // Task function
                             "BuzzerTask",                  // Task name

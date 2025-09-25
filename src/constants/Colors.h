@@ -3,8 +3,7 @@
 
 #include <Adafruit_ST77xx.h>
 
-namespace Colors
-{
+namespace Colors {
     // black
     constexpr int black = 0x0000;
     constexpr int white = ST77XX_WHITE;
@@ -21,6 +20,12 @@ namespace Colors
 
     // light gray for body text rgb(156 163 175);
     constexpr int lightGray = 0x9c71;
+
 }
 
-#endif // COLORS_H
+namespace LEDColors {
+    constexpr int logoBlue = 150;
+    constexpr int connected = 96;
+}
+
+#endif  // COLORS_H

@@ -6,15 +6,14 @@
 #include <Adafruit_MCP23X17.h>
 #include <Adafruit_ST77xx.h>
 #include <constants.h>
-
 #include <map>
 
 #include "DisplayObject.h"
 #include "esp_log.h"
 #include "pins.h"
+#include "services/buzzer.h"
 #include "services/display.h"
-#include "utils/buzzer.h"
-#include "utils/vibrator.h"
+#include "services/vibrator.h"
 
 class LinearRailGraph : public DisplayObject {
   private:

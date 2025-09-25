@@ -14,7 +14,13 @@ enum class BuzzerPattern {
     SINGLE_BEEP,
     DOUBLE_BEEP,
     TRIPLE_BEEP,
-    ERROR_BEEP
+    ERROR_BEEP,
+    BOOT,
+    SHUTDOWN,
+    DEVICE_CONNECTED,
+    DEVICE_DISCONNECTED,
+    PAUSED,
+    PLAY
 };
 
 // Initialize the buzzer system

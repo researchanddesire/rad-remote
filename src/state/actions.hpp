@@ -10,6 +10,9 @@
 #include <pages/displayUtils.h>
 #include <pages/genericPages.h>
 #include <qrcode.h>
+#include <services/buzzer.h>
+#include <services/encoder.h>
+#include <services/leds.h>
 #include <services/wm.h>
 
 #include "components/TextButton.h"
@@ -17,7 +20,6 @@
 #include "events.hpp"
 #include "pages/controller.h"
 #include "pages/menus.h"
-#include "services/encoder.h"
 
 namespace actions {
 
@@ -58,6 +60,8 @@ namespace actions {
         // and then stop scanning.
         NimBLEScan *pScan = NimBLEDevice::getScan();
         pScan->stop();
+        playBuzzerPattern(BuzzerPattern::DEVICE_DISCONNECTED);
+        setLed(LEDColors::logoBlue, 255, 1500);
     };
 
     auto drawPage = [](const TextPage &page) {
@@ -100,7 +104,7 @@ namespace actions {
         if (device == nullptr) {
             return;
         }
-        device->onStop();
+        device->onPause();
     };
 
     auto start = []() {
@@ -130,7 +134,11 @@ namespace actions {
         drawMenu();
     };
 
-    auto espRestart = []() { esp_restart(); };
+    auto espRestart = []() {
+        playBuzzerPattern(BuzzerPattern::SHUTDOWN);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        esp_restart();
+    };
 
     auto startWiFiPortal = []() {
         // Give a second for any pending MQTT messages to be sent before
