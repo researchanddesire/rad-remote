@@ -1,2 +1,1 @@
-# researchAndDesire
-
+# Research and Desire Products
