@@ -7,6 +7,7 @@
 #include <components/EncoderDial.h>
 #include <components/LinearRailGraph.h>
 #include <components/TextButton.h>
+#include <constants.h>
 
 #include "../../device.h"
 
@@ -21,6 +22,12 @@ class OSSM : public Device {
     SettingPercents settings;
     int rightFocusedIndex = 0;
     int leftFocusedIndex = 0;
+    String pendingPatternTitle = "Loading...";  // Temporary pattern name to
+                                                // apply when overlay is created
+    
+    // Parameter maps for encoder dials (must be member variables to avoid heap corruption)
+    std::map<String, float *> leftParams;
+    std::map<String, float *> rightParams;
 
     explicit OSSM(const NimBLEAdvertisedDevice *advertisedDevice)
         : Device(advertisedDevice) {
@@ -31,6 +38,12 @@ class OSSM : public Device {
             {"patterns", {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_PATTERNS)}},
             {"state", {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_STATE)}},
         };
+        
+        // Initialize parameter maps for encoder dials with static String keys
+        leftParams = {{"Speed", &this->settings.speed}};
+        rightParams = {{"Stroke", &this->settings.stroke},
+                      {"Depth", &this->settings.depth},
+                      {"Sens.", &this->settings.sensation}};
     }
 
     const char *getName() override { return "OSSM"; }
@@ -63,8 +76,6 @@ class OSSM : public Device {
                               Display::PageHeight - 40, Display::WIDTH);
 
         // Create a left encoder dial with Speed parameter
-        std::map<String, float *> leftParams = {
-            {"Speed", &this->settings.speed}};
         draw<EncoderDial>(EncoderDial::Props{
             .encoder = &leftEncoder,
             .parameters = leftParams,
@@ -74,10 +85,6 @@ class OSSM : public Device {
                            10)});  // Both dials aligned 10px lower
 
         // Create a right encoder dial with all parameters
-        std::map<String, float *> rightParams = {
-            {"Stroke", &this->settings.stroke},
-            {"Depth", &this->settings.depth},
-            {"Sens.", &this->settings.sensation}};
         draw<EncoderDial>(EncoderDial::Props{
             .encoder = &rightEncoder,
             .parameters = rightParams,
@@ -85,6 +92,23 @@ class OSSM : public Device {
             .x = (int16_t)(DISPLAY_WIDTH - 90),
             .y = (int16_t)(Display::PageY +
                            10)});  // Both dials aligned 10px lower
+
+        // Example text overlays in the center area between encoder dials
+        // Pattern title overlay - will be updated with actual pattern name
+        drawText("pattern_title", 90, Display::PageY + 30, DISPLAY_WIDTH - 90,
+                 Display::PageY + 60, pendingPatternTitle, TEXT_ALIGN_CENTER,
+                 TEXT_FONT_BOLD,
+                 0x8055,  // OSSM Purple
+                 0x0000,  // Black background
+                 true);
+
+        // Pattern description overlay
+        drawText("pattern_description", 90, Display::PageY + 70,
+                 DISPLAY_WIDTH - 90, Display::PageY + 120,
+                 "//TODO: Retrieve pattern description from device.",
+                 TEXT_ALIGN_CENTER, TEXT_FONT_SMALL, 0x5519,
+                 0x0000,  // Black background
+                 true);
     }
 
     void onConnect() override {
@@ -97,12 +121,13 @@ class OSSM : public Device {
             this->settings.pattern =
                 static_cast<StrokePatterns>(state["pattern"].as<int>());
 
-            ESP_LOGI(TAG,
-                     "UPDATED SETTINGS: Speed: %d, Stroke: %d, Sensation: %d, "
-                     "Depth: %d, Pattern: %d",
-                     this->settings.speed, this->settings.stroke,
-                     this->settings.sensation, this->settings.depth,
-                     this->settings.pattern);
+            ESP_LOGI(
+                TAG,
+                "UPDATED SETTINGS: Speed: %.1f, Stroke: %.1f, Sensation: %.1f, "
+                "Depth: %.1f, Pattern: %d",
+                this->settings.speed, this->settings.stroke,
+                this->settings.sensation, this->settings.depth,
+                static_cast<int>(this->settings.pattern));
         });
 
         // And then we pull the patterns from the device
@@ -139,6 +164,9 @@ class OSSM : public Device {
                                               icon,
                                               .metaIndex = v["idx"].as<int>()});
             }
+
+            // Update pattern title now that patterns are loaded
+            updatePatternTitle();
         });
 
         // finally, we set inital preferences and go to stroke engine mode
@@ -206,6 +234,43 @@ class OSSM : public Device {
     void onDeviceMenuItemSelected(int index) override { setPattern(index); }
 
     // Helper functions.
+    void updatePatternTitle() {
+        if (!menu.empty()) {
+            int currentPatternMetaIndex = static_cast<int>(settings.pattern);
+            ESP_LOGI(
+                TAG,
+                "updatePatternTitle: Looking for pattern with metaIndex: %d",
+                currentPatternMetaIndex);
+
+            // Find the menu item with matching metaIndex
+            for (size_t i = 0; i < menu.size(); i++) {
+                if (menu[i].metaIndex == currentPatternMetaIndex) {
+                    String patternName = menu[i].name.c_str();
+                    ESP_LOGI(TAG,
+                             "Found matching pattern: %s (menu index: %zu)",
+                             patternName.c_str(), i);
+
+                    // Store pattern name for when overlay is created
+                    pendingPatternTitle = patternName;
+
+                    auto overlay = textOverlays.find("pattern_title");
+                    if (overlay != textOverlays.end()) {
+                        overlay->second->updateText(patternName);
+                        ESP_LOGI(TAG, "Pattern title overlay updated to: %s",
+                                 patternName.c_str());
+                    } else {
+                        ESP_LOGI(TAG,
+                                 "Pattern title overlay not yet created in "
+                                 "updatePatternTitle(), stored for later");
+                    }
+                    break;
+                }
+            }
+        } else {
+            ESP_LOGW(TAG, "updatePatternTitle: menu is empty");
+        }
+    }
+
     bool setSpeed(int speed) {
         if (speed == settings.speed) {
             return true;
@@ -255,12 +320,36 @@ class OSSM : public Device {
             ESP_LOGW(TAG, "setPattern called but menu is empty");
             return false;
         }
+
         if (pattern == static_cast<int>(settings.pattern)) {
             return true;
         }
         settings.pattern = static_cast<StrokePatterns>(pattern);
         pattern = pattern % menu.size();
         int patternIdx = menu[pattern].metaIndex;
+
+        // Store the actual device pattern index (metaIndex), not the menu index
+        settings.pattern = static_cast<StrokePatterns>(patternIdx);
+
+        // Update the pattern title text overlay with the selected pattern name
+        String patternName = menu[pattern].name.c_str();
+        pendingPatternTitle =
+            patternName;  // Store for later use when overlay is created
+        ESP_LOGI(TAG,
+                 "Storing pattern title: %s (menu index: %d, metaIndex: %d)",
+                 patternName.c_str(), pattern, patternIdx);
+
+        // Try to update the overlay if it exists, otherwise store for later
+        auto overlay = textOverlays.find("pattern_title");
+        if (overlay != textOverlays.end()) {
+            overlay->second->updateText(patternName);
+            ESP_LOGI(TAG, "Pattern title overlay updated immediately");
+        } else {
+            ESP_LOGI(TAG,
+                     "Pattern title overlay not yet created, will update when "
+                     "available");
+        }
+
         return send("command",
                     std::string("set:pattern:") + std::to_string(patternIdx));
     }

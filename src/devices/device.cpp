@@ -3,6 +3,7 @@
 #include <services/buzzer.h>
 
 #include "pages/genericPages.h"
+#include "pages/menus.h"
 #include "services/leds.h"
 #include "state/remote.h"
 
@@ -16,6 +17,10 @@ Device::Device(const NimBLEAdvertisedDevice *advertisedDevice)
 Device::~Device() {
     displayObjects.clear();
     ESP_LOGD(TAG, "Cleared %zu display objects", displayObjects.size());
+
+    // Clear text overlays
+    textOverlays.clear();
+    ESP_LOGD(TAG, "Cleared text overlays");
 
     // Clear characteristics map (pointers are managed by NimBLE)
     characteristics.clear();
@@ -333,4 +338,86 @@ void Device::drawDeviceMenu() {
     activeMenuCount = menu.size();
 
     drawMenu();
+}
+
+TextOverlay *Device::drawText(const String &overlayId, int16_t xStart,
+                              int16_t yStart, int16_t xEnd, int16_t yEnd,
+                              const String &text, TextAlign alignment,
+                              const GFXfont *font, uint16_t textColor,
+                              uint16_t backgroundColor, bool clearBackground) {
+    // Calculate width and height from coordinates
+    int16_t width = xEnd - xStart;
+    int16_t height = yEnd - yStart;
+
+    // Validate dimensions
+    if (width <= 0 || height <= 0) {
+        ESP_LOGE(
+            TAG,
+            "Invalid text overlay dimensions for '%s': width=%d, height=%d",
+            overlayId.c_str(), width, height);
+        return nullptr;
+    }
+
+    // Check if overlay already exists
+    auto it = textOverlays.find(overlayId);
+    if (it != textOverlays.end()) {
+        // Update existing overlay
+        TextOverlayProps props = {.text = text,
+                                  .alignment = alignment,
+                                  .font = font,
+                                  .textColor = textColor,
+                                  .backgroundColor = backgroundColor,
+                                  .clearBackground = clearBackground};
+
+        it->second->updateProps(props);
+        return it->second;
+    }
+
+    // Create new overlay
+    TextOverlayProps props = {.text = text,
+                              .alignment = alignment,
+                              .font = font,
+                              .textColor = textColor,
+                              .backgroundColor = backgroundColor,
+                              .clearBackground = clearBackground};
+
+    TextOverlay *overlay =
+        draw<TextOverlay>(xStart, yStart, width, height, props);
+    textOverlays[overlayId] = overlay;
+
+    ESP_LOGD(TAG,
+             "Created text overlay '%s' at (%d,%d) size %dx%d with text: '%s'",
+             overlayId.c_str(), xStart, yStart, width, height, text.c_str());
+
+    return overlay;
+}
+
+TextOverlay *Device::drawText(const String &overlayId, int16_t xStart,
+                              int16_t yStart, int16_t xEnd, int16_t yEnd,
+                              const String &text) {
+    return drawText(overlayId, xStart, yStart, xEnd, yEnd, text,
+                    TEXT_ALIGN_LEFT, TEXT_FONT_NORMAL, 0xFFFF, 0x0000, true);
+}
+
+void Device::clearText(const String &overlayId) {
+    auto it = textOverlays.find(overlayId);
+    if (it != textOverlays.end()) {
+        // Clear the text by setting it to empty string
+        it->second->updateText("");
+        ESP_LOGD(TAG, "Cleared text overlay '%s'", overlayId.c_str());
+    } else {
+        ESP_LOGW(TAG, "Attempted to clear non-existent text overlay '%s'",
+                 overlayId.c_str());
+    }
+}
+
+void Device::clearAllText() {
+    for (auto &pair : textOverlays) {
+        pair.second->updateText("");
+    }
+    ESP_LOGD(TAG, "Cleared all %zu text overlays", textOverlays.size());
+}
+
+bool Device::hasTextOverlay(const String &overlayId) {
+    return textOverlays.find(overlayId) != textOverlays.end();
 }

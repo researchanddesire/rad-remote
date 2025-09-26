@@ -6,6 +6,7 @@
 #include <ArduinoJson.h>
 #include <NimBLEDevice.h>
 #include <components/DisplayObject.h>
+#include <components/TextOverlay.h>
 #include <functional>
 #include <memory>
 #include <structs/Menus.h>
@@ -14,6 +15,13 @@
 #include <vector>
 
 #include "devices/serviceUUIDs.h"
+
+// Custom hash function for Arduino String
+struct StringHash {
+    std::size_t operator()(const String &s) const {
+        return std::hash<std::string>{}(s.c_str());
+    }
+};
 
 static const char *TAG = "DEVICE";
 
@@ -49,6 +57,7 @@ class Device : public NimBLEClientCallbacks {
 
     std::unordered_map<std::string, DeviceCharacteristics> characteristics;
     std::vector<std::unique_ptr<DisplayObject>> displayObjects;
+    std::unordered_map<String, TextOverlay *, StringHash> textOverlays;
 
     // Constructor with settings document size parameter
     explicit Device(const NimBLEAdvertisedDevice *advertisedDevice);
@@ -89,6 +98,22 @@ class Device : public NimBLEClientCallbacks {
         displayObjects.emplace_back(std::move(uniquePtr));
         return rawPtr;
     }
+
+    // Text overlay management
+    TextOverlay *drawText(const String &overlayId, int16_t xStart,
+                          int16_t yStart, int16_t xEnd, int16_t yEnd,
+                          const String &text, TextAlign alignment,
+                          const GFXfont *font, uint16_t textColor,
+                          uint16_t backgroundColor, bool clearBackground);
+
+    // Overloaded version with default parameters
+    TextOverlay *drawText(const String &overlayId, int16_t xStart,
+                          int16_t yStart, int16_t xEnd, int16_t yEnd,
+                          const String &text);
+
+    void clearText(const String &overlayId);
+    void clearAllText();
+    bool hasTextOverlay(const String &overlayId);
 
   protected:
     TaskHandle_t connectionTaskHandle;
