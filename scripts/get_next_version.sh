@@ -8,7 +8,7 @@ if [[ "$GITHUB_ACTIONS_DEBUG" == "1" ]]; then
   set -x
 fi
 
-echo "::group::[Lockbox] Starting get_next_version.sh"
+echo "::group::[OSSM-Remote] Starting get_next_version.sh"
 echo "[INFO] Script invoked with arguments: $@"
 
 commitMsg="$1"
@@ -20,7 +20,7 @@ if [[ -z "$commitMsg" ]]; then
   exit 1
 fi
 
-echo "::group::[Lockbox] Determine bump type from commit message"
+echo "::group::[OSSM-Remote] Determine bump type from commit message"
 shopt -s nocasematch
 if [[ "$commitMsg" == major* ]]; then
   BUMP_TYPE="major"
@@ -67,7 +67,7 @@ version_gte() {
   return 0
 }
 
-echo "::group::[Lockbox] Fetch remote version"
+echo "::group::[OSSM-Remote] Fetch remote version"
 REMOTE_JSON=$(curl -sfL "https://kinkymakers.github.io/OSSM-Remote/v/latest/version.json" || echo "null")
 REMOTE_VERSION=""
 if [[ "$REMOTE_JSON" != "null" ]]; then
@@ -78,7 +78,7 @@ else
 fi
 echo "::endgroup::"
 
-echo "::group::[Lockbox] Read local version"
+echo "::group::[OSSM-Remote] Read local version"
 if [[ ! -f docs/v/latest/version.json ]]; then
   echo "::error::[ERROR] Local version file docs/v/latest/version.json not found!"
   exit 1
@@ -88,7 +88,7 @@ LOCAL_VERSION=$(echo "$LOCAL_JSON" | grep -oE '"version" *: *"[0-9]+\.[0-9]+\.[0
 echo "[INFO] Local version: $LOCAL_VERSION"
 echo "::endgroup::"
 
-echo "::group::[Lockbox] Compare remote and local versions"
+echo "::group::[OSSM-Remote] Compare remote and local versions"
 USE_VERSION="$LOCAL_VERSION"
 if [[ -n "$REMOTE_VERSION" ]]; then
   v1=($(parse_version "$REMOTE_VERSION"))
@@ -104,7 +104,7 @@ else
 fi
 echo "::endgroup::"
 
-echo "::group::[Lockbox] Bump version"
+echo "::group::[OSSM-Remote] Bump version"
 parse_out="$(parse_version "$USE_VERSION")"
 read ver_major ver_minor ver_patch <<< "$parse_out"
 echo "[INFO] Current version: $ver_major.$ver_minor.$ver_patch"
@@ -128,7 +128,7 @@ NEW_VERSION="$ver_major.$ver_minor.$ver_patch"
 echo "[INFO] New version: $NEW_VERSION"
 echo "::endgroup::"
 
-echo "::notice::[Lockbox] Next version: $NEW_VERSION"
+echo "::notice::[OSSM-Remote] Next version: $NEW_VERSION"
 echo "$NEW_VERSION"
 
 if [[ -n "$GITHUB_OUTPUT" ]]; then
