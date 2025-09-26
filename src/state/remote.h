@@ -8,7 +8,9 @@
 #include "utils/StateLogger.h"
 
 extern SettingPercents settings;
-extern sender s;
+// these are the last communicated settings to the OSSM.
+extern SettingPercents lastSettings;
+
 extern ESP32RecursiveMutex mutex;
 extern StateLogger stateLogger;
 

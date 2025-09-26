@@ -1,5 +1,4 @@
 #include "events.hpp"
-#include "dependencies.hpp"
 #include "services/encoder.h"
 
 // template <typename Event>
@@ -11,7 +10,7 @@
 // template <typename Event>
 //
 template <typename Event>
-const auto is_valid = [](const Event &event, sender &s)
+const auto is_valid = [](const Event &event)
 {
     ESP_LOGI("TEST", "is_valid");
     return true;
@@ -20,14 +19,14 @@ const auto is_valid = [](const Event &event, sender &s)
 template <typename Event = right_button_pressed>
 auto isOption = [](MenuItemE value)
 {
-    return [value](const Event &event, sender &s) -> bool
+    return [value](const Event &event) -> bool
     {
         auto currentOption = rightEncoder.readEncoder();
         auto indexOfValue = -1;
 
         for (int i = 0; i < activeMenuCount; i++)
         {
-            if (activeMenu[i].id == value)
+            if (activeMenu->at(i).id == value)
             {
                 indexOfValue = i;
                 break;
@@ -37,4 +36,10 @@ auto isOption = [](MenuItemE value)
         bool result = currentOption == indexOfValue;
         return result;
     };
+};
+
+template <typename Event = right_button_pressed>
+auto hasDeviceMenu = [](const Event &event) -> bool
+{
+    return device != nullptr && device->menu.size() > 0;
 };

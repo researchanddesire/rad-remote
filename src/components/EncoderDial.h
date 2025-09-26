@@ -1,209 +1,271 @@
 #pragma once
 
-#include "DisplayButton.h"
-#include "pins.h"
+#ifndef ENCODERDIAL_H
+#define ENCODERDIAL_H
+
+#include <Arduino.h>
+
 #include <Adafruit_MCP23X17.h>
 #include <Adafruit_ST77xx.h>
-#include "services/display.h"
-#include "services/mcp.h"
 #include <map>
-#include "utils/vibrator.h"
-#include "utils/buzzer.h"
+
+#include "DisplayObject.h"
 #include "esp_log.h"
+#include "pins.h"
+#include "services/buzzer.h"
+#include "services/display.h"
+#include "services/vibrator.h"
+// Adafruit GFX fonts
+#include <AiEsp32RotaryEncoder.h>
+#include <Fonts/FreeSansBold9pt7b.h>  // Reduced from 12pt to 9pt for better fit
+#include <vector>
 
-class EncoderDial : public DisplayButton
-{
-private:
-    static bool lastButtonState;
-    std::map<String, int> parameters;
-    const String action;
-    const bool isLeft;
+class EncoderDial : public DisplayObject {
+  private:
+    bool lastButtonState = false;
+    std::map<String, float *> parameters;
     const uint16_t color;
-    const int maxValue = 100;
-    int focusedIndex = 0; // Track which arc is focused
+    std::vector<uint16_t> colors;  // Optional per-parameter colors
+    int minValue = 0;
+    int maxValue = 100;
+    int *focusedIndex = nullptr;
+    std::map<String, int> lastParameterValues;
+    int lastFocusedIndex = -1;
+    bool isFirstDraw =
+        true;  // Track if this is the first draw to avoid unnecessary clearing
 
-    void drawArc(int arcRadius, int centerX, int centerY, int fillSteps, int steps, int circleRadius, bool isFocused)
-    {
+    void drawArcDirect(int arcRadius, int centerX, int centerY, int fillSteps,
+                       int steps, int circleRadius, bool isFocused,
+                       uint16_t activeColor) {
         int startAngle = 0;
         int endAngle = 270;
 
-        for (int i = steps - 1; i >= 0; i--)
-        {
-            float angle = (startAngle + (i * (endAngle - startAngle) / steps)) * PI / 180.0;
+        for (int i = steps - 1; i >= 0; i--) {
+            float angle = (startAngle + (i * (endAngle - startAngle) / steps)) *
+                          PI / 180.0;
             int x = centerX + arcRadius * cos(angle + 3 * PI / 4);
             int y = centerY + arcRadius * sin(angle + 3 * PI / 4);
-            if (i < fillSteps || i == 0)
-            {
-                canvas->fillCircle(x, y, circleRadius, isFocused ? ST77XX_WHITE : 0xAD55);
-            }
-            else
-            {
-                canvas->fillCircle(x, y, circleRadius, 0x7BEF); // Dark gray color
+            if (i < fillSteps || i == 0) {
+                tft.fillCircle(x, y, circleRadius,
+                               isFocused ? ST77XX_WHITE : activeColor);
+            } else {
+                tft.fillCircle(x, y, circleRadius, 0x7BEF);  // Dark gray color
             }
         }
     }
 
-public:
-    EncoderDial(const std::map<String, int> &initialParams, const String &action, bool isLeft, int16_t x, int16_t y, int16_t width = 90, int16_t height = 90)
-        : DisplayButton(x, y, width, height),
-          parameters(initialParams),
-          action(action),
-          isLeft(isLeft),
-          color(ST77XX_WHITE)
-    {
-    }
+    AiEsp32RotaryEncoder &encoder;
 
-    void setFocusedIndex(int index)
-    {
-        if (index >= 0 && index < parameters.size() && focusedIndex != index)
-        {
-            focusedIndex = index;
-            isDirty = true;
+  public:
+    struct Props {
+        AiEsp32RotaryEncoder *encoder = nullptr;
+        std::map<String, float *> parameters;
+        int *focusedIndex = nullptr;
+        int16_t x = -1;
+        int16_t y = -1;
+        int16_t width = 90;
+        int16_t height = 90;
+        int minValue = 0;
+        int maxValue = 100;
+    };
+
+    explicit EncoderDial(const Props &props)
+        : DisplayObject(props.x, props.y, props.width, props.height),
+          parameters(props.parameters),
+          color(ST77XX_WHITE),
+          encoder(*props.encoder) {
+        focusedIndex = props.focusedIndex;
+
+        minValue = props.minValue;
+        maxValue = props.maxValue;
+
+        if (x == -1) {
+            x = Display::WIDTH / 2 - width / 2;
+        }
+
+        if (y == -1) {
+            y = Display::PageY + Display::PageHeight / 2 - height / 2;
         }
     }
 
-    int getFocusedIndex()
-    {
-        return focusedIndex;
-    }
-
-    void setParameters(const std::map<String, int> &newParams)
-    {
-        if (newParams != parameters)
-        {
+    void setParameters(const std::map<String, float *> &newParams) {
+        if (newParams != parameters) {
             parameters = newParams;
             isDirty = true;
         }
     }
 
-    void setParameter(int value)
-    {
-        if (parameters.size() == 0)
-            return;
+    bool shouldDraw() override {
+        // use focused index to get the parameter value
+        int currentValue = encoder.readEncoder();
+        if (parameters.size() > 0) {
+            auto it = parameters.begin();
+            std::advance(it, *focusedIndex);
+            if (it != parameters.end() && it->second != nullptr) {
+                *(it->second) = constrain(currentValue, minValue, maxValue);
+            }
+        }
 
-        auto it = parameters.begin();
-        std::advance(it, focusedIndex);
-        if (it != parameters.end() && it->second != value)
-        {
-            // Check if we're crossing 0% or 100% boundary
-            if ((it->second != 0 && value == 0) || (it->second != 100 && value == 100))
-            {
-                playVibratorPattern(VibratorPattern::SINGLE_PULSE);
-                playBuzzerPattern(BuzzerPattern::SINGLE_BEEP);
+        if (lastFocusedIndex != *focusedIndex) {
+            return true;
+        }
+
+        if (lastParameterValues.size() != parameters.size()) {
+            return true;
+        }
+
+        for (const auto &param : parameters) {
+            auto currentValue = 0;
+            if (param.second != nullptr) {
+                currentValue = *(param.second);
+            }
+            auto it = lastParameterValues.find(param.first);
+            if (it == lastParameterValues.end() || it->second != currentValue) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void draw() override {
+        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+            // Only clear entire area on first draw or focus change
+            if (isFirstDraw || lastFocusedIndex != *focusedIndex) {
+                tft.fillRect(x, y, width, height, ST77XX_BLACK);
+                isFirstDraw = false;
+            } else {
+                // For parameter value updates, we'll redraw over existing arcs
+                // This reduces flicker significantly
             }
 
-            it->second = value;
-            isDirty = true;
-        }
-    }
+            int steps = 100;
+            int circleRadius = 2;
+            int maxArcRadius = width / 2 - circleRadius;
+            int arcSpacing =
+                maxArcRadius / (parameters.size() + 1);  // Space between arcs
 
-    int getParameter() const
-    {
-        ESP_LOGI("EncoderDial", "Getting parameter");
-        int safeIndex = focusedIndex % parameters.size();
+            int centerX = x + width / 2;
+            int centerY = y + height / 2;
 
-        auto it = parameters.begin();
-        std::advance(it, safeIndex);
-        ESP_LOGI("EncoderDial", "Parameter: %d", it->second);
-        return it->second;
-    }
+            // Draw arcs for each parameter
+            int arcIndex = 0;
+            for (const auto &param : parameters) {
+                int currentRadius = maxArcRadius - (arcIndex * arcSpacing);
+                int paramValue = 0;
+                if (param.second != nullptr) {
+                    paramValue = constrain((int)roundf(*(param.second)),
+                                           minValue, maxValue);
+                }
+                int range = maxValue - minValue;
+                int fillSteps =
+                    range > 0 ? (int)lround(
+                                    ((double)(paramValue - minValue) * steps) /
+                                    (double)range)
+                              : steps;
+                uint16_t arcColor =
+                    (arcIndex < (int)colors.size()) ? colors[arcIndex] : color;
 
-    String getParameterName() const
-    {
-        if (parameters.size() == 0)
-            return "";
+                // Only redraw arc if value changed or if it's focused parameter
+                // or first draw
+                auto lastValueIt = lastParameterValues.find(param.first);
+                bool valueChanged = (lastValueIt == lastParameterValues.end() ||
+                                     lastValueIt->second != paramValue);
+                bool isFocused = (arcIndex == *focusedIndex);
 
-        auto it = parameters.begin();
-        std::advance(it, focusedIndex);
-        return it != parameters.end() ? it->first : "";
-    }
+                if (valueChanged || isFocused || isFirstDraw ||
+                    lastFocusedIndex != *focusedIndex) {
+                    drawArcDirect(currentRadius, centerX, centerY, fillSteps,
+                                  steps, circleRadius, isFocused, arcColor);
+                }
 
-    // Keep the old method for backward compatibility but mark it as deprecated
-    [[deprecated("Use setParameter(int value) instead")]]
-    void setParameter(const String &name, int value)
-    {
-        if (parameters[name] != value)
-        {
-            parameters[name] = value;
-            isDirty = true;
-        }
-    }
+                arcIndex++;
+            }
 
-    bool shouldDraw() override
-    {
-        return true;
-    }
+            // Draw focused parameter label and value with maximum width
+            // clearing
+            tft.setTextColor(ST77XX_WHITE);
 
-    void draw() override
-    {
-        canvas->fillScreen(ST77XX_BLACK);
+            // Find the focused parameter
+            auto it = parameters.begin();
+            std::advance(it, *focusedIndex);
+            if (it != parameters.end()) {
+                // Get current and previous text bounds for clearing
+                String label = it->first;
+                int displayValue = 0;
+                if (it->second != nullptr) {
+                    displayValue = constrain((int)roundf(*(it->second)),
+                                             minValue, maxValue);
+                }
+                String percentStr = String(displayValue);
 
-        int steps = 100;
-        int circleRadius = 2;
-        int maxArcRadius = width / 2 - circleRadius;
-        int arcSpacing = maxArcRadius / (parameters.size() + 1); // Space between arcs
+                // Measure label text bounds with classic font
+                tft.setFont(NULL);
+                int16_t x1, y1;
+                uint16_t w, h;
+                tft.getTextBounds(label.c_str(), 0, 0, &x1, &y1, &w, &h);
+                int16_t labelCursorX = centerX - (x1 + (int16_t)(w / 2));
+                int16_t labelBaselineY =
+                    y + height - 10;  // slight margin from bottom
 
-        int centerX = width / 2;
-        int centerY = height / 2;
+                // Clear only the exact label area (with small padding)
+                tft.fillRect(labelCursorX + x1 - 2, labelBaselineY + y1 - 1,
+                             w + 4, h + 2, ST77XX_BLACK);
 
-        // Draw arcs for each parameter
-        int arcIndex = 0;
-        for (const auto &param : parameters)
-        {
-            int currentRadius = maxArcRadius - (arcIndex * arcSpacing);
-            int fillSteps = (param.second * steps) / maxValue;
-            drawArc(currentRadius, centerX, centerY, fillSteps, steps, circleRadius, arcIndex == focusedIndex);
-            arcIndex++;
-        }
+                // Draw parameter name
+                tft.setCursor(labelCursorX, labelBaselineY);
+                tft.print(label);
 
-        // Draw focused parameter label at bottom
-        canvas->setTextSize(1);
-        canvas->setTextColor(ST77XX_WHITE);
+                // Calculate maximum possible text width to prevent artifacts
+                tft.setFont(&FreeSansBold9pt7b);  // Use smaller 9pt font
 
-        // Find the focused parameter
-        auto it = parameters.begin();
-        std::advance(it, focusedIndex);
-        if (it != parameters.end())
-        {
-            // Draw parameter name at bottom
-            String label = it->first;
-            int16_t textWidth = label.length() * 6; // 6 pixels per character at text size 1
-            canvas->setCursor(centerX - textWidth / 2, height - 10);
-            canvas->print(label);
+                // Get bounds for maximum possible value to determine clearing
+                // area
+                String maxValueStr = String(maxValue);
+                int16_t maxX1, maxY1;
+                uint16_t maxW, maxH;
+                tft.getTextBounds(maxValueStr.c_str(), 0, 0, &maxX1, &maxY1,
+                                  &maxW, &maxH);
 
-            // Draw large percentage in center
-            String percentStr = String(it->second);
-            textWidth = percentStr.length() * 6; // Approximate width for 9pt font
-            canvas->setCursor(centerX - textWidth / 2, centerY - 10);
-            canvas->print(percentStr);
-        }
+                // Center the clearing area based on maximum width
+                int16_t maxValueCursorX =
+                    centerX - (maxX1 + (int16_t)(maxW / 2));
+                int16_t valueBaselineY =
+                    centerY - (maxY1 + (int16_t)(maxH / 2));
 
-        if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-            tft.drawRGBBitmap(x, y, canvas->getBuffer(), width, height);
+                // Clear area large enough for maximum possible text width (with
+                // padding)
+                tft.fillRect(maxValueCursorX + maxX1 - 3,
+                             valueBaselineY + maxY1 - 2, maxW + 6, maxH + 4,
+                             ST77XX_BLACK);
+
+                // Now get actual text positioning for current value
+                tft.getTextBounds(percentStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+                int16_t valueCursorX = centerX - (x1 + (int16_t)(w / 2));
+
+                // Draw value at proper centered position
+                tft.setCursor(valueCursorX, valueBaselineY);
+                tft.print(percentStr);
+
+                // Restore default font
+                tft.setFont(NULL);
+            }
+
             xSemaphoreGive(displayMutex);
         }
-    }
 
-    int incrementFocus()
-    {
-        ESP_LOGI("EncoderDial", "Incrementing focus");
-        if (parameters.size() > 0)
-        {
-            setFocusedIndex((focusedIndex + 1) % parameters.size());
-            ESP_LOGI("EncoderDial", "Focused index: %d", focusedIndex);
+        lastParameterValues.clear();
+        for (const auto &param : parameters) {
+            int value = 0;
+            if (param.second != nullptr) {
+                value =
+                    constrain((int)roundf(*(param.second)), minValue, maxValue);
+            }
+            lastParameterValues[param.first] = value;
         }
-        return getParameter();
-    }
-
-    int decrementFocus()
-    {
-        if (parameters.size() > 0)
-        {
-            setFocusedIndex((focusedIndex - 1 + parameters.size()) % parameters.size());
-        }
-        return getParameter();
+        lastFocusedIndex = *focusedIndex;
     }
 };
 
 // Initialize static member
-bool EncoderDial::lastButtonState = false;
+#endif

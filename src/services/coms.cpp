@@ -1,113 +1,164 @@
-/*
-  Rui Santos
-  Complete project details at
-  https://RandomNerdTutorials.com/esp-now-esp32-arduino-ide/
-
-  Permission is hereby granted, free of charge, to any person obtaining a copy
-  of this software and associated documentation files.
-
-  The above copyright notice and this permission notice shall be included in all
-  copies or substantial portions of the Software.
-*/
-
 #include "coms.h"
 
+/** NimBLE_Client Demo:
+ *
+ *  Demonstrates many of the available features of the NimBLE client library.
+ *
+ *  Created: on March 24 2020
+ *      Author: H2zero
+ */
 
-// REPLACE WITH YOUR RECEIVER MAC Address
-uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+#include <Arduino.h>
+#include <NimBLEDevice.h>
+#include <esp_log.h>
+#include <queue>
+#include <regex>
 
-// Create a struct_message called myData
-struct_message myData;
+static const char *TAG_COMS = "COMS";
 
-SettingPercents lastState;
+static const NimBLEAdvertisedDevice *advDevice;
+static bool doConnect = false;
+static uint32_t scanTimeMs = 0; /** scan time in milliseconds, 0 = scan forever */
 
-esp_now_peer_info_t peerInfo;
+static std::queue<String> commandQueue;
 
-// callback when data is sent
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
+/** Define a class to handle the callbacks when scan events are received */
+class ScanCallbacks : public NimBLEScanCallbacks
 {
-    ESP_LOGV("COMS", "Last Packet Send Status: %s",
-             status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
-}
-
-void initESPNow()
-{
-
-    // Set device as a Wi-Fi Station
-    WiFi.mode(WIFI_STA);
-
-    // Init ESP-NOW
-    if (esp_now_init() != ESP_OK)
+    void onResult(const NimBLEAdvertisedDevice *advertisedDevice) override
     {
-        ESP_LOGD("COMS", "Error initializing ESP-NOW");
-        return;
-    }
-
-    // Once ESPNow is successfully Init, we will register for Send CB to
-    // get the status of Transmitted packet
-    esp_now_register_send_cb(OnDataSent);
-
-    // Register peer
-    memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-    peerInfo.channel = 0;
-    peerInfo.encrypt = false;
-
-    // Add peer
-    if (esp_now_add_peer(&peerInfo) != ESP_OK)
-    {
-        ESP_LOGD("COMS", "Failed to add peer");
-        return;
-    }
-
-    xTaskCreatePinnedToCore(
-        [](void *pvParameters)
+        // get all service UUIDs
+        const DeviceFactory *factory = nullptr;
+        auto countOfServiceUUIDs = advertisedDevice->getServiceUUIDCount();
+        for (int i = 0; i < countOfServiceUUIDs; i++)
         {
-            while (true)
-            {
-                sendESPNow(settings);
-                vTaskDelay(
-                    10 / portTICK_PERIOD_MS); // 100ms delay between broadcasts
-            }
-        },
-        "espnowTask", 4 * configMINIMAL_STACK_SIZE, nullptr, 1, nullptr, 0);
-}
+            vTaskDelay(1);
+            auto serviceUUID = advertisedDevice->getServiceUUID(i);
 
-void sendESPNow(SettingPercents settings)
-{
-    // if NO change in settings vs lastState then return.
-    if (lastState.speed == settings.speed &&
-        lastState.stroke == settings.stroke &&
-        lastState.sensation == settings.sensation &&
-        lastState.depth == settings.depth &&
-        static_cast<int>(lastState.pattern) ==
-            static_cast<int>(settings.pattern))
-    {
+            auto name = advertisedDevice->getName();
+
+            // check if the service UUID is in the registry
+            factory = getDeviceFactory(serviceUUID);
+
+            if (factory != nullptr)
+            {
+                break;
+            }
+        }
+
+        if (!factory)
+        {
+            return;
+        }
+
+        NimBLEDevice::getScan()->stop();
+
+        /** stop scan before connecting */
+        /** Save the device reference in a global for the client to use*/
+        advDevice = advertisedDevice;
+        device = (*factory)(advertisedDevice);
+
         return;
     }
+} scanCallbacks;
 
-    myData.speed = settings.speed;
-    myData.stroke = settings.stroke;
-    myData.sens = settings.sensation;
-    myData.depth = settings.depth;
-    myData.pattern = static_cast<int>(settings.pattern);
+/** Notification / Indication receiving handler callback */
+void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
+{
+    std::string str = (isNotify == true) ? "Notification" : "Indication";
+    str += " from ";
+    str += pRemoteCharacteristic->getClient()->getPeerAddress().toString();
+    str += ": Service = " + pRemoteCharacteristic->getRemoteService()->getUUID().toString();
+    str += ", Characteristic = " + pRemoteCharacteristic->getUUID().toString();
+    str += ", Value = " + std::string((char *)pData, length);
 
-    // Log myData values for debugging
-    ESP_LOGD("COMS", "Sending myData - Speed: %d, Stroke: %d, Sensation: %d, Depth: %d, Pattern: %d", 
-             myData.speed, myData.stroke, myData.sens, myData.depth, myData.pattern);
+    ESP_LOGV(TAG_COMS, "%s", str.c_str());
+}
 
-    // Update lastState
-    lastState = settings;
-
-    // Send message via ESP-NOW
-    esp_err_t result =
-        esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
-
-    if (result == ESP_OK)
+/** Handles the provisioning of clients and connects / interfaces with the server */
+bool connectToServer()
+{
+    if (advDevice == nullptr)
     {
-        ESP_LOGV("COMS", "Sent with success");
+        ESP_LOGE(TAG_COMS, "connectToServer called with null advDevice");
+        return false;
     }
-    else
+
+    return true;
+}
+
+void sendCommand(const String &command)
+{
+    // Only allow commands of the form: set:depth|sensation|pattern|speed|stroke:0-100
+    // Example: set:speed:75
+
+    // Regex: ^set:(depth|sensation|pattern|speed|stroke):([0-9]{1,3})$
+    // Value must be 0-100
+
+    std::regex cmdRegex("^set:(depth|sensation|pattern|speed|stroke):([0-9]{1,3})$");
+    std::cmatch match;
+    if (std::regex_match(command.c_str(), match, cmdRegex))
     {
-        ESP_LOGD("COMS", "Error sending the data");
+        int value = atoi(match[2].str().c_str());
+        if (value >= 0 && value <= 100)
+        {
+            std::string cmdType = match[1].str();
+
+            // Remove any previous commands of the same type from the queue
+            std::queue<String> tempQueue;
+            while (!commandQueue.empty())
+            {
+                String queuedCmd = commandQueue.front();
+                commandQueue.pop();
+
+                std::cmatch queuedMatch;
+                if (std::regex_match(queuedCmd.c_str(), queuedMatch, cmdRegex))
+                {
+                    std::string queuedType = queuedMatch[1].str();
+                    if (queuedType == cmdType)
+                    {
+                        // Skip this command (removes previous of same type)
+                        continue;
+                    }
+                }
+                tempQueue.push(queuedCmd);
+            }
+            // Restore the filtered queue
+            commandQueue = tempQueue;
+
+            // Add the new command
+            commandQueue.push(command);
+            return;
+        }
     }
+    ESP_LOGW(TAG_COMS, "Invalid command format: %s", command.c_str());
+}
+
+void initBLE()
+{
+    ESP_LOGI(TAG_COMS, "Starting NimBLE Client");
+
+    /** Initialize NimBLE and set the device name */
+    NimBLEDevice::init("OSSM-REMOTE");
+
+    /** Set the transmit power to maximum (9 dBm for ESP32) */
+    NimBLEDevice::setPower(9); /** 9dBm */
+    NimBLEScan *pScan = NimBLEDevice::getScan();
+
+    /** Set the callbacks to call when scan events occur, no duplicates */
+    pScan->setScanCallbacks(&scanCallbacks, false);
+
+    /** Set scan interval (how often) and window (how long) in milliseconds */
+    pScan->setInterval(1000);
+    pScan->setWindow(1000);
+
+    /**
+     * Active scan will gather scan response data from advertisers
+     *  but will use more energy from both devices
+     */
+    pScan->setActiveScan(false);
+
+    /** Start scanning for advertisers */
+    pScan->start(scanTimeMs);
+    ESP_LOGI(TAG_COMS, "Scanning for peripherals");
 }

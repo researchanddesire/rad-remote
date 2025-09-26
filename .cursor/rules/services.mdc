@@ -1,0 +1,55 @@
+---
+globs: src/services/**/*.h,src/services/**/*.cpp
+description: Services must follow the singleton pattern documented in src/services/readme.md
+---
+
+# Services Pattern (Singleton, shared, non-thread-safe by default)
+
+All files under `src/services/` should follow the pattern defined in
+[readme.md](mdc:src/services/readme.md).
+
+## Requirements
+
+- **Singleton instance**: Each service exposes a single, global instance.
+- **Header**: Declare the global instance with `extern` only.
+- **Implementation**: Define the global instance (no `extern`), initialize in the `.cpp`.
+- **Initialization**: Perform optional initialization in `setup()` via a `begin()` or equivalent method.
+- **Thread safety**: Services are not thread-safe by default. Use semaphores when accessed from multiple tasks.
+
+## Header template
+
+```cpp
+#ifndef SERVICE_NAME_H
+#define SERVICE_NAME_H
+
+#include <Arduino.h>
+#include "XYZ.h"
+
+// Declare the global service instance, but do not initialize it
+extern XYZ serviceNameInstance;
+
+// Optional: Add service configuration or constants
+#define SERVICE_NAME_MAX_CONNECTIONS 5
+
+#endif // SERVICE_NAME_H
+```
+
+## Implementation template
+
+```cpp
+#include "ServiceName.h"
+
+// Define the global service instance
+XYZ serviceNameInstance;
+
+// Optional: Add initialization code in setup()
+void setup() {
+    serviceNameInstance.begin();
+}
+```
+
+## Notes
+
+- Prefer explicit, readable names for the global instance.
+- Guard access with semaphores if used across tasks.
+- Keep service instances unique and shared; avoid creating additional instances in functions or classes.

@@ -1,18 +1,25 @@
 #pragma once
 
 #include <Arduino.h>
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include "services/mcp.h"
+
 #include "pins.h"
 
 // Pattern types
-enum class VibratorPattern
-{
-    SINGLE_PULSE, // Single vibration pulse
-    DOUBLE_PULSE, // Two vibration pulses
-    TRIPLE_PULSE, // Three vibration pulses
-    ERROR_PULSE   // Long error pulse
+enum class VibratorPattern {
+    NONE,
+    SINGLE_PULSE,  // Single vibration pulse
+    DOUBLE_PULSE,  // Two vibration pulses
+    TRIPLE_PULSE,  // Three vibration pulses
+    ERROR_PULSE,   // Long error pulse
+    BOOT,
+    SHUTDOWN,
+    DEVICE_CONNECTED,
+    DEVICE_DISCONNECTED,
+    PAUSED,
+    PLAY
 };
 
 // Initialize the vibrator system

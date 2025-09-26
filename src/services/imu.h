@@ -10,8 +10,5 @@ extern LSM6DS3 imuInstance;
 // Function declarations
 bool initIMUService();
 void updateIMUReadings();
-float getAccelX();
-float getAccelY();
-float getAccelZ();
 
 #endif // IMU_SERVICE_H

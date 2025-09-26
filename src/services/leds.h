@@ -1,14 +1,20 @@
-#ifndef LEDS_H
-#define LEDS_H
+#ifndef LEDS_SERVICE_H
+#define LEDS_SERVICE_H
 
-#include <Arduino.h>
-#include <Adafruit_NeoPixel.h>
-#include "pins.h"
+#include <FastLED.h>
+#include <pins.h>
 
-extern Adafruit_NeoPixel strip;
+#define BRIGHTNESS 255
+#define LED_TYPE WS2811
+#define COLOR_ORDER GRB
 
-void initLeds();
+extern CRGB leds[pins::NUM_LEDS];
+extern float ledPaceSpeedRpm;
 
-extern uint8_t brightness;
+void initFastLEDs();
 
-#endif
+void setLed(uint8_t color_value, uint8_t brightness = 255,
+            uint16_t duration_ms = 250);
+void setLedOff();
+
+#endif  // LEDS_SERVICE_H
