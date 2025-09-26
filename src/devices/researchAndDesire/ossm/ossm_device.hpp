@@ -10,11 +10,14 @@
 
 #include "../../device.h"
 
-#define OSSM_CHARACTERISTIC_UUID_COMMAND "522B443A-4F53-534D-0002-420BADBABE69"
-#define OSSM_CHARACTERISTIC_UUID_STATE "522b443a-4f53-534d-1000-420badbabe69"
+#define OSSM_CHARACTERISTIC_UUID_COMMAND "522B443A-4F53-534D-1000-420BADBABE69"
 #define OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT \
-    "522B443A-4F53-534D-0010-420BADBABE69"
-#define OSSM_CHARACTERISTIC_UUID_PATTERNS "522b443a-4f53-534d-2000-420badbabe69"
+    "522B443A-4F53-534D-1010-420BADBABE69"
+
+#define OSSM_CHARACTERISTIC_UUID_STATE "522b443a-4f53-534d-2000-420badbabe69"
+#define OSSM_CHARACTERISTIC_UUID_PATTERNS "522b443a-4f53-534d-3000-420badbabe69"
+#define OSSM_CHARACTERISTIC_UUID_PATTERN_DESCRIPTION \
+    "522b443a-4f53-534d-3010-420badbabe69"
 
 class OSSM : public Device {
   public:
@@ -29,6 +32,8 @@ class OSSM : public Device {
             {"speedKnobLimit",
              {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT)}},
             {"patterns", {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_PATTERNS)}},
+            {"patternDescription",
+             {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_PATTERN_DESCRIPTION)}},
             {"state", {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_STATE)}},
         };
     }
@@ -133,11 +138,20 @@ class OSSM : public Device {
                     icon = researchAndDesireFaceWink;
                 }
 
-                ESP_LOGI(TAG, "Pattern: %s, %d", name.c_str(),
-                         v["idx"].as<int>());
+                // set pattern description char to idx.
+
+                int idx = v["idx"].as<int>();
+
+                std::optional<std::string> description = std::nullopt;
+                if (send("patternDescription", std::to_string(idx))) {
+                    description = readString("patternDescription");
+                    ESP_LOGI(TAG, "Description: %s", description->c_str());
+                }
+
+                ESP_LOGI(TAG, "Pattern: %s, %d", name.c_str(), idx);
                 this->menu.push_back(MenuItem{MenuItemE::DEVICE_MENU_ITEM, name,
-                                              icon,
-                                              .metaIndex = v["idx"].as<int>()});
+                                              icon, description,
+                                              .metaIndex = idx});
             }
         });
 

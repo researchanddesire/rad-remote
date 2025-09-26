@@ -24,6 +24,7 @@ struct MenuItem {
     const MenuItemE id;
     const std::string name;
     const uint8_t *bitmap;
+    const std::optional<std::string> description = std::nullopt;
 
     // optional color defaults to -1;
     int color = -1;
