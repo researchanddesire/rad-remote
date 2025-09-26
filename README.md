@@ -11,7 +11,7 @@ Most OSSM development takes place through ideas and CAD contributions made by en
 
 #### Check out our docs at [GitBook](https://kinky-makers.gitbook.io/open-source-sex-machine-remote)
 
-#### Read our FAQS:
+Read our FAQS:
 
 {% content-ref url="faqs.md" %}
 [faqs.md](faqs.md)
