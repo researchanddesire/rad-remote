@@ -25,6 +25,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Exit early if only markdown files changed
+        if: ${{ !endsWith(github.event.sender.login, '[bot]') }}
+        run: |
+          # Get list of changed files in the last commit
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          echo "Changed files: $CHANGED_FILES"
+
+          # Check if all changed files are markdown files
+          NON_MD_FILES=$(echo "$CHANGED_FILES" | grep -v '\.md$' | grep -v '^$')
+
+          if [ -z "$NON_MD_FILES" ] && [ -n "$CHANGED_FILES" ]; then
+            echo "Exiting early: only markdown files changed"
+            exit 0
+          else
+            echo "Non-markdown files changed, proceeding with version bump"
+          fi
+
       - name: Get next version
         id: get_next_version
         run: |
