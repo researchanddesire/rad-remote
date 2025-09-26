@@ -1,9 +1,9 @@
-#ifndef LOCKBOX_VERSION_H
-#define LOCKBOX_VERSION_H
+#ifndef OSSM_REMOTE_VERSION_H
+#define OSSM_REMOTE_VERSION_H
 
-#define VERSION "0.0.7"
+#define VERSION "0.0.8"
 #define MAJOR_VERSION 0
 #define MINOR_VERSION 0
-#define PATCH_VERSION 7
+#define PATCH_VERSION 8
 
-#endif  // LOCKBOX_VERSION_H
+#endif  // OSSM_REMOTE_VERSION_H

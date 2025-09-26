@@ -9,6 +9,15 @@
         "datetime": "2025-07-08T15:59:23Z"
     },
     {
+        "version": "0.0.3",
+        "major": 0,
+        "minor": 0,
+        "patch": 3,
+        "url": "./v/0.0.3/version.json",
+        "firmware": "./v/0.0.3/firmware.bin",
+        "datetime": "2025-09-26T07:51:35Z"
+    },
+    {
         "version": "0.0.7",
         "major": 0,
         "minor": 0,
@@ -16,5 +25,14 @@
         "url": "./v/0.0.7/version.json",
         "firmware": "./v/0.0.7/firmware.bin",
         "datetime": "2025-09-26T04:14:33Z"
+    },
+    {
+        "version": "0.0.8",
+        "major": 0,
+        "minor": 0,
+        "patch": 8,
+        "url": "./v/0.0.8/version.json",
+        "firmware": "./v/0.0.8/firmware.bin",
+        "datetime": "2025-09-26T07:51:36Z"
     }
 ]
