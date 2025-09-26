@@ -21,6 +21,14 @@ namespace Colors {
     // light gray for body text rgb(156 163 175);
     constexpr int lightGray = 0x9c71;
 
+    // light gray for body text rgb(156 163 175);
+    constexpr int textForeground = ST77XX_WHITE;
+    // Slightly darker than white: use a very light gray (e.g., rgb(220,220,220)
+    // ≈ 0xDEFB)
+    constexpr int textForegroundSecondary = 0xDEFB;
+
+    constexpr int textBackground = 0x4aac;
+
 }
 
 namespace LEDColors {

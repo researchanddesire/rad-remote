@@ -1,11 +1,12 @@
 #ifndef GENERIC_PAGES_H
 #define GENERIC_PAGES_H
 
-#include "constants/Strings.h"
-#include "components/TextPages.h"
 #include "constants/Sizes.h"
+#include "constants/Strings.h"
+#include "pages/TextPages.h"
 
 void drawPageTask(void *pvParameters);
-void updateStatusText(const String &statusMessage); //Future plans to expand to include text color.
+void updateStatusText(const String &statusMessage);  // Future plans to expand
+                                                     // to include text color.
 
 #endif

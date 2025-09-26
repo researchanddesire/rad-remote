@@ -4,6 +4,7 @@
 #define OSSM_DEVICE_H
 
 #include <ArduinoJson.h>
+#include <components/DynamicText.h>
 #include <components/EncoderDial.h>
 #include <components/LinearRailGraph.h>
 #include <components/TextButton.h>
@@ -24,6 +25,8 @@ class OSSM : public Device {
     SettingPercents settings;
     int rightFocusedIndex = 0;
     int leftFocusedIndex = 0;
+    std::string patternName = DEFAULT_OSSM_PATTERN_NAME;
+    bool isFirstConnect = true;
 
     explicit OSSM(const NimBLEAdvertisedDevice *advertisedDevice)
         : Device(advertisedDevice) {
@@ -66,6 +69,8 @@ class OSSM : public Device {
 
         draw<LinearRailGraph>(&this->settings.stroke, &this->settings.depth, -1,
                               Display::PageHeight - 40, Display::WIDTH);
+
+        draw<DynamicText>(this->patternName, -1, Display::HEIGHT - 90);
 
         // Create a left encoder dial with Speed parameter
         std::map<String, float *> leftParams = {
@@ -110,50 +115,52 @@ class OSSM : public Device {
                      this->settings.pattern);
         });
 
-        // And then we pull the patterns from the device
-        readJson<JsonArray>("patterns", [this](const JsonArray &patterns) {
-            // clear the patterns vector
-            this->menu.clear();
+        if (isFirstConnect || menu.empty()) {
+            // And then we pull the patterns from the device
+            readJson<JsonArray>("patterns", [this](const JsonArray &patterns) {
+                // clear the patterns vector
+                this->menu.clear();
 
-            for (JsonVariant v : patterns) {
-                auto icon = researchAndDesireWaves;
-                std::string name = v["name"].as<const char *>();
-                std::string lowerName = name;
-                std::transform(lowerName.begin(), lowerName.end(),
-                               lowerName.begin(), ::tolower);
+                for (JsonVariant v : patterns) {
+                    auto icon = researchAndDesireWaves;
+                    std::string name = v["name"].as<const char *>();
+                    std::string lowerName = name;
+                    std::transform(lowerName.begin(), lowerName.end(),
+                                   lowerName.begin(), ::tolower);
 
-                if (lowerName.find("simple") != std::string::npos) {
-                    icon = researchAndDesireWaves;
-                } else if (lowerName.find("teasing") != std::string::npos) {
-                    icon = researchAndDesireHeart;
-                } else if (lowerName.find("robo") != std::string::npos) {
-                    icon = researchAndDesireTerminal;
-                } else if (lowerName.find("stop") != std::string::npos) {
-                    icon = researchAndDesireHourglass03;
-                } else if (lowerName.find("insist") != std::string::npos) {
-                    icon = researchAndDesireItalic02;
-                } else if (lowerName.find("deeper") != std::string::npos) {
-                    icon = researchAndDesireArrowsRight;
-                } else if (lowerName.find("half") != std::string::npos) {
-                    icon = researchAndDesireFaceWink;
+                    if (lowerName.find("simple") != std::string::npos) {
+                        icon = researchAndDesireWaves;
+                    } else if (lowerName.find("teasing") != std::string::npos) {
+                        icon = researchAndDesireHeart;
+                    } else if (lowerName.find("robo") != std::string::npos) {
+                        icon = researchAndDesireTerminal;
+                    } else if (lowerName.find("stop") != std::string::npos) {
+                        icon = researchAndDesireHourglass03;
+                    } else if (lowerName.find("insist") != std::string::npos) {
+                        icon = researchAndDesireItalic02;
+                    } else if (lowerName.find("deeper") != std::string::npos) {
+                        icon = researchAndDesireArrowsRight;
+                    } else if (lowerName.find("half") != std::string::npos) {
+                        icon = researchAndDesireFaceWink;
+                    }
+
+                    // set pattern description char to idx.
+
+                    int idx = v["idx"].as<int>();
+
+                    std::optional<std::string> description = std::nullopt;
+                    if (send("patternDescription", std::to_string(idx))) {
+                        description = readString("patternDescription");
+                        ESP_LOGI(TAG, "Description: %s", description->c_str());
+                    }
+
+                    ESP_LOGI(TAG, "Pattern: %s, %d", name.c_str(), idx);
+                    this->menu.push_back(MenuItem{MenuItemE::DEVICE_MENU_ITEM,
+                                                  name, icon, description,
+                                                  .metaIndex = idx});
                 }
-
-                // set pattern description char to idx.
-
-                int idx = v["idx"].as<int>();
-
-                std::optional<std::string> description = std::nullopt;
-                if (send("patternDescription", std::to_string(idx))) {
-                    description = readString("patternDescription");
-                    ESP_LOGI(TAG, "Description: %s", description->c_str());
-                }
-
-                ESP_LOGI(TAG, "Pattern: %s, %d", name.c_str(), idx);
-                this->menu.push_back(MenuItem{MenuItemE::DEVICE_MENU_ITEM, name,
-                                              icon, description,
-                                              .metaIndex = idx});
-            }
-        });
+            });
+        }
 
         // finally, we set inital preferences and go to stroke engine mode
         send("speedKnobLimit", "false");
@@ -164,24 +171,7 @@ class OSSM : public Device {
         vTaskDelay(pdMS_TO_TICKS(250));
 
         isConnected = true;
-
-// SPAM TEST
-#ifdef SPAM_OSSM_TEST
-        int i = 0;
-        bool goingUp = true;
-        while (true) {
-            setSpeed(i);
-            leftEncoder.setEncoderValue(i);
-            i += goingUp ? 1 : -1;
-            if (i >= 100) {
-                goingUp = false;
-            }
-            if (i <= 0) {
-                goingUp = true;
-            }
-            vTaskDelay(50 / portTICK_PERIOD_MS);
-        }
-#endif
+        isFirstConnect = false;
     }
 
     void onPause() override {
@@ -267,6 +257,7 @@ class OSSM : public Device {
     bool setPattern(int pattern) {
         if (menu.empty()) {
             ESP_LOGW(TAG, "setPattern called but menu is empty");
+            patternName = EMPTY_STRING;
             return false;
         }
         if (pattern == static_cast<int>(settings.pattern)) {
@@ -275,6 +266,7 @@ class OSSM : public Device {
         settings.pattern = static_cast<StrokePatterns>(pattern);
         pattern = pattern % menu.size();
         int patternIdx = menu[pattern].metaIndex;
+        patternName = menu[pattern].name;
         return send("command",
                     std::string("set:pattern:") + std::to_string(patternIdx));
     }

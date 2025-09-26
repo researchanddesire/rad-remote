@@ -10,12 +10,11 @@ class DisplayObject {
     bool isDirty = false;
     long lastDrawTime = 0;
 
-  private:
-    bool isFirstDraw = true;
-
   public:
     DisplayObject(int16_t x, int16_t y, int16_t width, int16_t height)
         : x(x), y(y), width(width), height(height) {}
+
+    bool isFirstDraw = true;
 
     virtual ~DisplayObject() {}
 
