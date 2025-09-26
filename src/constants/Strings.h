@@ -18,6 +18,7 @@ static const char CANCEL_STRING[] PROGMEM = "Cancel";
 // MENUS
 
 static const char EMPTY_STRING[] PROGMEM = "";
+static const char DEFAULT_OSSM_PATTERN_NAME[] PROGMEM = "Simple Stroke";
 
 static const char OSSM_CONTROLLER_NAME[] PROGMEM = "Device Search";
 static const char SETTINGS_NAME[] PROGMEM = "Settings";

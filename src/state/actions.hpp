@@ -16,8 +16,8 @@
 #include <services/wm.h>
 
 #include "components/TextButton.h"
-#include "components/TextPages.h"
 #include "events.hpp"
+#include "pages/TextPages.h"
 #include "pages/controller.h"
 #include "pages/menus.h"
 
