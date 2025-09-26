@@ -24,8 +24,9 @@ class OSSM : public Device {
     int leftFocusedIndex = 0;
     String pendingPatternTitle = "Loading...";  // Temporary pattern name to
                                                 // apply when overlay is created
-    
-    // Parameter maps for encoder dials (must be member variables to avoid heap corruption)
+
+    // Parameter maps for encoder dials (must be member variables to avoid heap
+    // corruption)
     std::map<String, float *> leftParams;
     std::map<String, float *> rightParams;
 
@@ -38,12 +39,12 @@ class OSSM : public Device {
             {"patterns", {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_PATTERNS)}},
             {"state", {NimBLEUUID(OSSM_CHARACTERISTIC_UUID_STATE)}},
         };
-        
+
         // Initialize parameter maps for encoder dials with static String keys
         leftParams = {{"Speed", &this->settings.speed}};
         rightParams = {{"Stroke", &this->settings.stroke},
-                      {"Depth", &this->settings.depth},
-                      {"Sens.", &this->settings.sensation}};
+                       {"Depth", &this->settings.depth},
+                       {"Sens.", &this->settings.sensation}};
     }
 
     const char *getName() override { return "OSSM"; }
