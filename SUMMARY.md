@@ -8,5 +8,7 @@
       * [Deepthroat Trainer (DTT)](src/devices/researchAndDesire/dtt/README.md)
       * [Chastity Lockbox (LKBX)](src/devices/researchAndDesire/lkbx/README.md)
       * [Open Source Sex Machine (OSSM)](src/devices/researchAndDesire/ossm/README.md)
+    * [Lovense Products](src/devices/lovense/README.md)
+      * [Domi2](src/devices/lovense/domi/README.md)
   * [Services](src/services/readme.md)
 * [FAQs](faqs.md)
