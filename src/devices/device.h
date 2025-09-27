@@ -71,6 +71,18 @@ class Device : public NimBLEClientCallbacks {
     virtual void onRightEncoderChange(int value) {}
     virtual void onLeftEncoderChange(int value) {}
 
+    // Override this method to enable persistent left encoder monitoring across
+    // device states, such as while in a device_menu
+    virtual bool needsPersistentLeftEncoderMonitoring() const { return false; }
+
+    // Override this method to provide the current left encoder value for
+    // devices with persistent encoder monitoring
+    virtual int getCurrentLeftEncoderValue() const { return 0; }
+
+    // Override this method to provide the left encoder parameter name for
+    // devices with persistent encoder monitoring
+    virtual const char *getLeftEncoderParameterName() const { return "Value"; }
+
     virtual void drawControls() {}
     virtual void drawDeviceMenu();
 

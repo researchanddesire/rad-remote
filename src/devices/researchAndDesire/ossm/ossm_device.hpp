@@ -232,7 +232,7 @@ class OSSM : public Device {
     bool setSpeed(int speed) {
         // Send if value changed OR if encoder has moved
         // (even if sent value claims to be the same as previous)
-        if (speed == settings.speed && !hasLeftEncoderChanged()) {
+        if (speed == settings.speed && !hasLeftEncoderChanged(true)) {
             return true;
         }
         settings.speed = speed;
@@ -246,7 +246,7 @@ class OSSM : public Device {
     bool setDepth(int depth) {
         // Send if value changed OR if encoder has moved
         // (even if sent value claims to be the same as previous)
-        if (depth == settings.depth && !hasRightEncoderChanged()) {
+        if (depth == settings.depth && !hasRightEncoderChanged(true)) {
             return true;
         }
         settings.depth = depth;
@@ -260,7 +260,7 @@ class OSSM : public Device {
     bool setStroke(int stroke) {
         // Send if value changed OR if encoder has moved
         // (even if sent value claims to be the same as previous)
-        if (stroke == settings.stroke && !hasRightEncoderChanged()) {
+        if (stroke == settings.stroke && !hasRightEncoderChanged(true)) {
             return true;
         }
         settings.stroke = stroke;
@@ -272,7 +272,7 @@ class OSSM : public Device {
     bool setSensation(int sensation) {
         // Send if value changed OR if encoder has moved (even if value stayed
         // same due to boundaries)
-        if (sensation == settings.sensation && !hasRightEncoderChanged()) {
+        if (sensation == settings.sensation && !hasRightEncoderChanged(true)) {
             return true;
         }
         settings.sensation = sensation;
@@ -331,6 +331,17 @@ class OSSM : public Device {
     }
 
     void onLeftEncoderChange(int value) override { setSpeed(value); }
+
+    // Enable persistent encoder monitoring for safety-critical speed control
+    bool needsPersistentLeftEncoderMonitoring() const override { return true; }
+
+    // Provide current speed value for status display
+    int getCurrentLeftEncoderValue() const override {
+        return static_cast<int>(settings.speed);
+    }
+
+    // Provide the left encoder parameter name for display
+    const char *getLeftEncoderParameterName() const override { return "Speed"; }
 
   private:
     void updatePatternNameFromState() {

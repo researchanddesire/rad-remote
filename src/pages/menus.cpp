@@ -1,5 +1,7 @@
 #include "menus.h"
 
+#include <components/DynamicText.h>
+#include <devices/device.h>
 #include <services/encoder.h>
 #include <state/remote.h>
 
@@ -123,6 +125,26 @@ void drawMenuFrame() {
     }
 }
 
+// Global string for dynamic text display - lives at file scope for persistence
+static std::string encoderDisplayText = "";
+static bool encoderDisplayNeedsCreation = true;
+
+static void updateLeftEncoderValue(const std::string &label, int value) {
+    // Update the persistent string that DynamicText monitors
+    encoderDisplayText = label + ": " + std::to_string(value);
+}
+
+static void createEncoderDisplayObject() {
+    if (device != nullptr && encoderDisplayNeedsCreation) {
+        device->draw<DynamicText>(
+            encoderDisplayText,    // reference to persistent string
+            Display::Padding::P1,  // x position
+            Display::StatusbarHeight - Display::Padding::P1  // y position
+        );
+        encoderDisplayNeedsCreation = false;
+    }
+}
+
 void drawMenuTask(void *pvParameters) {
     int lastEncoderValue = -1;
 
@@ -132,8 +154,16 @@ void drawMenuTask(void *pvParameters) {
                stateMachine->is("device_menu"_s);
     };
 
+    auto isInNestedState = []() { return stateMachine->is("device_menu"_s); };
+
     // Ensure global handle is set for lifecycle coordination
     menuTaskHandle = xTaskGetCurrentTaskHandle();
+
+    // Mark encoder display as needing creation for device menu
+    if (device != nullptr && stateMachine->is("device_menu"_s) &&
+        device->needsPersistentLeftEncoderMonitoring()) {
+        encoderDisplayNeedsCreation = true;
+    }
 
     // Important!!
     // Never run setEncoderValue without ensuring you're in the expected
@@ -151,16 +181,57 @@ void drawMenuTask(void *pvParameters) {
     }
 
     while (isInCorrectState() && !menuTaskExitRequested) {
-        vTaskDelay(1);
-
         currentOption = rightEncoder.readEncoder();
 
-        if (lastEncoderValue == currentOption) {
-            continue;
+        // Check if we need to update left encoder persistent display for
+        // devices with persistent encoder monitoring
+        static int lastLeftEncoderValue = -1;
+        static bool isFirstDeviceMenuEntry = true;
+        bool shouldUpdateLeftEncoderValue = false;
+        int currentLeftEncoderValue = 0;
+
+        if (isInNestedState() && device != nullptr &&
+            device->needsPersistentLeftEncoderMonitoring()) {
+            currentLeftEncoderValue = device->getCurrentLeftEncoderValue();
+
+            // Create display object on first entry
+            createEncoderDisplayObject();
+
+            // Force display on first entry or when left encoder value changes
+            if (isFirstDeviceMenuEntry ||
+                currentLeftEncoderValue != lastLeftEncoderValue) {
+                lastLeftEncoderValue = currentLeftEncoderValue;
+                shouldUpdateLeftEncoderValue = true;
+                isFirstDeviceMenuEntry = false;
+            }
         } else {
-            lastEncoderValue = currentOption;
-            drawMenuFrame();
+            // Reset flag when not in device menu
+            isFirstDeviceMenuEntry = true;
         }
+
+        if (lastEncoderValue == currentOption &&
+            !shouldUpdateLeftEncoderValue) {
+            // No changes needed, just tick display objects
+        } else {
+            if (lastEncoderValue != currentOption) {
+                lastEncoderValue = currentOption;
+                drawMenuFrame();
+            }
+
+            if (shouldUpdateLeftEncoderValue) {
+                updateLeftEncoderValue(device->getLeftEncoderParameterName(),
+                                       currentLeftEncoderValue);
+            }
+        }
+
+        // Tick all display objects
+        if (device != nullptr) {
+            for (auto &displayObject : device->displayObjects) {
+                displayObject->tick();
+            }
+        }
+
+        vTaskDelay(16 / portTICK_PERIOD_MS);
     }
 
     // Mark as finished before self-delete so creator can proceed safely
@@ -172,16 +243,15 @@ void drawMenu() {
     // If an existing task is running, request cooperative exit and wait
     if (menuTaskHandle != NULL) {
         menuTaskExitRequested = true;
-        // Wait (with timeout) for the task to cleanly exit and release any
-        // mutexes
+        // Reduced timeout for faster transitions
         const TickType_t waitStart = xTaskGetTickCount();
-        const TickType_t waitTimeout = pdMS_TO_TICKS(200);
+        const TickType_t waitTimeout =
+            pdMS_TO_TICKS(50);  // Reduced from 200ms to 50ms
         while (menuTaskHandle != NULL &&
                (xTaskGetTickCount() - waitStart) < waitTimeout) {
             vTaskDelay(1);
         }
-        // If still not null after timeout, as a last resort suspend to avoid
-        // delete-while-holding-mutex
+        // If still not null after timeout, force cleanup
         if (menuTaskHandle != NULL) {
             vTaskSuspend(menuTaskHandle);
             vTaskDelete(menuTaskHandle);
@@ -195,7 +265,8 @@ void drawMenu() {
     ESP_LOGD("MENU", "Drawing menu");
 
     clearPage();
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+    // Reduced delay for faster startup
+    vTaskDelay(10 / portTICK_PERIOD_MS);  // Reduced from 50ms to 10ms
     xTaskCreatePinnedToCore(drawMenuTask, "drawMenuTask",
                             5 * configMINIMAL_STACK_SIZE, NULL, 5,
                             &menuTaskHandle, 1);

@@ -36,3 +36,7 @@ struct connected_event : public base_event {};
 struct connected_error_event : public base_event {};
 
 struct disconnected_event : public base_event {};
+
+struct left_encoder_changed : public base_event {
+    int value{};
+};

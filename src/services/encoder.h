@@ -18,4 +18,7 @@ void initEncoderService();
 bool hasLeftEncoderChanged();
 bool hasRightEncoderChanged();
 
+bool hasLeftEncoderChanged(bool reset);
+bool hasRightEncoderChanged(bool reset);
+
 #endif  // ENCODER_SERVICE_H

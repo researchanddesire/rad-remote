@@ -11,7 +11,7 @@
 using namespace sml;
 void drawControllerTask(void *pvParameters)
 {
-
+    clearPage();
     ESP_LOGI(TAG, "IN THE CONTROL TASK");
 
     Device *device = static_cast<Device *>(pvParameters);
@@ -27,13 +27,13 @@ void drawControllerTask(void *pvParameters)
     device->displayObjects.clear();
     // give other tasks a chance to catch up.
     vTaskDelay(100 / portTICK_PERIOD_MS);
-    
+
     // Clear only the page area, preserving top 30px for status icons
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         tft.fillRect(0, Display::PageY, Display::WIDTH, Display::PageHeight + 32, ST77XX_BLACK);
         xSemaphoreGive(displayMutex);
     }
-    
+
     device->drawControls();
 
     bool lastLeftShoulderState = HIGH;
@@ -41,9 +41,7 @@ void drawControllerTask(void *pvParameters)
     bool currentLeftShoulderState = HIGH;
     bool currentRightShoulderState = HIGH;
 
-    int lastLeftEncoderValue = -1;
     int lastRightEncoderValue = -1;
-    int currentLeftEncoderValue = -1;
     int currentRightEncoderValue = -1;
 
     auto isInCorrectState = []()
@@ -53,7 +51,6 @@ void drawControllerTask(void *pvParameters)
 
     while (isInCorrectState() && device != nullptr)
     {
-
         currentLeftShoulderState = digitalRead(pins::BTN_L_SHOULDER);
         currentRightShoulderState = digitalRead(pins::BTN_R_SHOULDER);
 
@@ -66,15 +63,9 @@ void drawControllerTask(void *pvParameters)
             device->onRightBumperClick();
         }
 
-        // Encoders
-        currentLeftEncoderValue = leftEncoder.readEncoder();
+        // Right encoder only - left encoder is now handled globally
         currentRightEncoderValue = rightEncoder.readEncoder();
 
-        if (currentLeftEncoderValue != lastLeftEncoderValue)
-        {
-            device->onLeftEncoderChange(currentLeftEncoderValue);
-            lastLeftEncoderValue = currentLeftEncoderValue;
-        }
         if (currentRightEncoderValue != lastRightEncoderValue)
         {
             device->onRightEncoderChange(currentRightEncoderValue);
@@ -91,7 +82,8 @@ void drawControllerTask(void *pvParameters)
             vTaskDelay(1 / portTICK_PERIOD_MS);
         }
 
-        vTaskDelay(16 / portTICK_PERIOD_MS); // ~60fps for smooth updating. TODO: make sure this isn't too much for power usage
+                vTaskDelay(16 / portTICK_PERIOD_MS); // ~60fps for smooth updating.
+
     }
 
     // unique_ptr will clean up automatically when the device is destroyed or vector cleared

@@ -10,7 +10,10 @@ namespace Display {
 
     constexpr int P1 = 6;
     constexpr int StatusbarIcons = 24;
+    constexpr int StatusbarNumberOfIcons = 3;
     constexpr int StatusbarHeight = StatusbarIcons + P1;
+    constexpr int StatusbarWidth =
+        StatusbarIcons * StatusbarNumberOfIcons + P1 * 2;
 
     constexpr int PageHeight = HEIGHT - StatusbarHeight;
     constexpr int PageY = StatusbarHeight;

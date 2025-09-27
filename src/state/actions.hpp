@@ -20,6 +20,7 @@
 #include "pages/TextPages.h"
 #include "pages/controller.h"
 #include "pages/menus.h"
+#include "services/leftEncoderMonitor.h"
 
 namespace actions {
 
@@ -51,9 +52,15 @@ namespace actions {
     };
 
     auto disconnect = []() {
+        // Safety-critical: Ensure left encoder monitoring is stopped if the
+        // device needs it
+        if (device != nullptr &&
+            device->needsPersistentLeftEncoderMonitoring()) {
+            stopLeftEncoderMonitoring();
+        }
+
         if (device != nullptr) {
             device->~Device();
-
             device = nullptr;
         }
 
@@ -76,23 +83,17 @@ namespace actions {
     };
 
     auto drawControl = []() {
-        clearPage();  // Use clearPage to clear only the page area, so the
-                      // status icons stick around
-        // Defer UI work to its own task on core 1 to avoid
-        // heavy display ops inside the state-machine/connection context.
-        // Helps resolve RAD-598
-        xTaskCreatePinnedToCore(
-            [](void *pv) {
-                clearPage();  // Use clearPage to clear only the page area, so
-                              // the status icons stick around
-                // Larger stack for complex UI task
-                xTaskCreatePinnedToCore(
-                    drawControllerTask, "drawControllerTask",
-                    16 * configMINIMAL_STACK_SIZE, device, 5, NULL, 1);
-                vTaskDelete(NULL);
-            },
-            "spawnControllerUI", 6 * configMINIMAL_STACK_SIZE, nullptr, 4,
-            nullptr, 1);
+        // Safety-critical: Ensure left encoder monitoring is active if the
+        // device needs it
+        if (device != nullptr &&
+            device->needsPersistentLeftEncoderMonitoring()) {
+            startLeftEncoderMonitoring();
+        }
+
+        // Single task creation with immediate UI rendering
+        xTaskCreatePinnedToCore(drawControllerTask, "drawControllerTask",
+                                16 * configMINIMAL_STACK_SIZE, device, 5, NULL,
+                                1);
     };
 
     auto search = []() {

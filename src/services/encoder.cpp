@@ -41,15 +41,22 @@ void initEncoderService() {
     rightEncoder.setEncoderValue(50);  // Start at 50ms
 }
 
+bool hasLeftEncoderChanged() { return hasLeftEncoderChanged(false); }
+bool hasRightEncoderChanged() { return hasRightEncoderChanged(false); }
+
 // Helper functions to check encoder change state
-bool hasLeftEncoderChanged() {
+bool hasLeftEncoderChanged(bool reset) {
     bool changed = leftEncoderHasChanged;
-    leftEncoderHasChanged = false;  // Reset after reading
+    if (reset) {
+        leftEncoderHasChanged = false;  // Reset after reading
+    }
     return changed;
 }
 
-bool hasRightEncoderChanged() {
+bool hasRightEncoderChanged(bool reset) {
     bool changed = rightEncoderHasChanged;
-    rightEncoderHasChanged = false;  // Reset after reading
+    if (reset) {
+        rightEncoderHasChanged = false;  // Reset after reading
+    }
     return changed;
 }

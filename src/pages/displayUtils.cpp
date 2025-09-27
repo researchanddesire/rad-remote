@@ -43,10 +43,13 @@ void clearPage(bool clearStatusbar) {
     if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         tft.fillRect(0, Display::PageY, Display::WIDTH, Display::PageHeight,
                      Colors::black);
-        // Also clear top left and top right corners to remove buttons
-        tft.fillRect(0, 0, 75, Display::StatusbarHeight, Colors::black);
-        tft.fillRect(Display::WIDTH - 75, 0, 75, Display::StatusbarHeight,
+        // Clear upper 30px except for a "keepout" zone for status bar
+        int cornerWidth = (Display::WIDTH / 2) - (Display::StatusbarWidth / 2);
+
+        tft.fillRect(0, 0, cornerWidth, Display::StatusbarHeight,
                      Colors::black);
+        tft.fillRect(Display::WIDTH - cornerWidth, 0, cornerWidth,
+                     Display::StatusbarHeight, Colors::black);
 
         xSemaphoreGive(displayMutex);
     }
