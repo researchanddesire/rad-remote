@@ -136,6 +136,14 @@ void drawMenuTask(void *pvParameters) {
     menuTaskHandle = xTaskGetCurrentTaskHandle();
 
     while (isInCorrectState() && !menuTaskExitRequested) {
+        // Important!!
+        // Never run setEncoderValue without ensuring you're in the expected
+        // state. Not doing this can cause the device_controller to receive the
+        // update, causing unexpected setting to be sent to the device.
+        rightEncoder.setBoundaries(0, activeMenuCount - 1, true);
+        rightEncoder.setAcceleration(0);
+        rightEncoder.setEncoderValue(currentOption % activeMenuCount);
+
         vTaskDelay(1);
 
         currentOption = rightEncoder.readEncoder();
@@ -154,10 +162,6 @@ void drawMenuTask(void *pvParameters) {
 }
 
 void drawMenu() {
-    rightEncoder.setBoundaries(0, activeMenuCount - 1, true);
-    rightEncoder.setAcceleration(0);
-    rightEncoder.setEncoderValue(currentOption % activeMenuCount);
-
     // If an existing task is running, request cooperative exit and wait
     if (menuTaskHandle != NULL) {
         menuTaskExitRequested = true;
