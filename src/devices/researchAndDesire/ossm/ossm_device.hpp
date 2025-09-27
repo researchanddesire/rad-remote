@@ -8,6 +8,7 @@
 #include <components/EncoderDial.h>
 #include <components/LinearRailGraph.h>
 #include <components/TextButton.h>
+#include <pages/menus.h>
 
 #include "../../device.h"
 
@@ -159,6 +160,8 @@ class OSSM : public Device {
                                                   name, icon, description,
                                                   .metaIndex = idx});
                 }
+
+                updatePatternNameFromState();
             });
         }
 
@@ -208,6 +211,22 @@ class OSSM : public Device {
     }
 
     void onDeviceMenuItemSelected(int index) override { setPattern(index); }
+
+    void drawDeviceMenu() override {
+        activeMenu = &menu;
+        activeMenuCount = menu.size();
+
+        // Find the menu index that corresponds to the current pattern
+        currentOption = 0;  // Default to first item
+        for (int i = 0; i < menu.size(); i++) {
+            if (menu[i].metaIndex == static_cast<int>(settings.pattern)) {
+                currentOption = i;
+                break;
+            }
+        }
+
+        drawMenu();
+    }
 
     // Helper functions.
     bool setSpeed(int speed) {
@@ -312,6 +331,22 @@ class OSSM : public Device {
     }
 
     void onLeftEncoderChange(int value) override { setSpeed(value); }
+
+  private:
+    void updatePatternNameFromState() {
+        // Find the pattern name that corresponds to the current pattern from
+        // BLE state
+        for (const auto &menuItem : menu) {
+            if (menuItem.metaIndex == static_cast<int>(settings.pattern)) {
+                patternName = menuItem.name;
+                return;
+            }
+        }
+
+        // If no match found, keep default or set to empty
+        ESP_LOGW(TAG, "Could not find pattern name for pattern index: %d",
+                 static_cast<int>(settings.pattern));
+    }
 };
 
 #endif  // OSSM_DEVICE_H
