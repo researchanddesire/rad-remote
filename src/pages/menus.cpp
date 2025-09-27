@@ -135,15 +135,22 @@ void drawMenuTask(void *pvParameters) {
     // Ensure global handle is set for lifecycle coordination
     menuTaskHandle = xTaskGetCurrentTaskHandle();
 
-    while (isInCorrectState() && !menuTaskExitRequested) {
-        // Important!!
-        // Never run setEncoderValue without ensuring you're in the expected
-        // state. Not doing this can cause the device_controller to receive the
-        // update, causing unexpected setting to be sent to the device.
-        rightEncoder.setBoundaries(0, activeMenuCount - 1, true);
-        rightEncoder.setAcceleration(0);
-        rightEncoder.setEncoderValue(currentOption % activeMenuCount);
+    // Important!!
+    // Never run setEncoderValue without ensuring you're in the expected
+    // state. Not doing this can cause the device_controller to receive the
+    // update, causing unexpected setting to be sent to the device.
+    bool initialized = false;
+    while (!initialized) {
+        if (isInCorrectState()) {
+            rightEncoder.setBoundaries(0, activeMenuCount - 1, true);
+            rightEncoder.setAcceleration(0);
+            rightEncoder.setEncoderValue(currentOption % activeMenuCount);
+            initialized = true;
+        }
+        vTaskDelay(1);
+    }
 
+    while (isInCorrectState() && !menuTaskExitRequested) {
         vTaskDelay(1);
 
         currentOption = rightEncoder.readEncoder();
