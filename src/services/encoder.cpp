@@ -6,9 +6,19 @@ DRAM_ATTR AiEsp32RotaryEncoder leftEncoder(pins::LEFT_ENCODER_A,
 DRAM_ATTR AiEsp32RotaryEncoder rightEncoder(pins::RIGHT_ENCODER_A,
                                             pins::RIGHT_ENCODER_B, -1, -1, 4);
 
-void IRAM_ATTR readLeftEncoder() { leftEncoder.readEncoder_ISR(); }
+// Movement tracking state
+static bool leftEncoderHasChanged = false;
+static bool rightEncoderHasChanged = false;
 
-void IRAM_ATTR readRightEncoder() { rightEncoder.readEncoder_ISR(); }
+void IRAM_ATTR readLeftEncoder() {
+    leftEncoder.readEncoder_ISR();
+    leftEncoderHasChanged = true;
+}
+
+void IRAM_ATTR readRightEncoder() {
+    rightEncoder.readEncoder_ISR();
+    rightEncoderHasChanged = true;
+}
 
 void initEncoderService() {
     // Initialize encoders
@@ -29,4 +39,17 @@ void initEncoderService() {
     // Set initial values
     leftEncoder.setEncoderValue(50);   // Start at 50%
     rightEncoder.setEncoderValue(50);  // Start at 50ms
+}
+
+// Helper functions to check encoder change state
+bool hasLeftEncoderChanged() {
+    bool changed = leftEncoderHasChanged;
+    leftEncoderHasChanged = false;  // Reset after reading
+    return changed;
+}
+
+bool hasRightEncoderChanged() {
+    bool changed = rightEncoderHasChanged;
+    rightEncoderHasChanged = false;  // Reset after reading
+    return changed;
 }

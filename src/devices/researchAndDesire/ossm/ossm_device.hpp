@@ -211,7 +211,9 @@ class OSSM : public Device {
 
     // Helper functions.
     bool setSpeed(int speed) {
-        if (speed == settings.speed) {
+        // Send if value changed OR if encoder has moved
+        // (even if sent value claims to be the same as previous)
+        if (speed == settings.speed && !hasLeftEncoderChanged()) {
             return true;
         }
         settings.speed = speed;
@@ -223,7 +225,9 @@ class OSSM : public Device {
     float getDepth() { return constrain(settings.depth, 0.0f, 100.0f); }
 
     bool setDepth(int depth) {
-        if (depth == settings.depth) {
+        // Send if value changed OR if encoder has moved
+        // (even if sent value claims to be the same as previous)
+        if (depth == settings.depth && !hasRightEncoderChanged()) {
             return true;
         }
         settings.depth = depth;
@@ -235,7 +239,9 @@ class OSSM : public Device {
     float getStroke() { return constrain(settings.stroke, 0.0f, 100.0f); }
 
     bool setStroke(int stroke) {
-        if (stroke == settings.stroke) {
+        // Send if value changed OR if encoder has moved
+        // (even if sent value claims to be the same as previous)
+        if (stroke == settings.stroke && !hasRightEncoderChanged()) {
             return true;
         }
         settings.stroke = stroke;
@@ -245,7 +251,9 @@ class OSSM : public Device {
     }
 
     bool setSensation(int sensation) {
-        if (sensation == settings.sensation) {
+        // Send if value changed OR if encoder has moved (even if value stayed
+        // same due to boundaries)
+        if (sensation == settings.sensation && !hasRightEncoderChanged()) {
             return true;
         }
         settings.sensation = sensation;
