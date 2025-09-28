@@ -12,6 +12,9 @@
 extern Adafruit_ST7789 tft;
 extern SemaphoreHandle_t displayMutex;
 
+// Special constant to indicate no pin assignment (visual-only button)
+#define NO_PIN 255
+
 class TextButton : public DisplayObject
 {
 private:
@@ -52,8 +55,15 @@ public:
 
     bool shouldDraw() override
     {
-        bool currentState = digitalRead(buttonPin) == LOW;
-        bool stateChanged = currentState != lastButtonState;
+        bool currentState = false;
+        bool stateChanged = false;
+        
+        // Only check pin state if a valid pin is assigned
+        if (buttonPin != NO_PIN) {
+            currentState = digitalRead(buttonPin) == LOW;
+            stateChanged = currentState != lastButtonState;
+        }
+        
         bool textChanged = buttonText != lastText;
         bool colorsChanged = (textColor != lastTextColor ||
                              backgroundColor != lastBackgroundColor);
@@ -63,7 +73,12 @@ public:
 
     void draw() override
     {
-        bool currentState = digitalRead(buttonPin) == LOW;
+        bool currentState = false;
+        
+        // Only check pin state if a valid pin is assigned
+        if (buttonPin != NO_PIN) {
+            currentState = digitalRead(buttonPin) == LOW;
+        }
         
         if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
             // Clear the button area

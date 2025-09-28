@@ -9,7 +9,7 @@ static const char DEVICE_SEARCH_DESCRIPTION[] PROGMEM =
 
 static const char DEVICE_STOP_TITLE[] PROGMEM = "Device Stopped";
 static const char DEVICE_STOP_DESCRIPTION[] PROGMEM =
-    "Your device has been stopped, but it's still connected.";
+    "Your device has been stopped and reset to default play settings; but it's still connected.";
 
 static const char GO_BACK[] PROGMEM = "Back";
 static const char GO_HOME[] PROGMEM = "Home";

@@ -9,6 +9,7 @@
 #include <components/LinearRailGraph.h>
 #include <components/TextButton.h>
 #include <pages/menus.h>
+#include <services/leds.h>
 
 #include "../../device.h"
 
@@ -37,6 +38,15 @@ class OSSM : public Device {
     
     // Reference to the pause button for dynamic text/color changes
     TextButton* pauseStopButton = nullptr;
+    
+    // References to the tab buttons for dynamic styling
+    TextButton* strokeTab = nullptr;
+    TextButton* depthTab = nullptr;
+    TextButton* sensationTab = nullptr;
+    
+    // References to encoder dials for dynamic arc coloring
+    EncoderDial* leftEncoderDial = nullptr;
+    EncoderDial* rightEncoderDial = nullptr;
 
     explicit OSSM(const NimBLEAdvertisedDevice *advertisedDevice)
         : Device(advertisedDevice) {
@@ -64,9 +74,25 @@ class OSSM : public Device {
 
         syncRightEncoder();
 
+        // Tab interface for right encoder settings - positioned near top of screen
+        // Calculate tab dimensions: full width with 5px gaps, equally sized
+        const int16_t tabY = Display::StatusbarHeight;  // Position near top without padding
+        const int16_t tabHeight = 24;
+        const int16_t tabGap = 0;
+        const int16_t totalGaps = 2 * tabGap;  // 2 gaps between 3 tabs
+        const int16_t tabWidth = (DISPLAY_WIDTH - totalGaps) / 3;
+        
+        // Draw the three tabs in the correct order: Depth, Sensation, Stroke
+        depthTab = draw<TextButton>("Depth", NO_PIN, 0, tabY, tabWidth, tabHeight);  // rightFocusedIndex 0
+        sensationTab = draw<TextButton>("Sensation", NO_PIN, tabWidth + tabGap, tabY, tabWidth, tabHeight);  // rightFocusedIndex 1
+        strokeTab = draw<TextButton>("Stroke", NO_PIN, 2 * (tabWidth + tabGap), tabY, tabWidth, tabHeight);  // rightFocusedIndex 2
+        
+        // Update tab appearance based on current focus
+        updateTabAppearance();
+
         // Top bumpers - positioned intentionally with negative margin to square off with screen edge
-        draw<TextButton>("<-", pins::BTN_L_SHOULDER, -5, -5);
-        draw<TextButton>("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 65, -5);
+        draw<TextButton>("<<", pins::BTN_L_SHOULDER, -5, -5);
+        draw<TextButton>(">>", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 65, -5);
 
         // Bottom bumpers - positioned with margin to prevent border cutoff
         draw<TextButton>("Home", pins::BTN_UNDER_L, -5, Display::HEIGHT - 30,
@@ -78,33 +104,44 @@ class OSSM : public Device {
                          Display::HEIGHT - 30, 120);
 
         draw<LinearRailGraph>(&this->settings.stroke, &this->settings.depth, -1,
-                              Display::PageHeight - 40, Display::WIDTH);
+                              Display::PageHeight - 30, Display::WIDTH-20, 20);
 
-        patternNameDisplay = draw<DynamicText>(this->patternName, -1, Display::HEIGHT - 90);
+        patternNameDisplay = draw<DynamicText>(this->patternName, -1, Display::HEIGHT - 70);
 
         // Create a left encoder dial with Speed parameter
         std::map<String, float *> leftParams = {
             {"Speed", &this->settings.speed}};
-        draw<EncoderDial>(EncoderDial::Props{
+        leftEncoderDial = draw<EncoderDial>(EncoderDial::Props{
             .encoder = &leftEncoder,
             .parameters = leftParams,
             .focusedIndex = &this->leftFocusedIndex,
-            .x = 0,
+            .x = 0 + 5,
             .y = (int16_t)(Display::PageY +
-                           10)});  // Both dials aligned 10px lower
+                           40),  // Both dials aligned 10px lower
+            .mapToLeftLed = true});  // Map to left LED
+
+        // Set the left encoder dial color to purple (always active since it only has one parameter)
+        if (leftEncoderDial) {
+            std::vector<uint16_t> leftColors = {Colors::speed};  // Purple for Speed
+            leftEncoderDial->setParameterColors(leftColors);
+        }
 
         // Create a right encoder dial with all parameters
         std::map<String, float *> rightParams = {
-            {"Stroke", &this->settings.stroke},
             {"Depth", &this->settings.depth},
-            {"Sens.", &this->settings.sensation}};
-        draw<EncoderDial>(EncoderDial::Props{
+            {"Sens.", &this->settings.sensation},
+            {"Stroke", &this->settings.stroke}};
+        rightEncoderDial = draw<EncoderDial>(EncoderDial::Props{
             .encoder = &rightEncoder,
             .parameters = rightParams,
             .focusedIndex = &this->rightFocusedIndex,
-            .x = (int16_t)(DISPLAY_WIDTH - 90),
+            .x = (int16_t)(DISPLAY_WIDTH - 90 -5),
             .y = (int16_t)(Display::PageY +
-                           10)});  // Both dials aligned 10px lower
+                           40),  // Both dials aligned 10px lower
+            .mapToRightLed = true});  // Map to right LED
+
+        // Set up right encoder dial colors to match tab order (Depth, Sensation, Stroke)
+        updateEncoderDialColors();
     }
 
     void onConnect() override {
@@ -172,6 +209,8 @@ class OSSM : public Device {
 
                 updatePatternNameFromState();
             });
+
+            setMiddleLed(Colors::white, 50);
         }
 
         // finally, we set inital preferences and go to stroke engine mode
@@ -205,6 +244,9 @@ class OSSM : public Device {
             pauseStopButton->setColors(Colors::red, Colors::white);
         }
 
+        // Set middle LED to red to indicate STOP state
+        setMiddleLed(Colors::red, 255);
+
         // Reset all play parameters to defaults, state will also be changed
         if (fullStop) {
             setDepth(0);
@@ -221,6 +263,7 @@ class OSSM : public Device {
         leftEncoder.setBoundaries(0, 100);
         isPaused = false;
         resetMiddleButtonCounter();
+        setMiddleLed(Colors::white, 50);
         
         // Reset the pattern name color to default when resuming
         if (patternNameDisplay) {
@@ -232,7 +275,7 @@ class OSSM : public Device {
             pauseStopButton->setText("Pause");
             pauseStopButton->setColors(Colors::textBackground, Colors::black);
         }
-        
+
         updatePatternNameFromState();
 
     }
@@ -254,6 +297,11 @@ class OSSM : public Device {
             });
             vTaskDelay(100 / portTICK_PERIOD_MS);
         } while (isConnected && !isInMenu);
+
+        //release all leds back to global control
+        for (uint8_t i = 0; i < pins::NUM_LEDS; i++) {
+            releaseIndividualLed(i);
+        }
     }
 
     void onDeviceMenuItemSelected(int index) override { setPattern(index); }
@@ -364,12 +412,16 @@ class OSSM : public Device {
         rightFocusedIndex = (rightFocusedIndex + 2) %
                             3;  // Safe decrement and wrap: 0->2, 1->0, 2->1
         syncRightEncoder();
+        updateTabAppearance();
+        updateEncoderDialColors();
     }
 
     void onRightBumperClick() override {
         rightFocusedIndex =
             (rightFocusedIndex + 1) % 3;  // Safe increment and wrap: 2->0
         syncRightEncoder();
+        updateTabAppearance();
+        updateEncoderDialColors();
     }
 
     void onRightEncoderChange(int value) override {
@@ -414,6 +466,44 @@ class OSSM : public Device {
         // If no match found, keep default or set to empty
         ESP_LOGW(TAG, "Could not find pattern name for pattern index: %d",
                  static_cast<int>(settings.pattern));
+    }
+
+    void updateTabAppearance() {
+        if (!strokeTab || !depthTab || !sensationTab) return;
+        
+        // Reset all tabs to default appearance
+        strokeTab->setColors(Colors::disabled, Colors::black);
+        depthTab->setColors(Colors::disabled, Colors::black);
+        sensationTab->setColors(Colors::disabled, Colors::black);
+
+        // Highlight the active tab based on rightFocusedIndex
+        // rightFocusedIndex: 0=Depth, 1=Sensation, 2=Stroke
+        if (rightFocusedIndex == 0) {
+            depthTab->setColors(Colors::depth, Colors::white);  // Active: red background, white text
+        } else if (rightFocusedIndex == 1) {
+            sensationTab->setColors(Colors::sensation, Colors::white);
+        } else if (rightFocusedIndex == 2) {
+            strokeTab->setColors(Colors::stroke, Colors::white);
+        }
+    }
+
+    void updateEncoderDialColors() {
+        if (!rightEncoderDial) return;
+        
+        // Reset all arc colors to default white
+        std::vector<uint16_t> arcColors = {ST77XX_WHITE, ST77XX_WHITE, ST77XX_WHITE};
+        
+        // Set the active parameter's arc color to match the tab color
+        // rightFocusedIndex: 0=Depth, 1=Sensation, 2=Stroke
+        if (rightFocusedIndex == 0) {
+            arcColors[0] = Colors::depth;     // Depth arc gets depth color
+        } else if (rightFocusedIndex == 1) {
+            arcColors[1] = Colors::sensation; // Sensation arc gets sensation color
+        } else if (rightFocusedIndex == 2) {
+            arcColors[2] = Colors::stroke;    // Stroke arc gets stroke color
+        }
+        
+        rightEncoderDial->setParameterColors(arcColors);
     }
 };
 

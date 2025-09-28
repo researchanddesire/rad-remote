@@ -14,6 +14,7 @@
 #include "pins.h"
 #include "services/buzzer.h"
 #include "services/display.h"
+#include "services/leds.h"
 #include "services/vibrator.h"
 // Adafruit GFX fonts
 #include <AiEsp32RotaryEncoder.h>
@@ -33,6 +34,10 @@ class EncoderDial : public DisplayObject {
     int lastFocusedIndex = -1;
     bool isFirstDraw =
         true;  // Track if this is the first draw to avoid unnecessary clearing
+    
+    // LED mapping settings
+    bool mapToLeftLed = false;
+    bool mapToRightLed = false;
 
     void drawArcDirect(int arcRadius, int centerX, int centerY, int fillSteps,
                        int steps, int circleRadius, bool isFocused,
@@ -47,7 +52,7 @@ class EncoderDial : public DisplayObject {
             int y = centerY + arcRadius * sin(angle + 3 * PI / 4);
             if (i < fillSteps || i == 0) {
                 tft.fillCircle(x, y, circleRadius,
-                               isFocused ? ST77XX_WHITE : activeColor);
+                               isFocused ? activeColor : ST77XX_WHITE);
             } else {
                 tft.fillCircle(x, y, circleRadius, 0x7BEF);  // Dark gray color
             }
@@ -67,13 +72,17 @@ class EncoderDial : public DisplayObject {
         int16_t height = 90;
         int minValue = 0;
         int maxValue = 100;
+        bool mapToLeftLed = false;   // Map active color to left LED (LED 0)
+        bool mapToRightLed = false;  // Map active color to right LED (LED 2)
     };
 
     explicit EncoderDial(const Props &props)
         : DisplayObject(props.x, props.y, props.width, props.height),
           parameters(props.parameters),
           color(ST77XX_WHITE),
-          encoder(*props.encoder) {
+          encoder(*props.encoder),
+          mapToLeftLed(props.mapToLeftLed),
+          mapToRightLed(props.mapToRightLed) {
         focusedIndex = props.focusedIndex;
 
         minValue = props.minValue;
@@ -93,6 +102,20 @@ class EncoderDial : public DisplayObject {
             parameters = newParams;
             isDirty = true;
         }
+    }
+
+    void setParameterColors(const std::vector<uint16_t> &paramColors) {
+        colors = paramColors;
+        isDirty = true;
+    }
+
+    void setActiveParameterColor(int paramIndex, uint16_t activeColor) {
+        // Resize colors vector if needed
+        if (colors.size() <= paramIndex) {
+            colors.resize(paramIndex + 1, ST77XX_WHITE);
+        }
+        colors[paramIndex] = activeColor;
+        isDirty = true;
     }
 
     bool shouldDraw() override {
@@ -172,6 +195,11 @@ class EncoderDial : public DisplayObject {
                 bool valueChanged = (lastValueIt == lastParameterValues.end() ||
                                      lastValueIt->second != paramValue);
                 bool isFocused = (arcIndex == *focusedIndex);
+                
+                // For single parameter encoders, always consider the parameter as focused
+                if (parameters.size() == 1) {
+                    isFocused = true;
+                }
 
                 if (valueChanged || isFocused || isFirstDraw ||
                     lastFocusedIndex != *focusedIndex) {
@@ -181,6 +209,9 @@ class EncoderDial : public DisplayObject {
 
                 arcIndex++;
             }
+            
+            // Update LEDs if LED mapping is enabled
+            updateLeds();
 
             // Draw focused parameter label and value with maximum width
             // clearing
@@ -264,6 +295,32 @@ class EncoderDial : public DisplayObject {
             lastParameterValues[param.first] = value;
         }
         lastFocusedIndex = *focusedIndex;
+    }
+
+private:
+    void updateLeds() {
+        if (!mapToLeftLed && !mapToRightLed) return;
+        
+        // Get the active color for the focused parameter
+        uint16_t activeColor = ST77XX_WHITE;  // Default fallback
+        if (*focusedIndex >= 0 && *focusedIndex < (int)colors.size()) {
+            activeColor = colors[*focusedIndex];
+        } else if (*focusedIndex >= 0 && colors.empty()) {
+            activeColor = color;  // Use default color
+        }
+        
+        // For single parameter encoders, always use the first color or default
+        if (parameters.size() == 1) {
+            activeColor = colors.empty() ? color : colors[0];
+        }
+        
+        // Update LEDs
+        if (mapToLeftLed) {
+            setLeftEncoderLed(activeColor);
+        }
+        if (mapToRightLed) {
+            setRightEncoderLed(activeColor);
+        }
     }
 };
 
