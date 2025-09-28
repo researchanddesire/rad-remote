@@ -36,6 +36,9 @@ class OSSM : public Device {
     // Reference to the pattern name display component for color control
     DynamicText* patternNameDisplay = nullptr;
     
+    // Reference to the menu button for dynamic text/color changes
+    TextButton* menuButton = nullptr;
+
     // Reference to the pause button for dynamic text/color changes
     TextButton* pauseStopButton = nullptr;
     
@@ -95,13 +98,19 @@ class OSSM : public Device {
         draw<TextButton>(">>", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 65, -5);
 
         // Bottom bumpers - positioned with margin to prevent border cutoff
-        draw<TextButton>("Home", pins::BTN_UNDER_L, -5, Display::HEIGHT - 30,
+        //NOTE: This button is currently non-functional as OSSM has no device menu and is set to NO_PIN to disable.
+        menuButton = draw<TextButton>("Menu", NO_PIN, -5, Display::HEIGHT - 30,
                          90);
         draw<TextButton>("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 85,
                          Display::HEIGHT - 30, 90);
 
         pauseStopButton = draw<TextButton>("Pause", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60,
                          Display::HEIGHT - 30, 120);
+
+        // Set initial disabled state for menu button (enabled only when paused)
+        if (menuButton) {
+            menuButton->setColors(Colors::disabled, Colors::black);
+        }
 
         draw<LinearRailGraph>(&this->settings.stroke, &this->settings.depth, -1,
                               Display::PageHeight - 30, Display::WIDTH-20, 20);
@@ -211,6 +220,10 @@ class OSSM : public Device {
             });
 
             setMiddleLed(Colors::white, 50);
+            // Disable menu button in default state
+            if (menuButton) {
+                menuButton->setColors(Colors::disabled, Colors::black);
+            }
         }
 
         // finally, we set inital preferences and go to stroke engine mode
@@ -244,6 +257,12 @@ class OSSM : public Device {
             pauseStopButton->setColors(Colors::red, Colors::white);
         }
 
+        // TODO: Uncomment this when functionality is added for OSSM Device Menu
+        // Enable menu button when paused
+        // if (menuButton) {
+        //     menuButton->setColors(Colors::textBackground, Colors::black);
+        // }
+
         // Set middle LED to red to indicate STOP state
         setMiddleLed(Colors::red, 255);
 
@@ -274,6 +293,11 @@ class OSSM : public Device {
         if (pauseStopButton) {
             pauseStopButton->setText("Pause");
             pauseStopButton->setColors(Colors::textBackground, Colors::black);
+        }
+
+        // Disable menu button when resumed
+        if (menuButton) {
+            menuButton->setColors(Colors::disabled, Colors::black);
         }
 
         updatePatternNameFromState();

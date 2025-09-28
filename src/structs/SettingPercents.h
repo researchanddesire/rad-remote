@@ -15,9 +15,9 @@ enum class StrokePatterns
 struct SettingPercents
 {
     float speed = 0;
-    float stroke = 0;
+    float stroke = 50;
     float sensation = 50;
-    float depth = 50;
+    float depth = 10; // default to 10% depth
     StrokePatterns pattern = StrokePatterns::SimpleStroke;
 };
 
