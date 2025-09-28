@@ -98,8 +98,7 @@ class OSSM : public Device {
         draw<TextButton>(">>", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 65, -5);
 
         // Bottom bumpers - positioned with margin to prevent border cutoff
-        //NOTE: This button is currently non-functional as OSSM has no device menu and is set to NO_PIN to disable.
-        menuButton = draw<TextButton>("Menu", NO_PIN, -5, Display::HEIGHT - 30,
+        menuButton = draw<TextButton>("Menu", pins::BTN_UNDER_L, -5, Display::HEIGHT - 30,
                          90);
         draw<TextButton>("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 85,
                          Display::HEIGHT - 30, 90);
