@@ -105,6 +105,13 @@ namespace actions {
         if (device == nullptr) {
             return;
         }
+        device->onPause(true);
+    };
+
+    auto softPause = []() {
+        if (device == nullptr) {
+            return;
+        }
         device->onPause();
     };
 

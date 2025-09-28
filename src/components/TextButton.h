@@ -5,6 +5,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
 #include <Fonts/FreeSans9pt7b.h>  // Match genericPages button font
+#include "constants/Colors.h"
 #include "DisplayObject.h"
 #include "../services/display.h"
 
@@ -15,19 +16,49 @@ class TextButton : public DisplayObject
 {
 private:
     bool lastButtonState = false;
-    const String buttonText;
+    String buttonText;
     const uint8_t buttonPin;
+    
+    // Dynamic styling properties
+    uint16_t textColor = Colors::black;
+    uint16_t backgroundColor = Colors::textBackground;
+    uint16_t pressedTextColor = Colors::black;
+    uint16_t pressedBackgroundColor = Colors::white;
+    
+    // Track changes for redraw
+    String lastText;
+    uint16_t lastTextColor;
+    uint16_t lastBackgroundColor;
 
 public:
-    TextButton(const String &text, uint8_t pin, int16_t x, int16_t y, int16_t width = 70, int16_t height = 30)
+    TextButton(const String &text, uint8_t pin, int16_t x, int16_t y, int16_t width = 70, int16_t height = 35)
         : DisplayObject(x, y, width, height), buttonText(text), buttonPin(pin)
     {
+        // Initialize tracking variables
+        lastText = text;
+        lastTextColor = textColor;
+        lastBackgroundColor = backgroundColor;
+    }
+
+    // Methods to dynamically change button appearance
+    void setText(const String &text) {
+        buttonText = text;
+    }
+
+    void setColors(uint16_t backgroundColor = Colors::textBackground, uint16_t textColor = Colors::white) {
+        this->textColor = textColor;
+        this->backgroundColor = backgroundColor;
     }
 
     bool shouldDraw() override
     {
         bool currentState = digitalRead(buttonPin) == LOW;
-        return currentState != lastButtonState;
+        bool stateChanged = currentState != lastButtonState;
+        bool textChanged = buttonText != lastText;
+        bool colorsChanged = (textColor != lastTextColor ||
+                             backgroundColor != lastBackgroundColor);
+        
+        return stateChanged || textChanged || colorsChanged || isFirstDraw;
     }
 
     void draw() override
@@ -41,11 +72,13 @@ public:
             tft.setFont(&FreeSans9pt7b);
             
             if (!currentState) {
-                tft.drawRoundRect(x, y, width, height, 5, 0x7BEF);
-                tft.setTextColor(0x7BEF);
-            } else {
-                tft.fillRoundRect(x, y, width, height, 5, ST77XX_WHITE);
-                tft.setTextColor(ST77XX_BLACK);
+                // Use filled rectangle for improved visuals 
+                //(border-only near physical screen border can cause visual artifacts)
+                tft.fillRoundRect(x, y, width, height, 5, backgroundColor);
+                tft.setTextColor(textColor);
+            } else {                
+                tft.fillRoundRect(x, y, width, height, 5, pressedBackgroundColor);
+                tft.setTextColor(pressedTextColor);
             }
             
             // Calculate text position for proper centering (matching genericPages.cpp style)
@@ -65,7 +98,12 @@ public:
             xSemaphoreGive(displayMutex);
         }
         
+        // Update tracking variables
         lastButtonState = currentState;
+        lastText = buttonText;
+        lastTextColor = textColor;
+        lastBackgroundColor = backgroundColor;
+        isFirstDraw = false;
     }
 };
 

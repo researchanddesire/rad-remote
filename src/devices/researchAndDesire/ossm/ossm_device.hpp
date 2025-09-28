@@ -12,6 +12,9 @@
 
 #include "../../device.h"
 
+// Forward declaration for button counter reset function
+extern void resetMiddleButtonCounter();
+
 #define OSSM_CHARACTERISTIC_UUID_COMMAND "522B443A-4F53-534D-1000-420BADBABE69"
 #define OSSM_CHARACTERISTIC_UUID_SET_SPEED_KNOB_LIMIT \
     "522B443A-4F53-534D-1010-420BADBABE69"
@@ -28,6 +31,12 @@ class OSSM : public Device {
     int leftFocusedIndex = 0;
     std::string patternName = DEFAULT_OSSM_PATTERN_NAME;
     bool isFirstConnect = true;
+    
+    // Reference to the pattern name display component for color control
+    DynamicText* patternNameDisplay = nullptr;
+    
+    // Reference to the pause button for dynamic text/color changes
+    TextButton* pauseStopButton = nullptr;
 
     explicit OSSM(const NimBLEAdvertisedDevice *advertisedDevice)
         : Device(advertisedDevice) {
@@ -55,23 +64,23 @@ class OSSM : public Device {
 
         syncRightEncoder();
 
-        // Top bumpers - positioned with margin to prevent border cutoff
-        draw<TextButton>("<-", pins::BTN_L_SHOULDER, 5, 0);
-        draw<TextButton>("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 75, 0);
+        // Top bumpers - positioned intentionally with negative margin to square off with screen edge
+        draw<TextButton>("<-", pins::BTN_L_SHOULDER, -5, -5);
+        draw<TextButton>("->", pins::BTN_R_SHOULDER, DISPLAY_WIDTH - 65, -5);
 
         // Bottom bumpers - positioned with margin to prevent border cutoff
-        draw<TextButton>("Home", pins::BTN_UNDER_L, 5, Display::HEIGHT - 30,
-                         80);
+        draw<TextButton>("Home", pins::BTN_UNDER_L, -5, Display::HEIGHT - 30,
+                         90);
         draw<TextButton>("Patterns", pins::BTN_UNDER_R, DISPLAY_WIDTH - 85,
-                         Display::HEIGHT - 30, 80);
+                         Display::HEIGHT - 30, 90);
 
-        draw<TextButton>("Pause", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60,
+        pauseStopButton = draw<TextButton>("Pause", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60,
                          Display::HEIGHT - 30, 120);
 
         draw<LinearRailGraph>(&this->settings.stroke, &this->settings.depth, -1,
                               Display::PageHeight - 40, Display::WIDTH);
 
-        draw<DynamicText>(this->patternName, -1, Display::HEIGHT - 90);
+        patternNameDisplay = draw<DynamicText>(this->patternName, -1, Display::HEIGHT - 90);
 
         // Create a left encoder dial with Speed parameter
         std::map<String, float *> leftParams = {
@@ -177,18 +186,55 @@ class OSSM : public Device {
         isFirstConnect = false;
     }
 
-    void onPause() override {
+    void onPause(bool fullStop = false) override {
         playBuzzerPattern(BuzzerPattern::PAUSED);
         isPaused = true;
         setSpeed(0);
         leftEncoder.setEncoderValue(0);
-        leftEncoder.setBoundaries(0, 0);
+
+        patternName = "Paused";
+        
+        // Set the pattern name color to red when paused
+        if (patternNameDisplay) {
+            patternNameDisplay->setColor(Colors::red);
+        }
+        
+        // Change pause button to red STOP button
+        if (pauseStopButton) {
+            pauseStopButton->setText("STOP");
+            pauseStopButton->setColors(Colors::red, Colors::white);
+        }
+
+        // Reset all play parameters to defaults, state will also be changed
+        if (fullStop) {
+            setDepth(0);
+            setStroke(10);
+            setSensation(50);
+            rightEncoder.setEncoderValue(0);
+
+            //TODO: Anything else for consideration in full stop before swapping state?
+        }
     }
 
     void onResume() override {
-        playBuzzerPattern(BuzzerPattern::PLAY);
+        // playBuzzerPattern(BuzzerPattern::PLAY);
         leftEncoder.setBoundaries(0, 100);
         isPaused = false;
+        resetMiddleButtonCounter();
+        
+        // Reset the pattern name color to default when resuming
+        if (patternNameDisplay) {
+            patternNameDisplay->setColor(Colors::textBackground);
+        }
+        
+        // Change button back to default Pause button styling
+        if (pauseStopButton) {
+            pauseStopButton->setText("Pause");
+            pauseStopButton->setColors(Colors::textBackground, Colors::black);
+        }
+        
+        updatePatternNameFromState();
+
     }
 
     void onExit() override {
@@ -294,6 +340,12 @@ class OSSM : public Device {
         pattern = pattern % menu.size();
         int patternIdx = menu[pattern].metaIndex;
         patternName = menu[pattern].name;
+        
+        // Reset color to default when selecting a new pattern
+        if (patternNameDisplay) {
+            patternNameDisplay->setColor(Colors::textForeground);
+        }
+        
         return send("command",
                     std::string("set:pattern:") + std::to_string(patternIdx));
     }
@@ -330,7 +382,12 @@ class OSSM : public Device {
         }
     }
 
-    void onLeftEncoderChange(int value) override { setSpeed(value); }
+    void onLeftEncoderChange(int value) override {
+        setSpeed(value);
+        if(isPaused && value > 0) {
+            onResume();
+        }
+    }
 
     // Enable persistent encoder monitoring for safety-critical speed control
     bool needsPersistentLeftEncoderMonitoring() const override { return true; }
