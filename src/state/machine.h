@@ -47,7 +47,8 @@ struct ossm_remote_state {
             "device_menu"_s + on_entry<_> / drawDeviceMenu,
             "device_menu"_s + event<left_button_pressed> = "device_draw_control"_s,
             "device_menu"_s + event<right_button_pressed> / onDeviceMenuItemSelected = "device_draw_control"_s,
-            "device_menu"_s + event<middle_button_pressed> / stop = "device_draw_control"_s,
+            "device_menu"_s + event<middle_button_second_press> / softPause = "device_draw_control"_s,
+            "device_menu"_s + event<middle_button_pressed> / softPause = "device_draw_control"_s,
             "device_menu"_s + event<disconnected_event> / disconnect = "main_menu"_s,
 
             "device_stop"_s + on_entry<_> / (drawPage(deviceStopPage), stop),
