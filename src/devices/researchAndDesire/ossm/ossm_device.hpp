@@ -150,6 +150,7 @@ class OSSM : public Device {
 
         // Set up right encoder dial colors to match tab order (Depth, Sensation, Stroke)
         updateEncoderDialColors();
+        onResume();  // Clear the red LED and reset button count any time we enter controls
     }
 
     void onConnect() override {

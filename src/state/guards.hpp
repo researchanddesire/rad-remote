@@ -43,3 +43,8 @@ auto hasDeviceMenu = [](const Event &event) -> bool
 {
     return device != nullptr && device->menu.size() > 0;
 };
+template <typename Event = left_button_pressed>
+auto hasDeviceSettingsMenu = [](const Event &event) -> bool
+{
+    return device != nullptr && device->settingsMenu.size() > 0;
+};

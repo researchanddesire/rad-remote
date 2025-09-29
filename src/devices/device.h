@@ -46,6 +46,7 @@ class Device : public NimBLEClientCallbacks {
     bool isPaused = false;
 
     std::vector<MenuItem> menu;
+    std::vector<MenuItem> settingsMenu;
 
     std::unordered_map<std::string, DeviceCharacteristics> characteristics;
     std::vector<std::unique_ptr<DisplayObject>> displayObjects;
