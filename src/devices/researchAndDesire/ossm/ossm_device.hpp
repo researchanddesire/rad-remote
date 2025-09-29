@@ -70,12 +70,12 @@ class OSSM : public Device {
     void drawControls() override {
         leftEncoder.setBoundaries(0, 100);
         leftEncoder.setAcceleration(50);
-        leftEncoder.setEncoderValue(settings.speed);
 
         rightEncoder.setBoundaries(0, 100);
         rightEncoder.setAcceleration(50);
 
         syncRightEncoder();
+        syncLeftEncoder();
 
         // Tab interface for right encoder settings - positioned near top of screen
         // Calculate tab dimensions: full width with 5px gaps, equally sized
@@ -430,6 +430,10 @@ class OSSM : public Device {
             rightEncoder.setEncoderValue(settings.stroke);
         }
     };
+
+        void syncLeftEncoder() {
+            leftEncoder.setEncoderValue(settings.speed);
+        }
 
     void onLeftBumperClick() override {
         rightFocusedIndex = (rightFocusedIndex + 2) %

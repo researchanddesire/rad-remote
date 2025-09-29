@@ -9,8 +9,9 @@ extern Device *device;
 static TaskHandle_t leftEncoderTaskHandle = nullptr;
 
 void leftEncoderMonitorTask(void *pvParameters) {
+    leftEncoder.setEncoderValue(0);
     int lastLeftEncoderValue =
-        leftEncoder.readEncoder();  // Initialize to current value
+        leftEncoder.readEncoder();  // Initialize to zero
     ESP_LOGI("LeftEncoderMonitor",
              "Starting left encoder monitor task, initial value: %d",
              lastLeftEncoderValue);
