@@ -125,7 +125,7 @@ class OSSM : public Device {
             .focusedIndex = &this->leftFocusedIndex,
             .x = 0 + 5,
             .y = (int16_t)(Display::PageY +
-                           40),  // Both dials aligned 10px lower
+                           35),  // Both dials aligned 10px lower
             .mapToLeftLed = true});  // Map to left LED
 
         // Set the left encoder dial color to purple (always active since it only has one parameter)
@@ -145,7 +145,7 @@ class OSSM : public Device {
             .focusedIndex = &this->rightFocusedIndex,
             .x = (int16_t)(DISPLAY_WIDTH - 90 -5),
             .y = (int16_t)(Display::PageY +
-                           40),  // Both dials aligned 10px lower
+                           35),  // Both dials aligned 10px lower
             .mapToRightLed = true});  // Map to right LED
 
         // Set up right encoder dial colors to match tab order (Depth, Sensation, Stroke)
