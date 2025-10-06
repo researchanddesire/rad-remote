@@ -41,6 +41,9 @@ void drawControllerTask(void *pvParameters)
     bool currentLeftShoulderState = HIGH;
     bool currentRightShoulderState = HIGH;
 
+    int lastLeftEncoderValue = -1;
+    int currentLeftEncoderValue = -1;
+
     int lastRightEncoderValue = -1;
     int currentRightEncoderValue = -1;
 
@@ -63,7 +66,18 @@ void drawControllerTask(void *pvParameters)
             device->onRightBumperClick();
         }
 
-        // Right encoder only - left encoder is now handled globally
+
+        // check if device has persistent left encoder monitoring enabled
+        //  if it does, we do not read the left encoder here, as it is being
+        //  monitored by the leftEncoderMonitor task
+        if (!device->needsPersistentLeftEncoderMonitoring()) {
+            currentLeftEncoderValue = leftEncoder.readEncoder();
+            if (currentLeftEncoderValue != lastLeftEncoderValue) {
+                device->onLeftEncoderChange(currentLeftEncoderValue);
+                lastLeftEncoderValue = currentLeftEncoderValue;
+            }
+        }
+
         currentRightEncoderValue = rightEncoder.readEncoder();
 
         if (currentRightEncoderValue != lastRightEncoderValue)
