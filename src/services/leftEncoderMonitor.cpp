@@ -10,8 +10,7 @@ static TaskHandle_t leftEncoderTaskHandle = nullptr;
 
 void leftEncoderMonitorTask(void *pvParameters) {
     leftEncoder.setEncoderValue(0);
-    int lastLeftEncoderValue =
-        leftEncoder.readEncoder();  // Initialize to zero
+    int lastLeftEncoderValue = leftEncoder.readEncoder();  // Initialize to zero
     ESP_LOGI("LeftEncoderMonitor",
              "Starting left encoder monitor task, initial value: %d",
              lastLeftEncoderValue);
@@ -31,12 +30,6 @@ void leftEncoderMonitorTask(void *pvParameters) {
 
         if (currentLeftEncoderValue != lastLeftEncoderValue ||
             hasLeftEncoderChanged(false)) {
-            // Noisy, even as far as info logs go..
-            /*
-            ESP_LOGI("LeftEncoderMonitor", "Left encoder changed from %d to %d",
-                     lastLeftEncoderValue, currentLeftEncoderValue);
-            */
-
             // Send encoder change to device
             if (device != nullptr) {
                 device->onLeftEncoderChange(currentLeftEncoderValue);

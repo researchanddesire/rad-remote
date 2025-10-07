@@ -32,9 +32,7 @@ OneButton underRightBtn;
 static int middleButtonPressCount = 0;
 
 // Function to reset middle button counter (can be called from device)
-void resetMiddleButtonCounter() {
-    middleButtonPressCount = 0;
-}
+void resetMiddleButtonCounter() { middleButtonPressCount = 0; }
 
 void setup() {
     Serial.begin(115200);
@@ -74,36 +72,14 @@ void setup() {
     underRightBtn.attachClick(
         []() { stateMachine->process_event(right_button_pressed()); });
 
-    ESP_LOGD(TAG, "init Encoder");
-
     initEncoderService();
-
-    ESP_LOGD(TAG, "init FastLEDs");
-
     initFastLEDs();
-
-    ESP_LOGD(TAG, "init WM");
-
     initWM();
-
-    ESP_LOGD(TAG, "init Display");
-
     initDisplay();
-
-    ESP_LOGD(TAG, "init Buzzer");
-
     initBuzzer();
-
-    ESP_LOGD(TAG, "init Vibrator");
     initVibrator();
-
-    ESP_LOGD(TAG, "init BLE");
-
     initBLE();
-
-    ESP_LOGD(TAG, "init State Machine");
     initStateMachine();
-
     initBattery();
 
     // initIMUService();
