@@ -106,5 +106,14 @@
         "url": "./v/1.0.6/version.json",
         "firmware": "./v/1.0.6/firmware.bin",
         "datetime": "2025-10-07T16:02:52Z"
+    },
+    {
+        "version": "1.0.7",
+        "major": 1,
+        "minor": 0,
+        "patch": 7,
+        "url": "./v/1.0.7/version.json",
+        "firmware": "./v/1.0.7/firmware.bin",
+        "datetime": "2025-10-08T14:25:47Z"
     }
 ]
