@@ -13,8 +13,8 @@ namespace pins {
 
 // LED strip
 #ifdef BOARD_HAS_PSRAM
-    constexpr uint8_t LEFT_ENCODER_B = 10;
-    constexpr uint8_t LEFT_ENCODER_A = 11;
+    constexpr uint8_t LEFT_ENCODER_B = 11;
+    constexpr uint8_t LEFT_ENCODER_A = 10;
     constexpr uint8_t LED_PIN = 12;  // WS2812B LED pin
 #else
     constexpr uint8_t LEFT_ENCODER_B = 35;
