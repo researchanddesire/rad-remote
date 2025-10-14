@@ -72,6 +72,8 @@ void setup() {
     underRightBtn.attachClick(
         []() { stateMachine->process_event(right_button_pressed()); });
 
+    LittleFS.begin();
+
     initEncoderService();
     initFastLEDs();
     initWM();
