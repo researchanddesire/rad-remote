@@ -145,14 +145,14 @@ void initBLE() {
     pScan->setScanCallbacks(&scanCallbacks, false);
 
     /** Set scan interval (how often) and window (how long) in milliseconds */
-    pScan->setInterval(1000);
-    pScan->setWindow(1000);
+    pScan->setInterval(100);
+    pScan->setWindow(100);
 
     /**
      * Active scan will gather scan response data from advertisers
      *  but will use more energy from both devices
      */
-    pScan->setActiveScan(false);
+    pScan->setActiveScan(true);
 
     /** Start scanning for advertisers */
     pScan->start(scanTimeMs);
