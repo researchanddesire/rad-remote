@@ -2,66 +2,61 @@
 #define LOVENSE_DEVICE_HPP
 
 #include <Arduino.h>
+#include <constants/Sizes.h>
 
+#include <components/EncoderDial.h>
+#include <components/LinearRailGraph.h>
+#include <components/TextButton.h>
 #include <devices/device.h>
 
 #include "data.hpp"
+#include "devices/buttplugio/buttplugIOProtocol.hpp"
+#include "services/display.h"
+#include "services/encoder.h"
 
-class LovenseDevice : public Device {
-  private:
-    JsonDocument config;
 
+class LovenseDevice : public Device, public ButtplugIoProtocol {
   public:
-    LovenseDevice(const NimBLEAdvertisedDevice *advertisedDevice)
-        : Device(advertisedDevice) {
-        // get the type of the device
+    LovenseDevice(const NimBLEAdvertisedDevice *advertisedDevice,
+                  const String &configFileName,
+                  const JsonObjectConst &characteristicsConfig)
+        : Device(advertisedDevice),
+          ButtplugIoProtocol(configFileName, characteristicsConfig) {
+        ESP_LOGI("LOVENSE", "LovenseDevice constructor");
+        // We assume these characteristics are present.
 
-        JsonDocument doc;
-        DeserializationError error =
-            deserializeJson(doc, service_characteristics);
+        // print the characteristics config
+        String characteristicsConfigString = "";
+        serializeJson(config, characteristicsConfigString);
+        ESP_LOGI("LOVENSE", "Characteristics config: %s",
+                 characteristicsConfigString.c_str());
 
-        if (error) {
-            ESP_LOGE("LOVENSE", "JSON parse failed: %s", error.c_str());
-            return;
-        }
+        String tx = config["tx"].as<String>();
+        String rx = config["rx"].as<String>();
 
-        // use the service_characteristics to set the "tx" and "rx"
-        // characteristics
-        auto service = advertisedDevice->getServiceUUID().toString();
-
-        if (!doc.containsKey(service)) {
-            ESP_LOGE("LOVENSE", "Service not found: %s", service.c_str());
-            return;
-        }
-
-        String tx = doc[service]["tx"].as<String>();
-        String rx = doc[service]["rx"].as<String>();
-
-        const auto notifyCallback =
-            [this](NimBLERemoteCharacteristic *pRemoteCharacteristic,
-                   uint8_t *pData, size_t length, bool isNotify) {
-                rxValue = String(reinterpret_cast<char *>(pData), length);
-                ESP_LOGD("LOVENSE", "Notification received, value: %s",
-                         rxValue.c_str());
-            };
+        ESP_LOGI("LOVENSE", "tx: %s", tx.c_str());
+        ESP_LOGI("LOVENSE", "rx: %s", rx.c_str());
 
         characteristics = {
             {"tx", {NimBLEUUID(tx.c_str())}},
-            {"rx", DeviceCharacteristics{NimBLEUUID(rx.c_str()),
-                                         .notifyCallback = notifyCallback}}};
-
-        // parse the config.
-        error = deserializeJson(config, buttplugIO_config_lovense);
-        if (error) {
-            ESP_LOGE("LOVENSE", "JSON parse failed: %s", error.c_str());
-            return;
-        }
-        ESP_LOGI("LOVENSE", "JSON parse successful");
+            {"rx",
+             DeviceCharacteristics{
+                 NimBLEUUID(rx.c_str()),
+                 .notifyCallback =
+                     [this](NimBLERemoteCharacteristic *pRemoteCharacteristic,
+                            uint8_t *pData, size_t length, bool isNotify) {
+                         rxValue =
+                             String(reinterpret_cast<char *>(pData), length);
+                         ESP_LOGD("LOVENSE", "Notification received, value: %s",
+                                  rxValue.c_str());
+                     }}}};
     }
 
     String rxValue = "";
+    float vibrateIntensity = 0;
+    int leftFocusedIndex = 0;
 
-    void onConnect() override {
+    String getIdentifier() override {
         rxValue = "";
         // This is required to parse the config file.
         // Resend "DeviceType;" every 250ms until rxValue is set
@@ -91,67 +86,61 @@ class LovenseDevice : public Device {
             firstLetter = deviceType.substring(0, 1);
         }
 
-        JsonDocument doc;
-        DeserializationError error =
-            deserializeJson(doc, buttplugIO_config_lovense);
-        if (error) {
-            ESP_LOGE("LOVENSE", "JSON parse failed: %s", error.c_str());
-            return;
+        return firstLetter;
+    }
+
+    void onConnect() override {
+        if (protocol.isNull()) {
+            String identifier = getIdentifier();
+            setProtocol(identifier);
         }
 
-        // get the configuration for the device type
-        JsonArray configurations = doc["configurations"];
-        if (configurations.isNull()) {
-            ESP_LOGE("LOVENSE", "Configuration not found: %s",
-                     firstLetter.c_str());
-            return;
-        }
-
-        JsonObject defaults = doc["defaults"];
-        if (defaults.isNull()) {
-            ESP_LOGE("LOVENSE", "Defaults not found");
-            return;
-        }
-
-        JsonArray features = JsonArray();
-
-        bool found = false;
-        // For each configuration, print its JSON string
-        for (JsonObject configuration : configurations) {
-            JsonArray identifier = configuration["identifier"];
-
-            for (String item : identifier) {
-                if (item.compareTo(firstLetter) == 0) {
-                    ESP_LOGI("LOVENSE", "Found configuration:");
-                    features = configuration["features"];
-
-                    if (features.isNull()) {
-                        features = defaults["features"];
-                    }
-
-                    found = true;
-                    break;
-                }
-            }
-
-            if (found) break;
-        }
-
-        // get the features for the configuration, but we should always have the
-        // defaults.
-        if (features.isNull()) {
-            ESP_LOGE("LOVENSE", "Features not found: %s", firstLetter.c_str());
-            return;
-        }
-
-        String featuresString = "";
-        serializeJson(features, featuresString);
-        ESP_LOGI("LOVENSE", "Features: %s", featuresString.c_str());
+        setVibrate(0);
+        isConnected = true;
     }
 
     NimBLEUUID getServiceUUID() override {
         return advertisedDevice->getServiceUUID();
     }
+
+    void drawControls() override {
+        leftEncoder.setBoundaries(0, 16);
+        leftEncoder.setAcceleration(0);
+        leftEncoder.setEncoderValue(this->vibrateIntensity);
+
+        std::map<String, float *> leftParams = {
+            {"Vibrate", &this->vibrateIntensity}};
+        draw<EncoderDial>(
+            EncoderDial::Props{.encoder = &leftEncoder,
+                               .parameters = leftParams,
+                               .focusedIndex = &this->leftFocusedIndex,
+                               .minValue = 0,
+                               .maxValue = 16});
+
+        draw<TextButton>("STOP", pins::BTN_UNDER_C, DISPLAY_WIDTH / 2 - 60,
+                         DISPLAY_HEIGHT - 30, 120);
+    }
+
+    // helper functions
+    bool setVibrate(int intensity) {
+        intensity = constrain(intensity, 0, 16);
+        String intensityStr = String(intensity);
+        return send("tx", String("Vibrate:" + intensityStr + ";").c_str());
+    }
+
+    bool setPowerOff() {
+        isConnected = false;
+        return send("tx", "PowerOff;");
+    }
+
+    void onLeftEncoderChange(int value) override { setVibrate(value); }
+
+    void onPause(bool fullStop = false) override {
+        setVibrate(0);
+        vTaskDelay(250 / portTICK_PERIOD_MS);
+        setVibrate(0);
+    }
+
     const char *getName() override { return "Lovense"; }
 };
 

@@ -9,7 +9,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "buttplugio/buttplugIODevice.hpp"
+#include "buttplugio/buttplugIOFactory.h"
 #include "device.h"
 #include "lovense/LovenseDevice.hpp"
 #include "lovense/data.hpp"
@@ -35,15 +35,8 @@ inline const std::unordered_map<std::string, DeviceFactory> &getRegistry() {
                 [](const NimBLEAdvertisedDevice *advertisedDevice) -> Device * {
                     return new OSSM(advertisedDevice);
                 });
-            // map.emplace(
-            //     DOMI_SERVICE_ID,
-            //     [](const NimBLEAdvertisedDevice *advertisedDevice) -> Device
-            //     * {
-            //         return new Domi2(advertisedDevice);
-            //     });
 
             // Try to read registry.json from LittleFS
-
             if (LittleFS.exists("/registry.json")) {
                 vTaskDelay(1);
                 File file = LittleFS.open("/registry.json", "r");
@@ -72,6 +65,13 @@ inline const std::unordered_map<std::string, DeviceFactory> &getRegistry() {
 
                                 map.emplace(uuidStr, ButtplugIODeviceFactory);
                                 vTaskDelay(1);
+
+                             
+                                if (uuidStr ==
+                                    "58300001-0023-4BD4-BBD5-A6920E4C5653") {
+                                    ESP_LOGI("DEBUG_FOLLOWER", "Found uuid: %s",
+                                             uuidStr.c_str());
+                                }
                             }
                         } else {
                             ESP_LOGW(REGISTRY_TAG,
@@ -104,16 +104,8 @@ inline const DeviceFactory *getDeviceFactory(const NimBLEUUID &serviceUUID) {
     auto it = registry.find(uuidStr);
 
     if (it == registry.end()) {
-        // For development: always return LovenseDevice factory for unknown
-        // UUIDs
-        ESP_LOGD(REGISTRY_TAG,
-                 "Unknown service UUID %s, using LovenseDevice for development",
-                 uuidStr.c_str());
-        static DeviceFactory lovenseFactory =
-            [](const NimBLEAdvertisedDevice *advertisedDevice) -> Device * {
-            return new LovenseDevice(advertisedDevice);
-        };
-        return &lovenseFactory;
+        // TODO: Manage this better. Send the user to an error screen.
+        return nullptr;
     }
 
     return &it->second;
