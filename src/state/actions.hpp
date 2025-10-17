@@ -25,6 +25,7 @@
 #include "pages/controller.h"
 #include "pages/menus.h"
 #include "services/leftEncoderMonitor.h"
+#include "devices/researchAndDesire/ossm/demo_ossm_device.hpp"
 
 namespace actions {
 
@@ -219,6 +220,18 @@ namespace actions {
         // Skip GPIO wake-up cleanup - just restart immediately to avoid conflicts
         // The restart will clean up everything properly
         espSilentRestart();
+    };
+
+    auto enterDemoMode = []() {
+        // Disconnect any existing device first
+        disconnect();
+        
+        // Create a new demo OSSM device
+        device = new DemoOSSM();
+        
+        ESP_LOGI("DemoMode", "Entering OSSM Demo Mode");
+        playBuzzerPattern(BuzzerPattern::DEVICE_CONNECTED);
+        setLed(LEDColors::connected, 255, 1500);
     };
 
 }  // namespace actions

@@ -18,7 +18,8 @@ enum MenuItemE {
     PAIRING,
     UPDATE,
     DEVICE_MENU_ITEM,
-    DEEP_SLEEP
+    DEEP_SLEEP,
+    OSSM_DEMO_MODE
 };
 
 struct MenuItem {
@@ -51,6 +52,7 @@ static std::vector<MenuItem> settingsMenu = {
     {MenuItemE::BACK, GO_BACK_NAME, bitmap_back},
     {MenuItemE::WIFI_SETTINGS, WIFI_SETTINGS_NAME, bitmap_wifi},
     // {MenuItemE::PAIRING, PAIRING_NAME, bitmap_link},
+    {MenuItemE::OSSM_DEMO_MODE, OSSM_DEMO_MODE_NAME, researchAndDesireWaves},
     {MenuItemE::UPDATE, UPDATE_NAME, bitmap_update},
     {MenuItemE::RESTART, RESTART_NAME, bitmap_restart},
 };

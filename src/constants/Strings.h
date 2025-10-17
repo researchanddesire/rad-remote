@@ -42,4 +42,6 @@ static const char WIFI_SETTINGS_QR_VALUE[] PROGMEM =
 static const char WIFI_CONNECTED_TITLE[] PROGMEM = "WiFi Connected";
 static const char WIFI_CONNECTED_DESCRIPTION[] PROGMEM =
     "Your OSSM Remote is now connected to WiFi.";
+
+static const char OSSM_DEMO_MODE_NAME[] PROGMEM = "OSSM Demo (Mock Connnect)";
 #endif
