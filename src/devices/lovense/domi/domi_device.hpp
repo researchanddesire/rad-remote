@@ -2,6 +2,7 @@
 #define DOMI_DEVICE_H
 
 #include <ArduinoJson.h>
+#include <components/EncoderDial.h>
 #include <components/LinearRailGraph.h>
 #include <components/TextButton.h>
 #include <constants/Sizes.h>
