@@ -18,10 +18,13 @@ void setLed(uint8_t color_value, uint8_t brightness = 255,
 void setLedOff();
 
 // Individual LED control functions
-void setIndividualLed(uint8_t ledIndex, uint16_t rgb565Color, uint8_t brightness = 255);
+void setIndividualLed(uint8_t ledIndex, uint16_t rgb565Color,
+                      uint8_t brightness = 255);
 void setLeftEncoderLed(uint16_t rgb565Color, uint8_t brightness = 255);
 void setRightEncoderLed(uint16_t rgb565Color, uint8_t brightness = 255);
 void setMiddleLed(uint16_t rgb565Color, uint8_t brightness = 255);
-void releaseIndividualLed(uint8_t ledIndex);  // Release LED back to global control
+void releaseIndividualLed(
+    uint8_t ledIndex);            // Release LED back to global control
+void releaseAllIndividualLeds();  // Release all LEDs back to global control
 
 #endif  // LEDS_SERVICE_H

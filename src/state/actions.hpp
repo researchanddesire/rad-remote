@@ -133,6 +133,10 @@ namespace actions {
     };
 
     auto drawMainMenu = []() {
+        // Release all individual LED controls back to global control
+        releaseAllIndividualLeds();
+        setLed(LEDColors::idle, 50,
+               1500);  // Soft white idle (Blends with backlight bleed)
         activeMenu = &mainMenu;
         activeMenuCount = numMainMenu;
         clearPage();
@@ -151,6 +155,8 @@ namespace actions {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         esp_restart();
     };
+
+    auto espSilentRestart = []() { esp_restart(); };
 
     auto startWiFiPortal = []() {
         // Give a second for any pending MQTT messages to be sent before
@@ -190,6 +196,12 @@ namespace actions {
         // Give time for buzzer to finish
         vTaskDelay(1000 / portTICK_PERIOD_MS);
 
+        // Disable encoder interrupts before sleep to prevent conflicts
+        detachInterrupt(digitalPinToInterrupt(pins::LEFT_ENCODER_A));
+        detachInterrupt(digitalPinToInterrupt(pins::LEFT_ENCODER_B));
+        detachInterrupt(digitalPinToInterrupt(pins::RIGHT_ENCODER_A));
+        detachInterrupt(digitalPinToInterrupt(pins::RIGHT_ENCODER_B));
+
         // Configure GPIO wake-up sources for light sleep
         gpio_wakeup_enable(static_cast<gpio_num_t>(pins::BTN_UNDER_C),
                            GPIO_INTR_LOW_LEVEL);
@@ -204,22 +216,9 @@ namespace actions {
         // Use light sleep - more reliable wake-up
         esp_light_sleep_start();
 
-        // After waking up, clean up GPIO wake-up configuration
-        gpio_wakeup_disable(static_cast<gpio_num_t>(pins::BTN_UNDER_C));
-        gpio_wakeup_disable(static_cast<gpio_num_t>(pins::BTN_UNDER_L));
-        gpio_wakeup_disable(static_cast<gpio_num_t>(pins::BTN_UNDER_R));
-
-        // Turn display back on and play boot pattern
-        digitalWrite(pins::TFT_BL, HIGH);
-        playBuzzerPattern(BuzzerPattern::BOOT);
-        clearScreen();
-
-        // Allow time for the system to stabilize
-        vTaskDelay(1500 / portTICK_PERIOD_MS);
-
-        // Send wake-up event to transition to device search
-        // (fresh start behavior)
-        sendWakeUpEvent();
+        // Skip GPIO wake-up cleanup - just restart immediately to avoid conflicts
+        // The restart will clean up everything properly
+        espSilentRestart();
     };
 
 }  // namespace actions

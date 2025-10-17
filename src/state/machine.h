@@ -61,8 +61,7 @@ struct ossm_remote_state {
             "restart"_s + on_entry<_> / espRestart,
             "restart"_s = X,
 
-            "deep_sleep"_s + on_entry<_> / enterDeepSleep,
-            "deep_sleep"_s + event<wake_up_event> = "device_search"_s);
+            "deep_sleep"_s + on_entry<_> / enterDeepSleep);
 
         // clang-format on
     }
