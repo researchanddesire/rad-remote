@@ -16,7 +16,7 @@
 
   // Optional: organize imports for languages that support it (no effect on C/C++)
   "editor.codeActionsOnSave": {
-    "source.organizeImports": true
+    "source.organizeImports": "explicit"
   },
     "files.associations": {
       "*.tpp": "cpp",
