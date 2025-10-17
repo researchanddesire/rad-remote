@@ -52,6 +52,7 @@ void Device::connectionTask(void *pvParameter) {
     const NimBLEAdvertisedDevice *advDevice = device->advertisedDevice;
     bool connected = false;
 
+#ifdef VERSIONDEV
     // Handle demo mode - if advDevice is null, this is a demo device
     if (advDevice == nullptr) {
         ESP_LOGI(TAG, "Demo mode detected - skipping BLE connection");
@@ -59,12 +60,13 @@ void Device::connectionTask(void *pvParameter) {
         vTaskDelay(1000);  // Small delay to let UI settle
         device->isConnected = true;
         device->onConnect(nullptr);
-        
+
         // Clear the task handle before deleting the task to prevent races
         device->connectionTaskHandle = NULL;
         vTaskDelete(NULL);
         return;
     }
+#endif
 
     updateStatusText("Initializing connection...");
 
@@ -247,7 +249,7 @@ void Device::connectionTask(void *pvParameter) {
         updateStatusText("Device ready! Loading interface...");
         break;
     }
-    
+
     // Clear the task handle before deleting the task to prevent races
     device->connectionTaskHandle = NULL;
     vTaskDelete(NULL);
@@ -362,6 +364,7 @@ void Device::drawDeviceMenu() {
     drawMenu();
 }
 
+#ifdef VERSIONDEV
 // Helper function to check if current state is a menu state
 bool isCurrentStateMenu() {
     if (stateMachine == nullptr) {
@@ -373,3 +376,4 @@ bool isCurrentStateMenu() {
         [&currentState](auto state) { currentState = state.c_str(); });
     return currentState.startsWith("menu");
 }
+#endif

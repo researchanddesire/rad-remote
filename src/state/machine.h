@@ -30,7 +30,9 @@ struct ossm_remote_state {
             "settings_menu"_s + event<left_button_pressed> = "main_menu"_s,
             "settings_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::BACK)] = "main_menu"_s,
             "settings_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::WIFI_SETTINGS)] = "wmConfig"_s,
+#ifdef VERSIONDEV
             "settings_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::OSSM_DEMO_MODE)] / enterDemoMode = "device_draw_control"_s,
+#endif
             "settings_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::RESTART)] = "restart"_s,
 
             "wmConfig"_s + on_entry<_> / (drawPage(wifiSettingsPage), startWiFiPortal),

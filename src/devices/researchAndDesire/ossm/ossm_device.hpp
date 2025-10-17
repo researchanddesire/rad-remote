@@ -328,7 +328,18 @@ class OSSM : public Device {
             send("command", "go:menu");
             vTaskDelay(100 / portTICK_PERIOD_MS);
             readJson<String>("state", [this, &isInMenu](const String &state) {
+#ifdef VERSIONDEV
                 isInMenu = isCurrentStateMenu();
+#else
+                // Original behavior: parse state directly without state machine
+                String currentState;
+                JsonDocument doc;
+                DeserializationError error = deserializeJson(doc, state.c_str());
+                if (!error && doc.containsKey("state")) {
+                    currentState = doc["state"].as<String>();
+                }
+                isInMenu = currentState.startsWith("menu");
+#endif
             });
             vTaskDelay(100 / portTICK_PERIOD_MS);
         } while (isConnected && !isInMenu);

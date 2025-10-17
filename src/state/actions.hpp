@@ -20,7 +20,9 @@
 #include <services/wm.h>
 
 #include "components/TextButton.h"
+#ifdef VERSIONDEV
 #include "devices/researchAndDesire/ossm/demo_ossm_device.hpp"
+#endif
 #include "events.hpp"
 #include "pages/TextPages.h"
 #include "pages/controller.h"
@@ -67,7 +69,8 @@ namespace actions {
         if (device != nullptr) {
             // Call onExit before destroying the device
             device->onExit();
-            delete device;  // Use proper delete instead of calling destructor directly
+            delete device;  // Use proper delete instead of calling destructor
+                            // directly
             device = nullptr;
         }
 
@@ -224,6 +227,7 @@ namespace actions {
         espSilentRestart();
     };
 
+#ifdef VERSIONDEV
     auto enterDemoMode = []() {
         // Disconnect any existing device first
         disconnect();
@@ -235,5 +239,6 @@ namespace actions {
         playBuzzerPattern(BuzzerPattern::DEVICE_CONNECTED);
         setLed(LEDColors::connected, 255, 1500);
     };
+#endif
 
 }  // namespace actions

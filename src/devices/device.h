@@ -161,7 +161,9 @@ class Device : public NimBLEClientCallbacks {
     void startConnectionTask();
 };
 
+#ifdef VERSIONDEV
 // Helper function to check if current state is a menu state
 bool isCurrentStateMenu();
+#endif
 
 #endif  // DEVICE_H
