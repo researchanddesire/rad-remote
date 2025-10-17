@@ -9,11 +9,21 @@
 Device *device = nullptr;
 
 Device::Device(const NimBLEAdvertisedDevice *advertisedDevice)
-    : advertisedDevice(advertisedDevice) {
+    : advertisedDevice(advertisedDevice), connectionTaskHandle(NULL) {
     startConnectionTask();
 }
 
 Device::~Device() {
+    // First, terminate the connection task if it's still running
+    if (connectionTaskHandle != NULL) {
+        // Check if the task is still valid before attempting to delete it
+        eTaskState taskState = eTaskGetState(connectionTaskHandle);
+        if (taskState != eDeleted) {
+            vTaskDelete(connectionTaskHandle);
+        }
+        connectionTaskHandle = NULL;
+    }
+
     displayObjects.clear();
     ESP_LOGD(TAG, "Cleared %zu display objects", displayObjects.size());
 
@@ -46,9 +56,12 @@ void Device::connectionTask(void *pvParameter) {
     if (advDevice == nullptr) {
         ESP_LOGI(TAG, "Demo mode detected - skipping BLE connection");
         // For demo devices, just signal that they're "connected" and exit
-        vTaskDelay(1000); // Small delay to let UI settle
+        vTaskDelay(1000);  // Small delay to let UI settle
         device->isConnected = true;
         device->onConnect(nullptr);
+        
+        // Clear the task handle before deleting the task to prevent races
+        device->connectionTaskHandle = NULL;
         vTaskDelete(NULL);
         return;
     }
@@ -234,6 +247,9 @@ void Device::connectionTask(void *pvParameter) {
         updateStatusText("Device ready! Loading interface...");
         break;
     }
+    
+    // Clear the task handle before deleting the task to prevent races
+    device->connectionTaskHandle = NULL;
     vTaskDelete(NULL);
 }
 
@@ -351,10 +367,9 @@ bool isCurrentStateMenu() {
     if (stateMachine == nullptr) {
         return false;
     }
-    
+
     String currentState;
-    stateMachine->visit_current_states([&currentState](auto state) {
-        currentState = state.c_str();
-    });
+    stateMachine->visit_current_states(
+        [&currentState](auto state) { currentState = state.c_str(); });
     return currentState.startsWith("menu");
 }

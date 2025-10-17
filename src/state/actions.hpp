@@ -20,12 +20,12 @@
 #include <services/wm.h>
 
 #include "components/TextButton.h"
+#include "devices/researchAndDesire/ossm/demo_ossm_device.hpp"
 #include "events.hpp"
 #include "pages/TextPages.h"
 #include "pages/controller.h"
 #include "pages/menus.h"
 #include "services/leftEncoderMonitor.h"
-#include "devices/researchAndDesire/ossm/demo_ossm_device.hpp"
 
 namespace actions {
 
@@ -65,7 +65,9 @@ namespace actions {
         }
 
         if (device != nullptr) {
-            device->~Device();
+            // Call onExit before destroying the device
+            device->onExit();
+            delete device;  // Use proper delete instead of calling destructor directly
             device = nullptr;
         }
 
@@ -217,18 +219,18 @@ namespace actions {
         // Use light sleep - more reliable wake-up
         esp_light_sleep_start();
 
-        // Skip GPIO wake-up cleanup - just restart immediately to avoid conflicts
-        // The restart will clean up everything properly
+        // Skip GPIO wake-up cleanup - just restart immediately to avoid
+        // conflicts The restart will clean up everything properly
         espSilentRestart();
     };
 
     auto enterDemoMode = []() {
         // Disconnect any existing device first
         disconnect();
-        
+
         // Create a new demo OSSM device
         device = new DemoOSSM();
-        
+
         ESP_LOGI("DemoMode", "Entering OSSM Demo Mode");
         playBuzzerPattern(BuzzerPattern::DEVICE_CONNECTED);
         setLed(LEDColors::connected, 255, 1500);
