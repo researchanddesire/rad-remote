@@ -93,10 +93,12 @@ void drawMenuFrame() {
     int numOptions = activeMenuCount;
     const MenuItem *options = activeMenu->data();
 
-    int currentOption = abs(rawCurrentOption % numOptions);
-    if (rawCurrentOption < 0 && currentOption != 0) {
-        currentOption = numOptions - currentOption;
+    int processedCurrentOption = abs(rawCurrentOption % numOptions);
+    if (rawCurrentOption < 0 && processedCurrentOption != 0) {
+        processedCurrentOption = numOptions - processedCurrentOption;
     }
+    // Use the processed value instead of reusing the variable name
+    int currentOption = processedCurrentOption;
 
     menuYOffset = 0;
 
@@ -181,7 +183,8 @@ void drawMenuTask(void *pvParameters) {
     }
 
     while (isInCorrectState() && !menuTaskExitRequested) {
-        currentOption = rightEncoder.readEncoder();
+        int rawEncoderValue = rightEncoder.readEncoder();
+        currentOption = rawEncoderValue;
 
         // Check if we need to update left encoder persistent display for
         // devices with persistent encoder monitoring
