@@ -7,12 +7,16 @@
 #include <Fonts/FreeSansBold12pt7b.h>
 #include <constants/Sizes.h>
 #include <devices/device.h>
+#include <driver/gpio.h>
+#include <esp_sleep.h>
 #include <pages/displayUtils.h>
 #include <pages/genericPages.h>
+#include <pins.h>
 #include <qrcode.h>
 #include <services/buzzer.h>
 #include <services/encoder.h>
 #include <services/leds.h>
+#include <services/sleepWakeup.h>
 #include <services/wm.h>
 
 #include "components/TextButton.h"
@@ -129,6 +133,10 @@ namespace actions {
     };
 
     auto drawMainMenu = []() {
+        // Release all individual LED controls back to global control
+        releaseAllIndividualLeds();
+        setLed(LEDColors::idle, 50,
+               1500);  // Soft white idle (Blends with backlight bleed)
         activeMenu = &mainMenu;
         activeMenuCount = numMainMenu;
         clearPage();
@@ -147,6 +155,8 @@ namespace actions {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         esp_restart();
     };
+
+    auto espSilentRestart = []() { esp_restart(); };
 
     auto startWiFiPortal = []() {
         // Give a second for any pending MQTT messages to be sent before
@@ -171,6 +181,44 @@ namespace actions {
     auto stopWiFiPortal = []() {
         wm.setConfigPortalBlocking(true);
         wm.stopConfigPortal();
+    };
+
+    auto enterDeepSleep = []() {
+        // Disconnect from any connected devices first
+        disconnect();
+
+        // Turn off display backlight and other peripherals
+        playBuzzerPattern(BuzzerPattern::SHUTDOWN);
+        digitalWrite(pins::TFT_BL, LOW);
+        clearScreen();
+        setLedOff();
+
+        // Give time for buzzer to finish
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        // Disable encoder interrupts before sleep to prevent conflicts
+        detachInterrupt(digitalPinToInterrupt(pins::LEFT_ENCODER_A));
+        detachInterrupt(digitalPinToInterrupt(pins::LEFT_ENCODER_B));
+        detachInterrupt(digitalPinToInterrupt(pins::RIGHT_ENCODER_A));
+        detachInterrupt(digitalPinToInterrupt(pins::RIGHT_ENCODER_B));
+
+        // Configure GPIO wake-up sources for light sleep
+        gpio_wakeup_enable(static_cast<gpio_num_t>(pins::BTN_UNDER_C),
+                           GPIO_INTR_LOW_LEVEL);
+        gpio_wakeup_enable(static_cast<gpio_num_t>(pins::BTN_UNDER_L),
+                           GPIO_INTR_LOW_LEVEL);
+        gpio_wakeup_enable(static_cast<gpio_num_t>(pins::BTN_UNDER_R),
+                           GPIO_INTR_LOW_LEVEL);
+
+        // Enable GPIO wake-up
+        esp_sleep_enable_gpio_wakeup();
+
+        // Use light sleep - more reliable wake-up
+        esp_light_sleep_start();
+
+        // Skip GPIO wake-up cleanup - just restart immediately to avoid conflicts
+        // The restart will clean up everything properly
+        espSilentRestart();
     };
 
 }  // namespace actions

@@ -81,15 +81,18 @@ void ledsTask(void* pvParameters) {
             state->startColor = state->targetColor.value_or(0);
         }
 
-        leds[0] = individualLedStates[0].isIndividuallyControlled ? 
-                  individualLedStates[0].color : 
-                  CHSV(state->currentColor.value_or(0), 255, state->currentBrightness);
-        leds[1] = individualLedStates[1].isIndividuallyControlled ? 
-                  individualLedStates[1].color : 
-                  CHSV(state->currentColor.value_or(0), 255, state->currentBrightness);
-        leds[2] = individualLedStates[2].isIndividuallyControlled ? 
-                  individualLedStates[2].color : 
-                  CHSV(state->currentColor.value_or(0), 255, state->currentBrightness);
+        leds[0] = individualLedStates[0].isIndividuallyControlled
+                      ? individualLedStates[0].color
+                      : CHSV(state->currentColor.value_or(0), 255,
+                             state->currentBrightness);
+        leds[1] = individualLedStates[1].isIndividuallyControlled
+                      ? individualLedStates[1].color
+                      : CHSV(state->currentColor.value_or(0), 255,
+                             state->currentBrightness);
+        leds[2] = individualLedStates[2].isIndividuallyControlled
+                      ? individualLedStates[2].color
+                      : CHSV(state->currentColor.value_or(0), 255,
+                             state->currentBrightness);
         FastLED.show();
 
         vTaskDelay(1);
@@ -152,17 +155,17 @@ void setLedOff() {
 }
 
 // Helper function to convert RGB565 to RGB888 with maximum color preservation
-void rgb565ToRgb(uint16_t rgb565, uint8_t &r, uint8_t &g, uint8_t &b) {
+void rgb565ToRgb(uint16_t rgb565, uint8_t& r, uint8_t& g, uint8_t& b) {
     // Extract components
     uint8_t r5 = (rgb565 >> 11) & 0x1F;
     uint8_t g6 = (rgb565 >> 5) & 0x3F;
     uint8_t b5 = rgb565 & 0x1F;
-    
+
     // Use bit shifting with full range mapping to prevent desaturation
     r = (r5 << 3) | (r5 >> 2);  // 5-bit to 8-bit: ensures 31->255
     g = (g6 << 2) | (g6 >> 4);  // 6-bit to 8-bit: ensures 63->255
     b = (b5 << 3) | (b5 >> 2);  // 5-bit to 8-bit: ensures 31->255
-    
+
     // Apply gamma correction to boost saturation
     r = (r * r) >> 8;  // Square for more vivid colors
     g = (g * g) >> 8;
@@ -170,18 +173,19 @@ void rgb565ToRgb(uint16_t rgb565, uint8_t &r, uint8_t &g, uint8_t &b) {
 }
 
 // Set individual LED color using RGB565 format
-void setIndividualLed(uint8_t ledIndex, uint16_t rgb565Color, uint8_t brightness) {
-
-    //TODO: Future work if LED config is added - need to either allow override or always respect config
+void setIndividualLed(uint8_t ledIndex, uint16_t rgb565Color,
+                      uint8_t brightness) {
+    // TODO: Future work if LED config is added - need to either allow override
+    // or always respect config
 
     if (ledIndex >= pins::NUM_LEDS) return;
-    
+
     uint8_t r, g, b;
     rgb565ToRgb(rgb565Color, r, g, b);
     individualLedStates[ledIndex].color = CRGB(r, g, b);
     individualLedStates[ledIndex].color.fadeLightBy(255 - brightness);
     individualLedStates[ledIndex].isIndividuallyControlled = true;
-    
+
     // Update the LED immediately
     leds[ledIndex] = individualLedStates[ledIndex].color;
     FastLED.show();
@@ -197,7 +201,7 @@ void setMiddleLed(uint16_t rgb565Color, uint8_t brightness) {
     setIndividualLed(1, rgb565Color, brightness);
 }
 
-// Set right encoder LED (LED 2) 
+// Set right encoder LED (LED 2)
 void setRightEncoderLed(uint16_t rgb565Color, uint8_t brightness) {
     setIndividualLed(2, rgb565Color, brightness);
 }
@@ -207,4 +211,11 @@ void releaseIndividualLed(uint8_t ledIndex) {
     if (ledIndex >= pins::NUM_LEDS) return;
     individualLedStates[ledIndex].isIndividuallyControlled = false;
     individualLedStates[ledIndex].color = CRGB::Black;
+}
+
+// Release all individual LEDs back to global control
+void releaseAllIndividualLeds() {
+    for (uint8_t i = 0; i < pins::NUM_LEDS; i++) {
+        releaseIndividualLed(i);
+    }
 }
