@@ -15,13 +15,14 @@ struct ossm_remote_state {
             // clang-format off
             *"init"_s + event<done> = "device_search"_s,
 
-            "device_search"_s + on_entry<_> / (drawPage(deviceSearchPage)),
+            "device_search"_s + on_entry<_> / (drawPage(deviceSearchPage), []() { setLed(LEDColors::logoBlue, 255, 1500); }),
             "device_search"_s + event<connected_event> = "device_draw_control"_s,
             "device_search"_s + event<left_button_pressed> / disconnect = "main_menu"_s,
 
             "main_menu"_s + on_entry<_> / drawMainMenu,
             "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::DEVICE_SEARCH)] / search = "device_search"_s,
             "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::SETTINGS)] = "settings_menu"_s,
+            "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::DEEP_SLEEP)] = "deep_sleep"_s,
             "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::RESTART)] = "restart"_s,
             "main_menu"_s + event<connected_event> / start = "device_draw_control"_s,
 
@@ -58,7 +59,9 @@ struct ossm_remote_state {
             "device_stop"_s + event<disconnected_event> / disconnect = "main_menu"_s,
 
             "restart"_s + on_entry<_> / espRestart,
-            "restart"_s = X);
+            "restart"_s = X,
+
+            "deep_sleep"_s + on_entry<_> / enterDeepSleep);
 
         // clang-format on
     }
