@@ -89,40 +89,49 @@ static void drawMenuItem(int index, const MenuItem &option,
 }
 
 void drawMenuFrame() {
-    int rawCurrentOption = currentOption;
     int numOptions = activeMenuCount;
     const MenuItem *options = activeMenu->data();
 
-    int processedCurrentOption = abs(rawCurrentOption % numOptions);
-    if (rawCurrentOption < 0 && processedCurrentOption != 0) {
-        processedCurrentOption = numOptions - processedCurrentOption;
-    }
-    // Use the processed value instead of reusing the variable name
-    int currentOption = processedCurrentOption;
+    // Since wrap-around is disabled, currentOption should always be within bounds
+    // Just clamp it as a safety measure
+    int safeCurrentOption = currentOption;
+    if (safeCurrentOption < 0) safeCurrentOption = 0;
+    if (safeCurrentOption >= numOptions) safeCurrentOption = numOptions - 1;
+
+    menuYOffset = 0;
 
     menuYOffset = 0;
 
     if (numOptions <= 5) {
         for (int i = 0; i < numOptions; i++) {
             const MenuItem &option = options[i];
-            bool isSelected = i == currentOption;
+            bool isSelected = i == safeCurrentOption;
             drawMenuItem(i, option, isSelected);
         }
         return;
     }
 
-    drawScrollBar(currentOption, numOptions - 1);
+    drawScrollBar(safeCurrentOption, numOptions - 1);
 
     for (int i = 0; i < 5; i++) {
-        int optionIndex = currentOption - 2 + i;
-        if (optionIndex < 0) {
-            optionIndex = numOptions + optionIndex;
-        } else if (optionIndex > numOptions - 1) {
-            optionIndex = optionIndex - numOptions;
+        int optionIndex = safeCurrentOption - 2 + i;
+        
+        // Check if this position should show a menu item or be blank
+        if (optionIndex < 0 || optionIndex >= numOptions) {
+            // Draw actual blank area to clear any previous content
+            int y = Display::StatusbarHeight + Display::Padding::P1 + menuYOffset;
+            int x = Display::Padding::P1;
+            
+            if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+                tft.fillRect(x, y, menuWidth, menuItemHeight, Colors::black);
+                xSemaphoreGive(displayMutex);
+            }
+            menuYOffset += menuItemHeight;
+            continue;
         }
 
         const MenuItem &option = options[optionIndex];
-        bool isSelected = optionIndex == currentOption;
+        bool isSelected = optionIndex == safeCurrentOption;
         drawMenuItem(i, option, isSelected);
     }
 }
@@ -174,9 +183,17 @@ void drawMenuTask(void *pvParameters) {
     bool initialized = false;
     while (!initialized) {
         if (isInCorrectState()) {
-            rightEncoder.setBoundaries(0, activeMenuCount - 1, true);
+            // Disable wrap-around (false) to eliminate the problematic behavior
+            rightEncoder.setBoundaries(0, activeMenuCount - 1, false);
             rightEncoder.setAcceleration(0);
-            rightEncoder.setEncoderValue(currentOption % activeMenuCount);
+            // Ensure currentOption is within bounds for the new menu
+            int boundedCurrentOption = currentOption % activeMenuCount;
+            if (boundedCurrentOption < 0) {
+                boundedCurrentOption += activeMenuCount;
+            }
+            rightEncoder.setEncoderValue(boundedCurrentOption);
+            currentOption = boundedCurrentOption;
+            
             initialized = true;
         }
         vTaskDelay(1);
