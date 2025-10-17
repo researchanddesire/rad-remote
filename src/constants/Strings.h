@@ -9,7 +9,8 @@ static const char DEVICE_SEARCH_DESCRIPTION[] PROGMEM =
 
 static const char DEVICE_STOP_TITLE[] PROGMEM = "Device Stopped";
 static const char DEVICE_STOP_DESCRIPTION[] PROGMEM =
-    "Your device has been stopped and reset to default play settings; but it's still connected.";
+    "Your device has been stopped and reset to default play settings; but it's "
+    "still connected.";
 
 static const char GO_BACK[] PROGMEM = "Back";
 static const char GO_HOME[] PROGMEM = "Home";
@@ -29,6 +30,7 @@ static const char WIFI_SETTINGS_NAME[] PROGMEM = "WiFi Settings";
 static const char PAIRING_NAME[] PROGMEM = "Pairing";
 static const char UPDATE_NAME[] PROGMEM = "Update Device";
 static const char RESTART_NAME[] PROGMEM = "Restart Device";
+static const char DEEP_SLEEP_NAME[] PROGMEM = "Sleep";
 
 static const char WIFI_SETTINGS_TITLE[] PROGMEM = "WiFi Settings";
 static const char WIFI_SETTINGS_DESCRIPTION[] PROGMEM =

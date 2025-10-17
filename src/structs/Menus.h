@@ -17,7 +17,8 @@ enum MenuItemE {
     WIFI_SETTINGS,
     PAIRING,
     UPDATE,
-    DEVICE_MENU_ITEM
+    DEVICE_MENU_ITEM,
+    DEEP_SLEEP
 };
 
 struct MenuItem {
@@ -39,7 +40,8 @@ struct MenuItem {
 
 static std::vector<MenuItem> mainMenu = {
     {MenuItemE::DEVICE_SEARCH, OSSM_CONTROLLER_NAME, researchAndDesireWaves},
-    {MenuItemE::SETTINGS, SETTINGS_NAME, bitmap_settings}};
+    {MenuItemE::SETTINGS, SETTINGS_NAME, bitmap_settings},
+    {MenuItemE::DEEP_SLEEP, DEEP_SLEEP_NAME, bitmap_sleep}};
 
 static const int numMainMenu = mainMenu.size();
 

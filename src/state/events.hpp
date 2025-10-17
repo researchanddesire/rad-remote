@@ -42,3 +42,5 @@ struct disconnected_event : public base_event {};
 struct left_encoder_changed : public base_event {
     int value{};
 };
+
+struct wake_up_event : public base_event {};

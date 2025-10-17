@@ -7,12 +7,16 @@
 #include <Fonts/FreeSansBold12pt7b.h>
 #include <constants/Sizes.h>
 #include <devices/device.h>
+#include <driver/gpio.h>
+#include <esp_sleep.h>
 #include <pages/displayUtils.h>
 #include <pages/genericPages.h>
+#include <pins.h>
 #include <qrcode.h>
 #include <services/buzzer.h>
 #include <services/encoder.h>
 #include <services/leds.h>
+#include <services/sleepWakeup.h>
 #include <services/wm.h>
 
 #include "components/TextButton.h"
@@ -171,6 +175,51 @@ namespace actions {
     auto stopWiFiPortal = []() {
         wm.setConfigPortalBlocking(true);
         wm.stopConfigPortal();
+    };
+
+    auto enterDeepSleep = []() {
+        // Disconnect from any connected devices first
+        disconnect();
+
+        // Turn off display backlight and other peripherals
+        playBuzzerPattern(BuzzerPattern::SHUTDOWN);
+        digitalWrite(pins::TFT_BL, LOW);
+        clearScreen();
+        setLedOff();
+
+        // Give time for buzzer to finish
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        // Configure GPIO wake-up sources for light sleep
+        gpio_wakeup_enable(static_cast<gpio_num_t>(pins::BTN_UNDER_C),
+                           GPIO_INTR_LOW_LEVEL);
+        gpio_wakeup_enable(static_cast<gpio_num_t>(pins::BTN_UNDER_L),
+                           GPIO_INTR_LOW_LEVEL);
+        gpio_wakeup_enable(static_cast<gpio_num_t>(pins::BTN_UNDER_R),
+                           GPIO_INTR_LOW_LEVEL);
+
+        // Enable GPIO wake-up
+        esp_sleep_enable_gpio_wakeup();
+
+        // Use light sleep - more reliable wake-up
+        esp_light_sleep_start();
+
+        // After waking up, clean up GPIO wake-up configuration
+        gpio_wakeup_disable(static_cast<gpio_num_t>(pins::BTN_UNDER_C));
+        gpio_wakeup_disable(static_cast<gpio_num_t>(pins::BTN_UNDER_L));
+        gpio_wakeup_disable(static_cast<gpio_num_t>(pins::BTN_UNDER_R));
+
+        // Turn display back on and play boot pattern
+        digitalWrite(pins::TFT_BL, HIGH);
+        playBuzzerPattern(BuzzerPattern::BOOT);
+        clearScreen();
+
+        // Allow time for the system to stabilize
+        vTaskDelay(1500 / portTICK_PERIOD_MS);
+
+        // Send wake-up event to transition to device search
+        // (fresh start behavior)
+        sendWakeUpEvent();
     };
 
 }  // namespace actions
