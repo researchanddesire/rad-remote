@@ -67,10 +67,7 @@ namespace actions {
         }
 
         if (device != nullptr) {
-            // Call onExit before destroying the device
-            device->onExit();
-            delete device;  // Use proper delete instead of calling destructor
-                            // directly
+            device->~Device();
             device = nullptr;
         }
 

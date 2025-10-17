@@ -14,16 +14,6 @@ Device::Device(const NimBLEAdvertisedDevice *advertisedDevice)
 }
 
 Device::~Device() {
-    // First, terminate the connection task if it's still running
-    if (connectionTaskHandle != NULL) {
-        // Check if the task is still valid before attempting to delete it
-        eTaskState taskState = eTaskGetState(connectionTaskHandle);
-        if (taskState != eDeleted) {
-            vTaskDelete(connectionTaskHandle);
-        }
-        connectionTaskHandle = NULL;
-    }
-
     displayObjects.clear();
     ESP_LOGD(TAG, "Cleared %zu display objects", displayObjects.size());
 
@@ -61,8 +51,6 @@ void Device::connectionTask(void *pvParameter) {
         device->isConnected = true;
         device->onConnect(nullptr);
 
-        // Clear the task handle before deleting the task to prevent races
-        device->connectionTaskHandle = NULL;
         vTaskDelete(NULL);
         return;
     }
@@ -250,8 +238,6 @@ void Device::connectionTask(void *pvParameter) {
         break;
     }
 
-    // Clear the task handle before deleting the task to prevent races
-    device->connectionTaskHandle = NULL;
     vTaskDelete(NULL);
 }
 
