@@ -106,6 +106,10 @@ namespace actions {
     };
 
     auto stop = []() {
+        // Small delay to ensure page drawing task starts before device
+        // operations
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+
         if (device == nullptr) {
             return;
         }
@@ -216,8 +220,7 @@ namespace actions {
         // Use light sleep - more reliable wake-up
         esp_light_sleep_start();
 
-        // Skip GPIO wake-up cleanup - just restart immediately to avoid conflicts
-        // The restart will clean up everything properly
+        // Just restart immediately so we have a clean state
         espSilentRestart();
     };
 

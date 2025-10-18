@@ -56,6 +56,8 @@ void startLeftEncoderMonitoring() {
     if (leftEncoderTaskHandle != nullptr) {
         vTaskDelete(leftEncoderTaskHandle);
         leftEncoderTaskHandle = nullptr;
+        // Small delay to ensure cleanup completes before creating new task
+        vTaskDelay(50 / portTICK_PERIOD_MS);
     }
 
     xTaskCreatePinnedToCore(leftEncoderMonitorTask, "leftEncoderMonitor",

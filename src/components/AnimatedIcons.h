@@ -291,8 +291,19 @@ static void forceStatusIconsRedraw() {
     }
 }
 
+// Task handle for animated icons
+static TaskHandle_t animatedIconsTaskHandle = nullptr;
+
 // Example usage:
 static void setupAnimatedIcons() {
+    // Kill existing task if it exists to prevent multiple instances
+    if (animatedIconsTaskHandle != nullptr) {
+        vTaskDelete(animatedIconsTaskHandle);
+        animatedIconsTaskHandle = nullptr;
+        // Small delay to ensure cleanup completes
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+    }
+
     auto task = [](void *pvParameters) {
         BLEStateIcon bleIcon(getIconX(), 3);
         WifiStateIcon wifiIcon(getIconX(), 3);
@@ -322,7 +333,8 @@ static void setupAnimatedIcons() {
     };
 
     xTaskCreatePinnedToCore(task, "draw_icons", 4 * configMINIMAL_STACK_SIZE,
-                            nullptr, tskIDLE_PRIORITY, nullptr, 0);
+                            nullptr, tskIDLE_PRIORITY, &animatedIconsTaskHandle,
+                            0);
 }
 
 #endif  // LOCKBOX_ANIMATEDICONS_H
