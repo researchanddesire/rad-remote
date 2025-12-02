@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef ENCODERDIAL_H
 #define ENCODERDIAL_H
 
@@ -34,7 +32,7 @@ class EncoderDial : public DisplayObject {
     int lastFocusedIndex = -1;
     bool isFirstDraw =
         true;  // Track if this is the first draw to avoid unnecessary clearing
-    
+
     // LED mapping settings
     bool mapToLeftLed = false;
     bool mapToRightLed = false;
@@ -195,8 +193,9 @@ class EncoderDial : public DisplayObject {
                 bool valueChanged = (lastValueIt == lastParameterValues.end() ||
                                      lastValueIt->second != paramValue);
                 bool isFocused = (arcIndex == *focusedIndex);
-                
-                // For single parameter encoders, always consider the parameter as focused
+
+                // For single parameter encoders, always consider the parameter
+                // as focused
                 if (parameters.size() == 1) {
                     isFocused = true;
                 }
@@ -209,7 +208,7 @@ class EncoderDial : public DisplayObject {
 
                 arcIndex++;
             }
-            
+
             // Update LEDs if LED mapping is enabled
             updateLeds();
 
@@ -297,10 +296,10 @@ class EncoderDial : public DisplayObject {
         lastFocusedIndex = *focusedIndex;
     }
 
-private:
+  private:
     void updateLeds() {
         if (!mapToLeftLed && !mapToRightLed) return;
-        
+
         // Get the active color for the focused parameter
         uint16_t activeColor = ST77XX_WHITE;  // Default fallback
         if (*focusedIndex >= 0 && *focusedIndex < (int)colors.size()) {
@@ -308,12 +307,12 @@ private:
         } else if (*focusedIndex >= 0 && colors.empty()) {
             activeColor = color;  // Use default color
         }
-        
+
         // For single parameter encoders, always use the first color or default
         if (parameters.size() == 1) {
             activeColor = colors.empty() ? color : colors[0];
         }
-        
+
         // Update LEDs
         if (mapToLeftLed) {
             setLeftEncoderLed(activeColor);

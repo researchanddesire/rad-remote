@@ -29,6 +29,7 @@ struct DeviceCharacteristics {
 
     // Function pointers for custom encode/decode
     std::function<std::string(const std::string &)> encode = nullptr;
+    NimBLERemoteCharacteristic::notify_callback notifyCallback = nullptr;
 };
 
 struct DeviceDisplayObject {
@@ -44,6 +45,7 @@ class Device : public NimBLEClientCallbacks {
 
     bool isConnected = false;
     bool isPaused = false;
+    bool isTested = false;
 
     std::vector<MenuItem> menu;
     std::vector<MenuItem> settingsMenu;

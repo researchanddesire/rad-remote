@@ -207,6 +207,14 @@ void Device::connectionTask(void *pvParameter) {
                      characteristic.first.c_str());
             characteristic.second.pCharacteristic =
                 device->pService->getCharacteristic(characteristic.second.uuid);
+
+            if (characteristic.second.pCharacteristic->canNotify() &&
+                characteristic.second.notifyCallback) {
+                // if the user has provided a notify callback, subscribe to the
+                // characteristic with the notify callback.
+                characteristic.second.pCharacteristic->subscribe(
+                    true, characteristic.second.notifyCallback);
+            }
         }
 
         vTaskDelay(1);
