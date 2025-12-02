@@ -15,6 +15,7 @@
 #include "services/encoder.h"
 #include "services/imu.h"
 #include "services/leds.h"
+#include "services/memory.h"
 #include "services/vibrator.h"
 #include "services/wm.h"
 #include "state/remote.h"
@@ -72,6 +73,7 @@ void setup() {
     underRightBtn.attachClick(
         []() { stateMachine->process_event(right_button_pressed()); });
 
+    initMemoryService();
     initEncoderService();
     initFastLEDs();
     initWM();
