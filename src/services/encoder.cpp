@@ -26,9 +26,8 @@ void initEncoderService() {
     // if the memory chip is found, then please reinit the encoder.
     // This is a wiring issue.
     if (isMemoryChipFound) {
-        delete leftEncoder;
-        leftEncoder = new AiEsp32RotaryEncoder(pins::LEFT_ENCODER_B,
-                                               pins::LEFT_ENCODER_A, -1, -1, 4);
+        leftEncoder = AiEsp32RotaryEncoder(pins::LEFT_ENCODER_B,
+                                           pins::LEFT_ENCODER_A, -1, -1, 4);
     }
 
     // Initialize encoders

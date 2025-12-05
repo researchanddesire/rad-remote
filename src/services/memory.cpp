@@ -10,7 +10,7 @@ bool initMemoryService() {
     Wire.begin();
 
     uint8_t testValue = 0xA5;  // arbitrary test value
-    uint8_t backup = memoryService.write(0, testValue);
+    memoryService.write(0, testValue);
     delay(5);  // short delay for eeprom write
     uint8_t verify = memoryService.read(0);
     delay(5);
