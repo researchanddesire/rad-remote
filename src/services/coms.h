@@ -9,8 +9,6 @@
 #include <devices/registry.hpp>
 #include <structs/SettingPercents.h>
 
-#include "state/remote.h"
-
 struct DiscoveredDevice {
     const NimBLEAdvertisedDevice* advertisedDevice;
     const DeviceFactory* factory;
