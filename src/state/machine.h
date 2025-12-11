@@ -15,9 +15,16 @@ struct ossm_remote_state {
             // clang-format off
             *"init"_s + event<done> = "device_search"_s,
 
-            "device_search"_s + on_entry<_> / (drawPage(deviceSearchPage), []() { setLed(LEDColors::logoBlue, 255, 1500); }),
-            "device_search"_s + event<connected_event> = "device_draw_control"_s,
-            "device_search"_s + event<left_button_pressed> / disconnect = "main_menu"_s,
+            "device_search"_s + on_entry<_> / ([]() { 
+                setLed(LEDColors::logoBlue, 255, 1500); 
+                clearDiscoveredDevices();
+                initBLE();
+            }) = "device_selection"_s,  // Go directly to selection
+
+            "device_selection"_s + on_entry<_> / drawDeviceSelectionMenu,
+            "device_selection"_s + event<right_button_pressed>[isOption<>(MenuItemE::DEVICE_MENU_ITEM)] / onDeviceSelected = "device_draw_control"_s,
+            "device_selection"_s + event<right_button_pressed>[isOption<>(MenuItemE::DEVICE_SEARCH)] = "device_search"_s,
+            "device_selection"_s + event<left_button_pressed> / disconnect = "main_menu"_s,
 
             "main_menu"_s + on_entry<_> / drawMainMenu,
             "main_menu"_s + event<right_button_pressed>[isOption<>(MenuItemE::DEVICE_SEARCH)] / search = "device_search"_s,

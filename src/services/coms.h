@@ -20,6 +20,8 @@ struct DiscoveredDevice {
 
 extern std::vector<DiscoveredDevice> discoveredDevices;
 
+extern const NimBLEAdvertisedDevice* advDevice;
+
 void clearDiscoveredDevices();
 
 void sendCommand(const String& command);

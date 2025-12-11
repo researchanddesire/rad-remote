@@ -3,6 +3,7 @@
 #include <components/DynamicText.h>
 #include <devices/device.h>
 #include <services/encoder.h>
+#include <state/actions.hpp>
 #include <state/remote.h>
 
 #include "displayUtils.h"
@@ -92,8 +93,8 @@ void drawMenuFrame() {
     int numOptions = activeMenuCount;
     const MenuItem *options = activeMenu->data();
 
-    // Since wrap-around is disabled, currentOption should always be within bounds
-    // Just clamp it as a safety measure
+    // Since wrap-around is disabled, currentOption should always be within
+    // bounds Just clamp it as a safety measure
     int safeCurrentOption = currentOption;
     if (safeCurrentOption < 0) safeCurrentOption = 0;
     if (safeCurrentOption >= numOptions) safeCurrentOption = numOptions - 1;
@@ -115,13 +116,14 @@ void drawMenuFrame() {
 
     for (int i = 0; i < 5; i++) {
         int optionIndex = safeCurrentOption - 2 + i;
-        
+
         // Check if this position should show a menu item or be blank
         if (optionIndex < 0 || optionIndex >= numOptions) {
             // Draw actual blank area to clear any previous content
-            int y = Display::StatusbarHeight + Display::Padding::P1 + menuYOffset;
+            int y =
+                Display::StatusbarHeight + Display::Padding::P1 + menuYOffset;
             int x = Display::Padding::P1;
-            
+
             if (xSemaphoreTake(displayMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
                 tft.fillRect(x, y, menuWidth, menuItemHeight, Colors::black);
                 xSemaphoreGive(displayMutex);
@@ -193,7 +195,7 @@ void drawMenuTask(void *pvParameters) {
             }
             rightEncoder.setEncoderValue(boundedCurrentOption);
             currentOption = boundedCurrentOption;
-            
+
             initialized = true;
         }
         vTaskDelay(1);
@@ -229,8 +231,20 @@ void drawMenuTask(void *pvParameters) {
             isFirstDeviceMenuEntry = true;
         }
 
+        static int lastDiscoveredDeviceCount = -1;
+        bool deviceListChanged = false;
+
+        if (stateMachine->is("device_selection"_s)) {
+            int currentDeviceCount = discoveredDevices.size();
+            if (currentDeviceCount != lastDiscoveredDeviceCount) {
+                lastDiscoveredDeviceCount = currentDeviceCount;
+                deviceListChanged = true;
+                actions::rebuildDeviceSelectionMenu();
+            }
+        }
+
         if (lastEncoderValue == currentOption &&
-            !shouldUpdateLeftEncoderValue) {
+            !shouldUpdateLeftEncoderValue && !deviceListChanged) {
             // No changes needed, just tick display objects
         } else {
             if (lastEncoderValue != currentOption) {

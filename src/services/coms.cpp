@@ -17,7 +17,7 @@
 
 static const char *TAG_COMS = "COMS";
 
-static const NimBLEAdvertisedDevice *advDevice;
+const NimBLEAdvertisedDevice *advDevice;
 static bool doConnect = false;
 static uint32_t scanTimeMs =
     0; /** scan time in milliseconds, 0 = scan forever */
@@ -90,10 +90,6 @@ class ScanCallbacks : public NimBLEScanCallbacks {
         ESP_LOGI(TAG_COMS,
                  "Scan timeout reached. Found %d compatible device(s)",
                  discoveredDevices.size());
-
-        // Scan has ended - UI continues to display whatever devices were found
-        // User can still select from the list, or see "no devices found"
-        // No automatic actions needed here - UI handles it
     }
 
 } scanCallbacks;

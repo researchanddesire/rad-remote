@@ -14,10 +14,12 @@
 #include <pins.h>
 #include <qrcode.h>
 #include <services/buzzer.h>
+#include <services/coms.h>
 #include <services/encoder.h>
 #include <services/leds.h>
 #include <services/sleepWakeup.h>
 #include <services/wm.h>
+#include <structs/Menus.h>
 
 #include "components/TextButton.h"
 #include "events.hpp"
@@ -143,6 +145,54 @@ namespace actions {
         drawMenu();
     };
 
+    // Helper to rebuild device menu without redrawing
+    auto rebuildDeviceSelectionMenu = []() {
+        static std::vector<MenuItem> deviceMenu;
+        deviceMenu.clear();
+
+        for (size_t i = 0; i < discoveredDevices.size(); i++) {
+            std::string rssiDesc =
+                "Signal: " + std::to_string(discoveredDevices[i].rssi) + " dBm";
+
+            deviceMenu.push_back(
+                {MenuItemE::DEVICE_MENU_ITEM, discoveredDevices[i].displayName,
+                 researchAndDesireBluetoothConnect, rssiDesc, -1, -1, (int)i});
+        }
+
+        deviceMenu.push_back({MenuItemE::DEVICE_SEARCH, "Scan Again",
+                              researchAndDesireBluetoothConnect});
+
+        activeMenu = &deviceMenu;
+        activeMenuCount = deviceMenu.size();
+    };
+
+    auto drawDeviceSelectionMenu = []() {
+        rebuildDeviceSelectionMenu();
+        clearPage();
+        drawMenu();
+    };
+
+    auto onDeviceSelected = []() {
+        int selectedIndex = currentOption;
+
+        if (selectedIndex >= 0 &&
+            selectedIndex < (int)discoveredDevices.size()) {
+            // User selected a device - connect to it
+            ESP_LOGI("DEVICE_SELECTION", "User selected device at index %d",
+                     selectedIndex);
+            advDevice = discoveredDevices[selectedIndex].advertisedDevice;
+            device = (*discoveredDevices[selectedIndex].factory)(
+                discoveredDevices[selectedIndex].advertisedDevice);
+
+            // Stop scanning
+            NimBLEDevice::getScan()->stop();
+        } else {
+            // User selected "Scan Again" - go back to search
+            ESP_LOGI("DEVICE_SELECTION", "User selected to scan again");
+            // The state machine will handle transition back to device_search
+        }
+    };
+
     auto drawSettingsMenu = []() {
         activeMenu = &settingsMenu;
         activeMenuCount = numSettingsMenu;
@@ -216,8 +266,8 @@ namespace actions {
         // Use light sleep - more reliable wake-up
         esp_light_sleep_start();
 
-        // Skip GPIO wake-up cleanup - just restart immediately to avoid conflicts
-        // The restart will clean up everything properly
+        // Skip GPIO wake-up cleanup - just restart immediately to avoid
+        // conflicts The restart will clean up everything properly
         espSilentRestart();
     };
 
