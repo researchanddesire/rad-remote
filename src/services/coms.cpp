@@ -17,12 +17,14 @@
 
 static const char *TAG_COMS = "COMS";
 
-static const NimBLEAdvertisedDevice *advDevice;
+const NimBLEAdvertisedDevice *advDevice;
 static bool doConnect = false;
 static uint32_t scanTimeMs =
     0; /** scan time in milliseconds, 0 = scan forever */
 
 static std::queue<String> commandQueue;
+
+std::vector<DiscoveredDevice> discoveredDevices;
 
 /** Define a class to handle the callbacks when scan events are received */
 class ScanCallbacks : public NimBLEScanCallbacks {
@@ -52,15 +54,44 @@ class ScanCallbacks : public NimBLEScanCallbacks {
             return;
         }
 
-        NimBLEDevice::getScan()->stop();
+        // Check if this device is already in our discovered list
+        std::string deviceAddress = advertisedDevice->getAddress().toString();
+        for (auto &discovered : discoveredDevices) {
+            if (discovered.advertisedDevice->getAddress().toString() ==
+                deviceAddress) {
+                // Device already discovered, update RSSI if it's stronger
+                if (advertisedDevice->getRSSI() > discovered.rssi) {
+                    discovered.rssi = advertisedDevice->getRSSI();
+                }
+                return;
+            }
+        }
 
-        /** stop scan before connecting */
-        /** Save the device reference in a global for the client to use*/
-        advDevice = advertisedDevice;
-        device = (*factory)(advertisedDevice);
+        // New device found - add to list
+        DiscoveredDevice newDevice;
+        newDevice.advertisedDevice = advertisedDevice;
+        newDevice.factory = factory;
+        newDevice.displayName = advertisedDevice->getName().c_str();
+        newDevice.rssi = advertisedDevice->getRSSI();
+
+        discoveredDevices.push_back(newDevice);
+
+        ESP_LOGI(TAG_COMS,
+                 "Discovered device: %s (RSSI: %d) - Total devices: %d",
+                 newDevice.displayName.c_str(), newDevice.rssi,
+                 discoveredDevices.size());
+
+        // Scan continues - UI will update in real-time as devices are found
 
         return;
     }
+
+    void onScanEnd(const NimBLEScanResults &results, int reason) override {
+        ESP_LOGI(TAG_COMS,
+                 "Scan timeout reached. Found %d compatible device(s)",
+                 discoveredDevices.size());
+    }
+
 } scanCallbacks;
 
 /** Notification / Indication receiving handler callback */
@@ -131,6 +162,11 @@ void sendCommand(const String &command) {
     ESP_LOGW(TAG_COMS, "Invalid command format: %s", command.c_str());
 }
 
+void clearDiscoveredDevices() {
+    discoveredDevices.clear();
+    ESP_LOGI(TAG_COMS, "Cleared discovered devices list");
+}
+
 void initBLE() {
     ESP_LOGI(TAG_COMS, "Starting NimBLE Client");
 
@@ -154,7 +190,10 @@ void initBLE() {
      */
     pScan->setActiveScan(true);
 
-    /** Start scanning for advertisers */
-    pScan->start(scanTimeMs);
-    ESP_LOGI(TAG_COMS, "Scanning for peripherals");
+    /** Clear any previously discovered devices */
+    clearDiscoveredDevices();
+
+    /** Start scanning for 10 seconds to discover devices */
+    pScan->start(10, false, false);
+    ESP_LOGI(TAG_COMS, "Scanning for peripherals (10 second scan)");
 }
