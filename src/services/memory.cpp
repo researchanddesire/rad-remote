@@ -6,7 +6,6 @@ bool isMemoryChipFound = false;
 
 bool initMemoryService() {
     ESP_LOGI("MEMORY", "Waiting 10 seconds...");
-    delay(10000);
     Wire.begin();
 
     uint8_t testValue = 0xA5;  // arbitrary test value
@@ -21,8 +20,6 @@ bool initMemoryService() {
     } else {
         ESP_LOGI("MEMORY", "We did not find the memory!");
     }
-
-    delay(10000);
 
     return true;
 }
