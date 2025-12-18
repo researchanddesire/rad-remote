@@ -72,7 +72,7 @@ namespace actions {
         }
 
         if (device != nullptr) {
-            device->~Device();
+            delete device;  // Properly calls destructor AND frees memory
             device = nullptr;
         }
 

@@ -173,7 +173,7 @@ void initBLE() {
     pScan->setActiveScan(true);
 
     /** Start scanning for advertisers */
-    pScan->start(scanTimeMs);
+    // pScan->start(scanTimeMs);
     ESP_LOGI(TAG_COMS, "Scanning for peripherals");
 }
 
@@ -208,6 +208,8 @@ void startScanWithTimeout(int timeoutMs, void (*onComplete)()) {
     NimBLEScan *pScan = NimBLEDevice::getScan();
     
     // Start a task to monitor scanning and call callback
+    // NOTE: Stack size must be large enough to handle the callback chain,
+    // which includes state machine processing and UI operations
     xTaskCreate([](void* param) {
         auto callback = (void (*)())param;
         
@@ -226,7 +228,7 @@ void startScanWithTimeout(int timeoutMs, void (*onComplete)()) {
         }
         
         vTaskDelete(NULL);
-    }, "scanMonitor", 2048, (void*)onComplete, 1, NULL);
+    }, "scanMonitor", 8192, (void*)onComplete, 1, NULL);
     
     pScan->start(0);
 }

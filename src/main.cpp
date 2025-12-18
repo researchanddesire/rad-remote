@@ -101,7 +101,7 @@ void setup() {
                 wm.process();
             }
         },
-        "buttonTask", 4 * configMINIMAL_STACK_SIZE, NULL,
+        "buttonTask", 6 * configMINIMAL_STACK_SIZE, NULL,
         configMAX_PRIORITIES - 1, NULL, 0);
 }
 
