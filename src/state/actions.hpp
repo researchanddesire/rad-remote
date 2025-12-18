@@ -26,6 +26,14 @@
 #include "pages/menus.h"
 #include "services/leftEncoderMonitor.h"
 
+// Forward declarations to avoid circular dependencies
+struct DiscoveredDevice;
+std::vector<DiscoveredDevice>& getDiscoveredDevices();
+void clearDiscoveredDevices();
+void connectToDiscoveredDevice(int index);
+void startScanWithTimeout(int timeoutMs, void (*onComplete)());
+void onScanComplete();
+
 namespace actions {
 
     auto clearPage = [](bool clearStatusbar = false) {
@@ -101,8 +109,26 @@ namespace actions {
     };
 
     auto search = []() {
+        startScanWithTimeout(5000, onScanComplete);
+    };
+
+    auto drawDeviceList = []() {
+        // Stop scanning when we enter the device list
         NimBLEScan *pScan = NimBLEDevice::getScan();
-        pScan->start(0);
+        if (pScan->isScanning()) {
+            pScan->stop();
+        }
+        
+        // This will be implemented in menus.cpp
+        drawDeviceListMenu();
+    };
+
+    auto selectDevice = []() {
+        connectToDiscoveredDevice(currentOption);
+    };
+
+    auto clearDeviceList = []() {
+        clearDiscoveredDevices();
     };
 
     auto stop = []() {

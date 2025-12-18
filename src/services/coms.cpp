@@ -23,6 +23,7 @@ static uint32_t scanTimeMs =
     0; /** scan time in milliseconds, 0 = scan forever */
 
 static std::queue<String> commandQueue;
+static std::vector<DiscoveredDevice> discoveredDevices;
 
 /** Define a class to handle the callbacks when scan events are received */
 class ScanCallbacks : public NimBLEScanCallbacks {
@@ -52,14 +53,31 @@ class ScanCallbacks : public NimBLEScanCallbacks {
             return;
         }
 
-        NimBLEDevice::getScan()->stop();
+        // Check if device already exists in list (by address)
+        std::string address = advertisedDevice->getAddress().toString();
+        for (auto &dev : discoveredDevices) {
+            if (dev.advertisedDevice->getAddress().toString() == address) {
+                // Update RSSI if device already in list
+                dev.rssi = advertisedDevice->getRSSI();
+                return;
+            }
+        }
 
-        /** stop scan before connecting */
-        /** Save the device reference in a global for the client to use*/
-        advDevice = advertisedDevice;
-        device = (*factory)(advertisedDevice);
+        // Add new device to list
+        DiscoveredDevice newDevice;
+        newDevice.advertisedDevice = advertisedDevice;
+        newDevice.factory = factory;
+        newDevice.name = advertisedDevice->getName().c_str();
+        newDevice.rssi = advertisedDevice->getRSSI();
+        discoveredDevices.push_back(newDevice);
+
+        ESP_LOGI(TAG_COMS, "Found device: %s (RSSI: %d)", newDevice.name.c_str(), newDevice.rssi);
 
         return;
+    }
+    
+    void onScanEnd(const NimBLEScanResults& results, int reason) override {
+        ESP_LOGI(TAG_COMS, "Scan ended. Found %d devices", discoveredDevices.size());
     }
 } scanCallbacks;
 
@@ -157,4 +175,58 @@ void initBLE() {
     /** Start scanning for advertisers */
     pScan->start(scanTimeMs);
     ESP_LOGI(TAG_COMS, "Scanning for peripherals");
+}
+
+std::vector<DiscoveredDevice>& getDiscoveredDevices() {
+    return discoveredDevices;
+}
+
+void clearDiscoveredDevices() {
+    discoveredDevices.clear();
+    ESP_LOGI(TAG_COMS, "Cleared discovered devices list");
+}
+
+void connectToDiscoveredDevice(int index) {
+    if (index < 0 || index >= discoveredDevices.size()) {
+        ESP_LOGE(TAG_COMS, "Invalid device index: %d", index);
+        return;
+    }
+
+    const DiscoveredDevice &selectedDevice = discoveredDevices[index];
+    ESP_LOGI(TAG_COMS, "Connecting to device: %s", selectedDevice.name.c_str());
+
+    // Stop scanning
+    NimBLEDevice::getScan()->stop();
+
+    // Create device instance
+    advDevice = selectedDevice.advertisedDevice;
+    device = (*selectedDevice.factory)(selectedDevice.advertisedDevice);
+}
+
+void startScanWithTimeout(int timeoutMs, void (*onComplete)()) {
+    clearDiscoveredDevices();
+    NimBLEScan *pScan = NimBLEDevice::getScan();
+    
+    // Start a task to monitor scanning and call callback
+    xTaskCreate([](void* param) {
+        auto callback = (void (*)())param;
+        
+        // Wait for scan timeout
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        
+        // Stop scanning
+        NimBLEScan *pScan = NimBLEDevice::getScan();
+        if (pScan->isScanning()) {
+            pScan->stop();
+        }
+        
+        // Call completion callback
+        if (callback) {
+            callback();
+        }
+        
+        vTaskDelete(NULL);
+    }, "scanMonitor", 2048, (void*)onComplete, 1, NULL);
+    
+    pScan->start(0);
 }

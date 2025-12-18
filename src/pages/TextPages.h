@@ -19,6 +19,12 @@ static const TextPage deviceSearchPage = {
     .leftButtonText = CANCEL_STRING,
 };
 
+static const TextPage deviceConnectingPage = {
+    .title = "Connecting",
+    .description = "Connecting to device...",
+    .leftButtonText = CANCEL_STRING,
+};
+
 static const TextPage deviceStopPage = {.title = DEVICE_STOP_TITLE,
                                         .description = DEVICE_STOP_DESCRIPTION,
                                         .leftButtonText = GO_BACK,
