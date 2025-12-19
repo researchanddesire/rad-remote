@@ -1,5 +1,7 @@
 #include "encoder.h"
 
+#include "memory.h"
+
 // Initialize the global service instances
 DRAM_ATTR AiEsp32RotaryEncoder leftEncoder(pins::LEFT_ENCODER_A,
                                            pins::LEFT_ENCODER_B, -1, -1, 4);
@@ -21,6 +23,13 @@ void IRAM_ATTR readRightEncoder() {
 }
 
 void initEncoderService() {
+    // if the memory chip is found, then please reinit the encoder.
+    // This is a wiring issue.
+    if (isMemoryChipFound) {
+        leftEncoder = AiEsp32RotaryEncoder(pins::LEFT_ENCODER_B,
+                                           pins::LEFT_ENCODER_A, -1, -1, 4);
+    }
+
     // Initialize encoders
     leftEncoder.begin();
     rightEncoder.begin();
