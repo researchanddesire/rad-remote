@@ -246,6 +246,19 @@ class OSSM : public Device {
 
         patternName = "Paused";
         
+        // Guard: Only update UI elements if displayObjects hasn't been cleared
+        // This prevents crashes from race conditions during state transitions
+        if (displayObjects.empty()) {
+            // UI has been torn down, skip UI updates
+            if (fullStop) {
+                setDepth(0);
+                setStroke(10);
+                setSensation(50);
+                rightEncoder.setEncoderValue(0);
+            }
+            return;
+        }
+        
         // Set the pattern name color to red when paused
         if (patternNameDisplay) {
             patternNameDisplay->setColor(Colors::red);
@@ -283,6 +296,11 @@ class OSSM : public Device {
         isPaused = false;
         resetMiddleButtonCounter();
         setMiddleLed(Colors::white, 50);
+        
+        // Guard: Only update UI elements if displayObjects hasn't been cleared
+        if (displayObjects.empty()) {
+            return;
+        }
         
         // Reset the pattern name color to default when resuming
         if (patternNameDisplay) {

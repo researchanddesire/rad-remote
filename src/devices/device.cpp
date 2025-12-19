@@ -89,13 +89,19 @@ void Device::connectionTask(void *pvParameter) {
                 /**
                  *  We don't already have a client that knows this device,
                  *  check for a client that is disconnected that we can use.
+                 *  
+                 *  NOTE: Reusing disconnected clients for DIFFERENT devices
+                 *  can cause connection issues. Delete stale clients instead
+                 *  and create a fresh one for reliable connections.
                  */
                 ESP_LOGD(TAG,
                          "No existing client for peer; searching for "
                          "disconnected client slot");
                 pClient = NimBLEDevice::getDisconnectedClient();
                 if (pClient) {
-                    ESP_LOGD(TAG, "Reusing a disconnected client instance");
+                    ESP_LOGD(TAG, "Found disconnected client, deleting it to create fresh connection");
+                    NimBLEDevice::deleteClient(pClient);
+                    pClient = nullptr;  // Will create new client below
                 } else {
                     ESP_LOGD(TAG,
                              "No disconnected clients available; will create a "
@@ -207,6 +213,14 @@ void Device::connectionTask(void *pvParameter) {
                      characteristic.first.c_str());
             characteristic.second.pCharacteristic =
                 device->pService->getCharacteristic(characteristic.second.uuid);
+
+            if (characteristic.second.pCharacteristic->canNotify() &&
+                characteristic.second.notifyCallback) {
+                // if the user has provided a notify callback, subscribe to the
+                // characteristic with the notify callback.
+                characteristic.second.pCharacteristic->subscribe(
+                    true, characteristic.second.notifyCallback);
+            }
         }
 
         vTaskDelay(1);
