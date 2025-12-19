@@ -44,3 +44,7 @@ struct left_encoder_changed : public base_event {
 };
 
 struct wake_up_event : public base_event {};
+
+struct devices_found_event : public base_event {};
+
+struct device_selected_event : public base_event {};

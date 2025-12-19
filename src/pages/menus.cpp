@@ -3,6 +3,7 @@
 #include <components/DynamicText.h>
 #include <devices/device.h>
 #include <services/encoder.h>
+#include <services/coms.h>
 #include <state/remote.h>
 
 #include "displayUtils.h"
@@ -290,4 +291,129 @@ void drawMenu() {
     xTaskCreatePinnedToCore(drawMenuTask, "drawMenuTask",
                             5 * configMINIMAL_STACK_SIZE, NULL, 5,
                             &menuTaskHandle, 1);
+}
+
+// Device list management
+static std::vector<MenuItem> deviceListMenu;
+static int deviceListCount = 0;
+TaskHandle_t deviceListTaskHandle = NULL;
+static volatile bool deviceListTaskExitRequested = false;
+
+void buildDeviceListMenu() {
+    deviceListMenu.clear();
+    
+    auto& devices = getDiscoveredDevices();
+    
+    if (devices.empty()) {
+        // Add a "No devices found" placeholder
+        deviceListMenu.push_back({
+            MenuItemE::DEVICE_MENU_ITEM,
+            "No devices found",
+            bitmap_ble_connect,
+            std::nullopt,
+            Colors::textForegroundSecondary,
+            Colors::textForegroundSecondary,
+            -1
+        });
+    } else {
+        for (size_t i = 0; i < devices.size(); i++) {
+            std::string displayName = devices[i].name;
+            if (displayName.empty()) {
+                displayName = "Unknown Device";
+            }
+            
+            // Add RSSI indicator
+            // displayName += " (" + std::to_string(devices[i].rssi) + " dBm)";
+            
+            deviceListMenu.push_back({
+                MenuItemE::DEVICE_MENU_ITEM,
+                displayName,
+                bitmap_ble_connect,
+                std::nullopt,
+                Colors::textForeground,
+                Colors::textBackground,
+                static_cast<int>(i)
+            });
+        }
+    }
+    
+    deviceListCount = deviceListMenu.size();
+}
+
+void drawDeviceListTask(void *pvParameters) {
+    int lastEncoderValue = -1;
+    
+    auto isInCorrectState = []() {
+        return stateMachine->is("device_list"_s);
+    };
+    
+    deviceListTaskHandle = xTaskGetCurrentTaskHandle();
+    
+    bool initialized = false;
+    while (!initialized) {
+        if (isInCorrectState()) {
+            rightEncoder.setBoundaries(0, deviceListCount - 1, false);
+            rightEncoder.setAcceleration(0);
+            rightEncoder.setEncoderValue(0);
+            currentOption = 0;
+            initialized = true;
+        }
+        vTaskDelay(1);
+    }
+    
+    while (isInCorrectState() && !deviceListTaskExitRequested) {
+        int rawEncoderValue = rightEncoder.readEncoder();
+        currentOption = rawEncoderValue;
+        
+        if (lastEncoderValue != currentOption) {
+            lastEncoderValue = currentOption;
+            
+            // Redraw menu with updated selection
+            activeMenu = &deviceListMenu;
+            activeMenuCount = deviceListCount;
+            drawMenuFrame();
+        }
+        
+        vTaskDelay(16 / portTICK_PERIOD_MS);
+    }
+    
+    deviceListTaskHandle = NULL;
+    vTaskDelete(NULL);
+}
+
+void drawDeviceListMenu() {
+    // Stop any existing device list task
+    if (deviceListTaskHandle != NULL) {
+        deviceListTaskExitRequested = true;
+        const TickType_t waitStart = xTaskGetTickCount();
+        const TickType_t waitTimeout = pdMS_TO_TICKS(50);
+        while (deviceListTaskHandle != NULL &&
+               (xTaskGetTickCount() - waitStart) < waitTimeout) {
+            vTaskDelay(1);
+        }
+        if (deviceListTaskHandle != NULL) {
+            vTaskSuspend(deviceListTaskHandle);
+            vTaskDelete(deviceListTaskHandle);
+            deviceListTaskHandle = NULL;
+        }
+    }
+    
+    deviceListTaskExitRequested = false;
+    
+    ESP_LOGD("DEVICE_LIST", "Drawing device list");
+    
+    // Build the menu from discovered devices
+    buildDeviceListMenu();
+    
+    // Set active menu
+    activeMenu = &deviceListMenu;
+    activeMenuCount = deviceListCount;
+    currentOption = 0;
+    
+    clearPage();
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+    
+    xTaskCreatePinnedToCore(drawDeviceListTask, "drawDeviceListTask",
+                            5 * configMINIMAL_STACK_SIZE, NULL, 5,
+                            &deviceListTaskHandle, 1);
 }

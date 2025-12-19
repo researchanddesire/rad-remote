@@ -18,5 +18,6 @@ extern int currentOption;
 extern TaskHandle_t menuTaskHandle;
 
 void drawMenu();
+void drawDeviceListMenu();
 
 #endif
