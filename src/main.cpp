@@ -19,6 +19,9 @@
 #include "services/wm.h"
 #include "state/remote.h"
 
+// Multi-device POC (temporary for testing)
+#include "services/multiDevicePOC.h"
+
 // Function declaration for resetting middle button counter
 extern void resetMiddleButtonCounter();
 
@@ -50,6 +53,14 @@ void setup() {
     leftShoulderBtn = OneButton(pins::BTN_L_SHOULDER, true, true);
     leftShoulderBtn.attachClick(
         []() { stateMachine->process_event(left_shoulder_pressed()); });
+    // Long press left shoulder + right shoulder to start multi-device POC
+    leftShoulderBtn.attachLongPressStart([]() {
+        if (digitalRead(pins::BTN_R_SHOULDER) == LOW) {
+            // Both shoulders held - trigger POC
+            ESP_LOGI(TAG, "Both shoulders held - starting Multi-Device POC!");
+            startMultiDevicePOC();
+        }
+    });
     rightShoulderBtn = OneButton(pins::BTN_R_SHOULDER, true, true);
     rightShoulderBtn.attachClick(
         []() { stateMachine->process_event(right_shoulder_pressed()); });
