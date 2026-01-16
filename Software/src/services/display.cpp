@@ -4,7 +4,8 @@
 static const char* TAG = "DISPLAY";
 
 // PWM configuration for backlight
-static const int BACKLIGHT_PWM_CHANNEL = 0;
+// Using channel 7 to avoid conflict with Tone library which uses channel 0
+static const int BACKLIGHT_PWM_CHANNEL = 7;
 static const int BACKLIGHT_PWM_FREQ = 5000;      // 5kHz - high enough to avoid flicker
 static const int BACKLIGHT_PWM_RESOLUTION = 8;   // 8-bit resolution (0-255)
 
@@ -24,7 +25,6 @@ bool initDisplay()
     ledcAttachPin(pins::TFT_BL, BACKLIGHT_PWM_CHANNEL);
     ledcWrite(BACKLIGHT_PWM_CHANNEL, BRIGHTNESS_FULL);
     currentBrightness = BRIGHTNESS_FULL;
-    ESP_LOGI(TAG, "Backlight PWM initialized on channel %d", BACKLIGHT_PWM_CHANNEL);
 
     SPI.begin(pins::TFT_SCLK, -1, pins::TFT_MOSI, pins::TFT_CS);
     // Increase SPI frequency for faster display updates (40MHz max for ST7789)
@@ -42,7 +42,6 @@ void setScreenBrightness(uint8_t brightness)
 {
     ledcWrite(BACKLIGHT_PWM_CHANNEL, brightness);
     currentBrightness = brightness;
-    ESP_LOGD(TAG, "Screen brightness set to %d", brightness);
 }
 
 void dimScreen()
@@ -53,4 +52,9 @@ void dimScreen()
 void restoreScreenBrightness()
 {
     setScreenBrightness(BRIGHTNESS_FULL);
+}
+
+void turnOffScreen()
+{
+    setScreenBrightness(BRIGHTNESS_OFF);
 }

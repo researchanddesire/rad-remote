@@ -23,9 +23,10 @@ enum class IdleState
     NOT_IDLE
 };
 
+// Declare as extern - actual storage is in lastInteraction.cpp
 extern unsigned long sleepDuration;
-static unsigned long lastInteraction = millis();
-static IdleState idleState = IdleState::NOT_IDLE;
+extern unsigned long lastInteraction;
+extern IdleState idleState;
 
 static void setNotIdle(String src)
 {
@@ -43,6 +44,8 @@ static void setNotIdle(String src)
 }
 
 static void setupIdleMonitor() {
+    lastInteraction = millis();
+    
     auto task = [](void *pvParameters) {
         while (true) {
             unsigned long elapsed = millis() - lastInteraction;
@@ -50,6 +53,7 @@ static void setupIdleMonitor() {
             // Only act on state TRANSITIONS, not every loop
             if (elapsed > SLEEP_TIMEOUT && idleState != IdleState::SLEEP) {
                 idleState = IdleState::SLEEP;
+                turnOffScreen();
                 sleepDuration = elapsed;
                 ESP_LOGI("IDLE", "Entering SLEEP state");
                 // Could trigger deep sleep here in the future

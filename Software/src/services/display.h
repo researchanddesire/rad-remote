@@ -26,5 +26,6 @@ void setScreenBrightness(uint8_t brightness);
 // Convenience functions
 void dimScreen();
 void restoreScreenBrightness();
+void turnOffScreen();
 
 #endif
