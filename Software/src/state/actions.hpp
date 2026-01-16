@@ -14,6 +14,7 @@
 #include <pins.h>
 #include <qrcode.h>
 #include <services/buzzer.h>
+#include <services/display.h>
 #include <services/encoder.h>
 #include <services/leds.h>
 #include <services/sleepWakeup.h>
@@ -215,7 +216,7 @@ namespace actions {
 
         // Turn off display backlight and other peripherals
         playBuzzerPattern(BuzzerPattern::SHUTDOWN);
-        digitalWrite(pins::TFT_BL, LOW);
+        setScreenBrightness(BRIGHTNESS_OFF);
         clearScreen();
         setLedOff();
 
