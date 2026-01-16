@@ -90,6 +90,7 @@ void setup() {
     // updateIMUReadings();
 
     setupAnimatedIcons();
+    setupIdleMonitor();
 
     xTaskCreatePinnedToCore(
         [](void *pvParameters) {
