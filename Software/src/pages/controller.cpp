@@ -4,6 +4,7 @@
 #include <constants.h>
 #include <state/remote.h>
 #include <services/encoder.h>
+#include <services/lastInteraction.h>
 #include <components/Image.h>
 #include <devices/researchAndDesire/ossm/ossm_device.hpp>
 #include <components/LinearRailGraph.h>
@@ -73,6 +74,7 @@ void drawControllerTask(void *pvParameters)
         if (!device->needsPersistentLeftEncoderMonitoring()) {
             currentLeftEncoderValue = leftEncoder.readEncoder();
             if (currentLeftEncoderValue != lastLeftEncoderValue) {
+                setNotIdle("left_encoder");
                 device->onLeftEncoderChange(currentLeftEncoderValue);
                 lastLeftEncoderValue = currentLeftEncoderValue;
             }
@@ -82,6 +84,7 @@ void drawControllerTask(void *pvParameters)
 
         if (currentRightEncoderValue != lastRightEncoderValue)
         {
+            setNotIdle("right_encoder");
             device->onRightEncoderChange(currentRightEncoderValue);
             lastRightEncoderValue = currentRightEncoderValue;
         }

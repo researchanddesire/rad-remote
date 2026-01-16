@@ -2,6 +2,7 @@
 
 #include "devices/device.h"
 #include "encoder.h"
+#include "lastInteraction.h"
 #include "state/remote.h"
 
 extern Device *device;
@@ -30,6 +31,7 @@ void leftEncoderMonitorTask(void *pvParameters) {
 
         if (currentLeftEncoderValue != lastLeftEncoderValue ||
             hasLeftEncoderChanged(false)) {
+            setNotIdle("left_encoder");
             // Send encoder change to device
             if (device != nullptr) {
                 device->onLeftEncoderChange(currentLeftEncoderValue);
