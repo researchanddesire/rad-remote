@@ -144,6 +144,15 @@
         "datetime": "2025-09-26T10:12:32Z"
     },
     {
+        "version": "1.0.20",
+        "major": 1,
+        "minor": 0,
+        "patch": 20,
+        "url": "./v/1.0.20/version.json",
+        "firmware": "./v/1.0.20/firmware.bin",
+        "datetime": "2026-01-17T07:56:20Z"
+    },
+    {
         "version": "1.0.3",
         "major": 1,
         "minor": 0,
