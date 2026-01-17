@@ -126,6 +126,15 @@
         "datetime": "2025-12-19T16:41:54Z"
     },
     {
+        "version": "1.0.19",
+        "major": 1,
+        "minor": 0,
+        "patch": 19,
+        "url": "./v/1.0.19/version.json",
+        "firmware": "./v/1.0.19/firmware.bin",
+        "datetime": "2026-01-17T07:45:59Z"
+    },
+    {
         "version": "1.0.2",
         "major": 1,
         "minor": 0,
