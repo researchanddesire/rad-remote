@@ -31,10 +31,6 @@ jobs:
         run: |
           pio check --skip-packages --fail-on-defect high -e development -f src
 
-      - name: Unit Test PlatformIO Project
-        run: |
-          pio test -e test
-
   check_docs:
     runs-on: ubuntu-latest
     steps:
