@@ -162,6 +162,15 @@
         "datetime": "2026-01-17T08:24:04Z"
     },
     {
+        "version": "1.0.22",
+        "major": 1,
+        "minor": 0,
+        "patch": 22,
+        "url": "./v/1.0.22/version.json",
+        "firmware": "./v/1.0.22/firmware.bin",
+        "datetime": "2026-01-18T07:20:03Z"
+    },
+    {
         "version": "1.0.3",
         "major": 1,
         "minor": 0,
