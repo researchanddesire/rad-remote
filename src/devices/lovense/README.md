@@ -1,2 +1,0 @@
-# Lovense Products
-

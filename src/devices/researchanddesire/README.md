@@ -1,1 +1,0 @@
-# Research and Desire Products
