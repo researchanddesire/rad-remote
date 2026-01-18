@@ -12,8 +12,20 @@
     "products": [
       {
         "product": "Wireless Remote",
-        "pages": [
-          "radr/introduction"
+        "icon": "signal-stream",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "radr/quick-start"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "radr/device-support"
+            ]
+          }
         ]
       }
     ]
