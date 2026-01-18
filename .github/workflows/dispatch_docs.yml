@@ -5,7 +5,9 @@ on:
     branches:
       - aj/mintlify-docs
       - main
-
+    paths:
+      - 'Documentation/**'
+      
 jobs:
   dispatch:
     runs-on: ubuntu-latest
