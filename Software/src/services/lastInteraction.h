@@ -29,7 +29,7 @@ extern volatile unsigned long sleepDuration;
 extern volatile unsigned long lastInteraction;
 extern volatile IdleState idleState;
 
-static void setNotIdle(String src)
+inline void setNotIdle(String src)
 {
     lastInteraction = millis();
 
@@ -44,7 +44,7 @@ static void setNotIdle(String src)
     ESP_LOGI("IDLE", "Restored from idle, called from %s", src.c_str());
 }
 
-static void setupIdleMonitor() {
+inline void setupIdleMonitor() {
     lastInteraction = millis();
     
     auto task = [](void *pvParameters) {
