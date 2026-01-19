@@ -4,7 +4,12 @@
 static const char* TAG = "DISPLAY";
 
 // PWM configuration for backlight
-// Using channel 7 to avoid conflict with Tone library which uses channel 0
+// LEDC channel allocation (see also any global PWM/channel docs):
+//   - Channel 0 : reserved by Tone library
+//   - Channel 7 : reserved for TFT backlight (BACKLIGHT_PWM_CHANNEL)
+//
+// NOTE: Do not reuse channel 7 elsewhere; allocate new LEDC channels only
+// after checking and updating this documented mapping.
 static const int BACKLIGHT_PWM_CHANNEL = 7;
 static const int BACKLIGHT_PWM_FREQ = 5000;      // 5kHz - high enough to avoid flicker
 static const int BACKLIGHT_PWM_RESOLUTION = 8;   // 8-bit resolution (0-255)
