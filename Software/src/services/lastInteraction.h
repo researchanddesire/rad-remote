@@ -24,9 +24,10 @@ enum class IdleState
 };
 
 // Declare as extern - actual storage is in lastInteraction.cpp
-extern unsigned long sleepDuration;
-extern unsigned long lastInteraction;
-extern IdleState idleState;
+// volatile ensures compiler doesn't cache these across threads
+extern volatile unsigned long sleepDuration;
+extern volatile unsigned long lastInteraction;
+extern volatile IdleState idleState;
 
 static void setNotIdle(String src)
 {
