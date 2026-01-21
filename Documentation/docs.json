@@ -86,14 +86,24 @@
               {
                 "group": "Getting Started",
                 "pages": [
-                  "radr/Software/getting-started/introduction",
-                  "radr/Software/getting-started/web-flasher"
+                  "radr/Software/getting-started/introduction"
                 ]
               },
               {
                 "group": "Communication",
                 "pages": [
                   "radr/Software/communication/ble"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Tools",
+            "groups": [
+              {
+                "group": "Flashers",
+                "pages": [
+                  "radr/tools/web-flasher"
                 ]
               }
             ]
