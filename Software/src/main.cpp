@@ -15,6 +15,7 @@
 #include "services/encoder.h"
 #include "services/imu.h"
 #include "services/leds.h"
+#include "services/lastInteraction.h"
 #include "services/memory.h"
 #include "services/vibrator.h"
 #include "services/wm.h"
@@ -50,15 +51,16 @@ void setup() {
     // init buttons
     leftShoulderBtn = OneButton(pins::BTN_L_SHOULDER, true, true);
     leftShoulderBtn.attachClick(
-        []() { stateMachine->process_event(left_shoulder_pressed()); });
+        []() { setNotIdle("left_shoulder_btn"); stateMachine->process_event(left_shoulder_pressed()); });
     rightShoulderBtn = OneButton(pins::BTN_R_SHOULDER, true, true);
     rightShoulderBtn.attachClick(
-        []() { stateMachine->process_event(right_shoulder_pressed()); });
+        []() { setNotIdle("right_shoulder_btn"); stateMachine->process_event(right_shoulder_pressed()); });
     underLeftBtn = OneButton(pins::BTN_UNDER_L, true, true);
     underLeftBtn.attachClick(
-        []() { stateMachine->process_event(left_button_pressed()); });
+        []() { setNotIdle("under_left_btn"); stateMachine->process_event(left_button_pressed()); });
     underCenterBtn = OneButton(pins::BTN_UNDER_C, true, true);
     underCenterBtn.attachClick([]() {
+        setNotIdle("under_center_btn");
         middleButtonPressCount++;
         if (middleButtonPressCount == 1) {
             // First press action
@@ -71,7 +73,7 @@ void setup() {
     });
     underRightBtn = OneButton(pins::BTN_UNDER_R, true, true);
     underRightBtn.attachClick(
-        []() { stateMachine->process_event(right_button_pressed()); });
+        []() { setNotIdle("under_right_btn"); stateMachine->process_event(right_button_pressed()); });
 
     initMemoryService();
     initEncoderService();
@@ -88,6 +90,7 @@ void setup() {
     // updateIMUReadings();
 
     setupAnimatedIcons();
+    setupIdleMonitor();
 
     xTaskCreatePinnedToCore(
         [](void *pvParameters) {

@@ -12,7 +12,20 @@ extern Adafruit_ST7789 tft;
 // Display semaphore for thread-safe access
 extern SemaphoreHandle_t displayMutex;
 
+// Brightness constants
+constexpr uint8_t BRIGHTNESS_FULL = 255;
+constexpr uint8_t BRIGHTNESS_DIM = 25;
+constexpr uint8_t BRIGHTNESS_OFF = 0;
+
 // Initialize the display
 bool initDisplay();
+
+// Set screen brightness (0-255)
+void setScreenBrightness(uint8_t brightness);
+
+// Convenience functions
+void dimScreen();
+void restoreScreenBrightness();
+void turnOffScreen();
 
 #endif
