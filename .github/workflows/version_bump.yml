@@ -45,11 +45,11 @@ jobs:
       - name: Get next version
         id: get_next_version
         run: |
-          chmod +x ./scripts/get_next_version.sh
+          chmod +x ./Software/scripts/get_next_version.sh
           echo "Getting next version"
           COMMIT_MSG="$(git log -1 --pretty=%B)"
           echo "COMMIT_MSG=$COMMIT_MSG"
-          ./scripts/get_next_version.sh "$COMMIT_MSG"
+          ./Software/scripts/get_next_version.sh "$COMMIT_MSG"
         shell: bash
 
       - name: Update version
@@ -59,8 +59,8 @@ jobs:
           NEXT_VERSION: ${{ steps.get_next_version.outputs.NEXT_VERSION }}
         id: version_update
         run: |
-          chmod +x ./scripts/version_bump.sh
-          ./scripts/version_bump.sh "$NEXT_VERSION"
+          chmod +x ./Software/scripts/version_bump.sh
+          ./Software/scripts/version_bump.sh "$NEXT_VERSION"
 
       - name: Merge origin/main with -X ours strategy
         if: ${{ !endsWith(github.event.sender.login, '[bot]') }}
