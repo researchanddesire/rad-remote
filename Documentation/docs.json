@@ -13,17 +13,89 @@
       {
         "product": "Wireless Remote",
         "icon": "signal-stream",
-        "groups": [
+        "tabs": [
           {
-            "group": "Getting Started",
-            "pages": [
-              "radr/quick-start"
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "Getting Started",
+                "pages": [
+                  "radr/guides/getting-started/introduction",
+                  "radr/guides/getting-started/quick-start"
+                ]
+              },
+              {
+                "group": "User Guide",
+                "pages": [
+                  "radr/guides/user-guide/introduction",
+                  "radr/guides/user-guide/navigation-and-controls",
+                  "radr/guides/user-guide/ossm-controls",
+                  "radr/guides/user-guide/stroke-patterns",
+                  "radr/guides/user-guide/lovense-controls",
+                  "radr/guides/user-guide/device-scanning",
+                  "radr/guides/user-guide/settings-and-wifi"
+                ]
+              },
+              {
+                "group": "Reference",
+                "pages": [
+                  "radr/guides/reference/device-support"
+                ]
+              },
+              {
+                "group": "Housekeeping",
+                "pages": [
+                  {
+                    "group": "Open Source",
+                    "pages": [
+                      "radr/guides/housekeeping/open-source/introduction",
+                      "radr/guides/housekeeping/open-source/licence"
+                    ]
+                  }
+                ]
+              }
             ]
           },
           {
-            "group": "Reference",
-            "pages": [
-              "radr/device-support"
+            "tab": "Hardware",
+            "groups": [
+              {
+                "group": "Getting Started",
+                "pages": [
+                  "radr/Hardware/getting-started/introduction"
+                ]
+              },
+              {
+                "group": "Specifications",
+                "pages": [
+                  "radr/Hardware/specifications/feedback-and-indicators",
+                  "radr/Hardware/specifications/battery-and-power"
+                ]
+              },
+              {
+                "group": "Printed Parts",
+                "pages": [
+                  "radr/Hardware/printed-parts/introduction"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Software",
+            "groups": [
+              {
+                "group": "Getting Started",
+                "pages": [
+                  "radr/Software/getting-started/introduction",
+                  "radr/Software/getting-started/web-flasher"
+                ]
+              },
+              {
+                "group": "Communication",
+                "pages": [
+                  "radr/Software/communication/ble"
+                ]
+              }
             ]
           }
         ]
