@@ -39,7 +39,7 @@ static const char WIFI_SETTINGS_DESCRIPTION[] PROGMEM =
 static const char WIFI_SETTINGS_QR_VALUE[] PROGMEM =
     "WIFI:S:OSSM Remote Setup;T:nopass;;";
 
-static const char WIFI_CONNECTED_TITLE[] PROGMEM = "WiFi Connected";
+static const char WIFI_CONNECTED_TITLE[] PROGMEM = "Wi-Fi Connected";
 static const char WIFI_CONNECTED_DESCRIPTION[] PROGMEM =
     "Your OSSM Remote is now connected to WiFi.";
 #endif
