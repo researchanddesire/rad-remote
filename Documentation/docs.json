@@ -53,6 +53,12 @@
                     ]
                   }
                 ]
+              },
+              {
+                "group": "FAQs",
+                "pages": [
+                  "radr/faqs"
+                ]
               }
             ]
           },
