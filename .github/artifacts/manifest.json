@@ -6,7 +6,7 @@
             "improv": false,
             "parts": [
                 {
-                    "path": "https://dashboard.researchanddesire.com/espRADR/bootloader.bin",
+                    "path": "https://acjajruwevyyatztbkdf.supabase.co/storage/v1/object/public/radr-firmware/{{ branchName }}/bootloader.bin",
                     "offset": 0
                 },
                 {
@@ -14,7 +14,7 @@
                     "offset": 32768
                 },
                 {
-                    "path": "https://dashboard.researchanddesire.com/espRADR/boot_app0.bin",
+                    "path": "https://acjajruwevyyatztbkdf.supabase.co/storage/v1/object/public/radr-firmware/boot_app0.bin",
                     "offset": 57344
                 },
                 {
