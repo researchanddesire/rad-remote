@@ -79,9 +79,26 @@
                 ]
               },
               {
+                "group": "PCB",
+                "pages": [
+                  "radr/Hardware/PCB/introduction"
+                ]
+              },
+              {
                 "group": "Printed Parts",
                 "pages": [
-                  "radr/Hardware/printed-parts/introduction"
+                  "radr/Hardware/printed-parts/introduction",
+                  {
+                    "group": "Part-by-Part",
+                    "pages": [
+                      "radr/Hardware/printed-parts/part-by-part/remote-top",
+                      "radr/Hardware/printed-parts/part-by-part/remote-bottom",
+                      "radr/Hardware/printed-parts/part-by-part/remote-knob",
+                      "radr/Hardware/printed-parts/part-by-part/buttons",
+                      "radr/Hardware/printed-parts/part-by-part/power-switch",
+                      "radr/Hardware/printed-parts/part-by-part/ossm-remote-clip"
+                    ]
+                  }
                 ]
               }
             ]
