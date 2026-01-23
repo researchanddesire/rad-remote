@@ -1,11 +1,11 @@
 # RADR - OSSM Wireless Remote
 **RADR** (pronounced like "radar") is a user friendly every day sex machine controller for the people. It's designed to simply and easily allow you to control many bluetooth sex toys, without reaching for your cellphone.
 
-It was originally designed to control the [Open Source Sex Machine](https://app.gitbook.com/o/Ax9sUDBJtmMXSfWrJ0FX/s/D35AaMdwNptkfTvLMiH9/), but it can control much more!&#x20;
+It was originally designed to control the [Open Source Sex Machine](https://docs.researchanddesire.com/ossm/guides/getting-started/introduction), but it can control much more!&#x20;
 
 Check out the [user documentation](https://docs.researchanddesire.com/radr/guides/getting-started/introduction)
 
-You can purchase complete remotes on our shop - [RADR Product Page](https://www.researchanddesire.com/products/radr-ossm-wireless-remote)
+You can purchase complete remotes and OSSM kits on our shop - [RADR Product Page](https://www.researchanddesire.com/products/radr-ossm-wireless-remote)
 <p align="center">
   <img src="https://github.com/user-attachments/assets/875674bb-3a8b-48da-9d4c-cbb0e5cf0982" width="500">
 </p>
@@ -17,7 +17,6 @@ You can purchase complete remotes on our shop - [RADR Product Page](https://www.
 ![Discord](https://img.shields.io/discord/559409652425687041)
 Most OSSM development takes place through ideas and CAD contributions made by enthusiastic discord members, join the discussion or show off your build!
 
-#### Check out our docs at [GitBook](https://kinky-makers.gitbook.io/open-source-sex-machine-remote)
 
 ## Features:
 * 4hr battery life
