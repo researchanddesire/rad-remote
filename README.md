@@ -3,6 +3,8 @@
 
 It was originally designed to control the [Open Source Sex Machine](https://app.gitbook.com/o/Ax9sUDBJtmMXSfWrJ0FX/s/D35AaMdwNptkfTvLMiH9/), but it can control much more!&#x20;
 
+Check out the [user documentation](https://docs.researchanddesire.com/radr/guides/getting-started/introduction)
+
 You can purchase complete remotes on our shop - [RADR Product Page](https://www.researchanddesire.com/products/radr-ossm-wireless-remote)
 <p align="center">
   <img src="https://github.com/user-attachments/assets/875674bb-3a8b-48da-9d4c-cbb0e5cf0982" width="500">
